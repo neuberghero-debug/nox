@@ -35,10 +35,13 @@ public class Cosmetics extends Module {
 
     public Cosmetics() { super("Cosmetics", "Trails & capes (client-side)", Category.RENDER); INSTANCE = this; }
 
-    /** CapeLayer mixin hook — real cape needs premium, flag and module on. */
+    /** CapeLayer mixin hook — "Custom" (self-upload) needs the one-time cape
+     *  entitlement or premium; bundled styles need premium. */
     public static boolean capeActive() {
-        return INSTANCE != null && INSTANCE.isEnabled()
-            && INSTANCE.noxCape.on() && LicenseManager.premium();
+        if (INSTANCE == null || !INSTANCE.isEnabled() || !INSTANCE.noxCape.on()) return false;
+        return "Custom".equals(INSTANCE.capeStyle.get())
+            ? LicenseManager.capeUnlocked()
+            : LicenseManager.premium();
     }
 
     private boolean locked() {

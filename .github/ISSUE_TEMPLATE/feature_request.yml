@@ -1,0 +1,23 @@
+name: Feature Request
+description: Suggest a module, HUD element or quality-of-life idea
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should NOX do? Describe the feature and why it helps.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Combat
+        - Movement
+        - Render / HUD
+        - DonutSMP
+        - GUI / UX
+        - Cosmetics
+        - Other

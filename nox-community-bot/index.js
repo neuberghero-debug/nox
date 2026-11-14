@@ -231,10 +231,15 @@ function activeOrderOf(userId) {
 }
 
 function licenseFor(order) {
-  // Ed25519-signed NOX1.* key when the private seed is configured — else a
-  // clearly-marked unsigned key for manual handling.
+  // Client-format token the LicenseManager verifies offline:
+  // {"tier":"premium"|"cape","lid":"<order>","exp":<ms|0>,"sub":"<discordId>"}
+  // cape = one-time, never expires; premium = 10 years (lifetime product).
+  const isCape = /cape/i.test(order.product);
   const payload = Buffer.from(JSON.stringify({
-    u: order.userId, o: order.id, p: order.product, i: Date.now(),
+    tier: isCape ? 'cape' : 'premium',
+    lid: order.id,
+    exp: isCape ? 0 : Date.now() + 10 * 365.25 * 86400e3,
+    sub: order.userId,
   })).toString('base64url');
   const seed = process.env.NOX_LICENSE_KEY;
   if (seed) {

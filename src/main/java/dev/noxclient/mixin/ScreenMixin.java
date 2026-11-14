@@ -48,7 +48,13 @@ public abstract class ScreenMixin {
 
         // subtle footer: accent hairline bottom, invite top-right (no overlap)
         g.fill(0, height - 1, width, height, t.accent());
+        String lic = dev.noxclient.premium.LicenseManager.premium()
+            ? "PREMIUM ✓" : "FREE";
+        int licCol = dev.noxclient.premium.LicenseManager.premium()
+            ? 0xFF7BE0A8 : 0x66FFFFFF;
         String tag = "NOX " + NoxClient.VERSION + "  ·  " + dev.noxclient.discord.DiscordLink.shortLabel();
-        Gui.text(g, font, tag, width - 6 - Gui.width(font, tag), 4, 0x99FFFFFF);
+        int tx = width - 6 - Gui.width(font, tag);
+        Gui.text(g, font, tag, tx, 4, 0x99FFFFFF);
+        Gui.text(g, font, lic, tx - 10 - Gui.width(font, lic), 4, licCol);
     }
 }

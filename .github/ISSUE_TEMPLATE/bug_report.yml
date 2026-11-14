@@ -1,0 +1,27 @@
+name: Bug Report
+description: Something broke in the NOX client
+labels: [bug]
+body:
+  - type: input
+    id: module
+    attributes:
+      label: Module / area
+      placeholder: e.g. ClickGUI, AutoSell, Title screen
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, what actually happened.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Logs / crash report
+      description: Paste relevant lines from latest.log or the crash report.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: NOX version + Minecraft version
+      placeholder: e.g. 0.1.0-alpha on MC 26.3

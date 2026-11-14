@@ -36,20 +36,40 @@ public final class LicenseManager {
     public enum Result { OK, BAD_FORMAT, BAD_SIGNATURE, EXPIRED }
 
     private static volatile boolean premium;
+    private static volatile boolean capeUnlocked;
     private static volatile String licenseId = "";
     private static volatile long expires = 0;
 
     public static boolean premium() { return premium; }
+    /** One-time custom-cape upload entitlement (tier "cape", no expiry). */
+    public static boolean capeUnlocked() { return premium || capeUnlocked; }
     public static String licenseId() { return licenseId; }
     public static long expires() { return expires; }
 
     public static void init() {
         try {
             Path p = keyFile();
-            if (!Files.exists(p)) return;
-            if (check(Files.readString(p).trim()) == Result.OK)
+            if (Files.exists(p) && check(Files.readString(p).trim()) == Result.OK)
                 premium = true;
         } catch (Exception ignored) {}
+        try {
+            Path c = capeFile();
+            if (Files.exists(c) && checkTier(Files.readString(c).trim(), "cape") == Result.OK)
+                capeUnlocked = true;
+        } catch (Exception ignored) {}
+    }
+
+    /** One-time cape unlock — "cape" tier tokens never expire. */
+    public static Result unlockCape(String key) {
+        Result r = checkTier(key, "cape");
+        if (r != Result.OK) return r;
+        try {
+            Path c = capeFile();
+            Files.createDirectories(c.getParent());
+            Files.writeString(c, key.trim());
+        } catch (Exception ignored) {}
+        capeUnlocked = true;
+        return Result.OK;
     }
 
     /** Activate a key. On success persists it and flips the premium gate. */
@@ -83,6 +103,23 @@ public final class LicenseManager {
         } catch (Exception e) { return Result.BAD_FORMAT; }
     }
 
+    /** Signature + tier check without touching premium state. exp<=0 = never. */
+    private static Result checkTier(String key, String tier) {
+        try {
+            String[] parts = key.trim().split("\\.");
+            if (parts.length != 3 || !parts[0].equals("NOX1")) return Result.BAD_FORMAT;
+            byte[] payload = Base64.getUrlDecoder().decode(parts[1]);
+            byte[] sig = Base64.getUrlDecoder().decode(parts[2]);
+            if (!verify(payload, sig)) return Result.BAD_SIGNATURE;
+            JsonObject o = JsonParser.parseString(new String(payload, StandardCharsets.UTF_8))
+                .getAsJsonObject();
+            if (!tier.equals(o.get("tier").getAsString())) return Result.BAD_FORMAT;
+            long exp = o.has("exp") ? o.get("exp").getAsLong() : 0;
+            if (exp > 0 && System.currentTimeMillis() > exp) return Result.EXPIRED;
+            return Result.OK;
+        } catch (Exception e) { return Result.BAD_FORMAT; }
+    }
+
     private static boolean verify(byte[] payload, byte[] sig) throws Exception {
         PublicKey pk = KeyFactory.getInstance("Ed25519")
             .generatePublic(new X509EncodedKeySpec(PUB_DER));
@@ -94,5 +131,9 @@ public final class LicenseManager {
 
     private static Path keyFile() {
         return Minecraft.getInstance().gameDirectory.toPath().resolve("nox/license.key");
+    }
+
+    private static Path capeFile() {
+        return Minecraft.getInstance().gameDirectory.toPath().resolve("nox/cape.key");
     }
 }
