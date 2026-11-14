@@ -22,9 +22,10 @@ OUT = os.environ.get("SKY_OUT", os.path.join(os.path.dirname(__file__), "..",
 QUALITY = 87
 
 CX, CY = W * 0.5, H * 0.545          # hole slightly below center like ref
-R_SH = 64.0                          # shadow radius (px)
-R_PH = 68.5                          # photon ring radius
-DISK_HALF = 430.0                    # half-length of the thin disk line
+R_SH = 78.0                          # shadow radius (px)
+R_PH = 82.0                          # photon ring radius
+TILT = 0.16                          # disk inclination squash (edge-on ≈0.15)
+R_DISK0, R_DISK1 = 92.0, 300.0       # accretion disk inner/outer radius (disk plane)
 
 rng = np.random.default_rng(7)
 
@@ -115,9 +116,30 @@ BASE = base
 # Vignette
 VIG = np.clip(1.0 - ((DX / (W * 0.62)) ** 2 + ((YY - H * 0.5) / (H * 0.62)) ** 2) * 0.85, 0.25, 1.0)
 
-# Disk profile: radial falloff past the hole, tapered ends
-disk_radial = np.clip(1.0 - (np.abs(DX) - R_PH) / DISK_HALF, 0, 1) ** 1.15
-disk_radial *= (DIST > R_PH * 0.8)
+# Disk-plane coords: deproject screen pixels onto the inclined disk plane.
+# theta = angle in the disk plane (drives swirl + doppler), dd = radius there.
+DD = np.sqrt(DX * DX + (DY / TILT) ** 2)
+THETA = np.arctan2(DY / TILT, DX)
+# radial disk band: hot inner edge, noisy falloff to R_DISK1
+disk_band = np.clip((DD - R_DISK0) / (R_DISK1 - R_DISK0), 0, 1)
+disk_profile = (1.0 - disk_band) ** 0.75 * (DD > R_PH * 0.92)
+# vertical disk thickness: gaussian around the plane + soft skirt
+disk_thick = np.exp(-((DY - 0.0) / (TILT * DD * 0.9 + 11.0)) ** 2) \
+           + np.exp(-(DY / 26.0) ** 2) * 0.30
+
+# Far-side lensing (the Gargantua halo): screen pixels above the hole are
+# remapped onto the disk plane as if the far side were bent over the top —
+# low |DY| above the horizon maps to the disk's hot inner edge, rising |DY|
+# walks outward → a bright shell hugging the shadow's top.
+DD_halo = np.sqrt(DX * DX + ((np.abs(DY) * 1.6 - R_SH * 0.55) / TILT) ** 2)
+halo_band = np.clip((DD_halo - R_DISK0 * 0.5) / (R_DISK1 * 0.85), 0, 1)
+halo_sh = np.clip(1.0 - halo_band, 0, 1) ** 0.9
+# only above the hole, hugging the shadow, fading toward the sides
+far_disk = halo_sh * (DY < -R_SH * 0.30) * (DIST > R_SH * 0.78) \
+         * np.clip(1.0 - (DIST - R_SH) / (R_SH * 2.6), 0, 1) \
+         * np.clip((np.abs(DY) / (np.abs(DX) + 26.0)) * 2.4, 0, 1)
+# near-side disk: the band crossing in FRONT, below the hole centre
+near_disk = disk_profile * disk_thick * (DY > -10)
 
 print("rendering", FRAMES, "frames ...")
 os.makedirs(OUT, exist_ok=True)
@@ -170,40 +192,25 @@ for f in range(FRAMES):
     neb_rgb = np.asarray(neb, np.float32)
     img = img * (1 - neb_rgb[..., 3:4] / 255.0 * 0.75) + neb_rgb[..., :3] * (neb_rgb[..., 3:4] / 255.0)
 
-    # --- thin disk line + doppler beaming + flowing filaments ---
-    # vertical falloff: razor core + glow skirt
-    core = np.exp(-(DY / 1.7) ** 2)
-    skirt = np.exp(-(DY / 9.0) ** 2) * 0.32
-    # filaments flow along x (integer wraps -> seamless)
-    flow1 = fbm(W, 1, 90, 3, 101)[0][None, :]
-    flow2 = fbm(W, 1, 34, 3, 202)[0][None, :]
-    shift1 = int(ph / (2 * math.pi) * 140) % W
-    shift2 = int(ph / (2 * math.pi) * 60) % W
-    flow1 = np.roll(flow1, shift1, axis=1)
-    flow2 = np.roll(flow2, -shift2, axis=1)
-    fil = 0.72 + 0.28 * flow1 + 0.18 * flow2
-    # doppler: left side approaching (hot/blue-white), right receding
-    beam = 1.0 / (1.0 + np.exp(-DX / 110.0))             # 0 left -> 1 right
-    dop_amp = 1.45 - 0.95 * beam                          # left brighter
-    disk = (core + skirt) * disk_radial * fil * dop_amp
-    # color: white-hot core left, amber right
-    r = disk * (255 - 40 * beam)
-    gch = disk * (215 - 60 * beam)
-    bch = disk * (165 - 75 * beam)
+    # --- accretion disk: tilted plane, swirl filaments, doppler beaming ---
+    # rotating filaments in disk-plane angle -> real orbital motion
+    swirl = 0.62 + 0.38 * np.sin(THETA * 5.0 - ph * 2.0) \
+                + 0.22 * np.sin(THETA * 9.0 + ph * 3.0)
+    swirl = np.clip(swirl, 0.25, 1.3)
+    # doppler beaming: approaching side (-x) much brighter & hotter
+    beam = 1.0 / (1.0 + np.exp(-DX / (DIST * 0.35 + 40.0)))   # 0 left -> 1 right
+    dop = 1.7 - 1.15 * beam
+    disk = near_disk * swirl * dop * 1.9
+    # far-side halo over the top (lensed far disk), also doppler-tinted
+    far = far_disk * (0.8 + 0.4 * np.sin(THETA * 5.0 - ph * 2.0)) * dop * 2.3
+    # heat map: inner edge white-blue hot, outer amber, far side cooler
+    heat = np.clip(1.0 - disk_band, 0.25, 1.0)
+    r  = disk * (255 - 30 * beam) + far * 235
+    gc = disk * (200 - 55 * beam) * heat + far * 185
+    bc = disk * (150 - 70 * beam) * heat + far * 125
     img[..., 0] += r
-    img[..., 1] += gch
-    img[..., 2] += bch
-    # faint far-disk arcs above/below (lensed light over the pole)
-    for sgn in (-1, 1):
-        arc_r = R_PH + 14 + 3 * math.sin(ph + sgn)
-        dy_arc = np.sqrt(np.clip(arc_r ** 2 - DX ** 2, 0, None))
-        arc = np.exp(-((np.abs(DY) - dy_arc * 1.0) / 3.2) ** 2) * \
-              np.clip(1 - np.abs(DX) / (arc_r + 55), 0, 1) * \
-              (np.abs(DX) < arc_r + 55)
-        arc *= 0.5 * (DIST > R_SH)
-        img[..., 0] += arc * 235
-        img[..., 1] += arc * 190
-        img[..., 2] += arc * 130
+    img[..., 1] += gc
+    img[..., 2] += bc
 
     # --- photon ring + orbiting hotspot ---
     ring = np.exp(-((DIST - R_PH) / 1.55) ** 2)

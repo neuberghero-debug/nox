@@ -215,8 +215,15 @@ public class NoxWindowScreen extends Screen {
         Gui.shadow(g, winX, winY, winW, winH, UICustom.radius);
         Gui.round(g, winX, winY, winW, winH, UICustom.radius, UICustom.winFill);
         int accentRgb = t.accent() & 0xFFFFFF;
+        int accent2 = (Math.min(255, ((accentRgb >> 16) & 0xFF) + 70) << 16)
+            | (Math.min(255, ((accentRgb >> 8) & 0xFF) + 70) << 8)
+            | Math.min(255, (accentRgb & 0xFF) + 70);
         NvgOverlay.glow(winX, winY, winW, winH, UICustom.radius, accentRgb, 0.10f, 18);
         NvgOverlay.sheen(winX + 1, winY + 1, winW - 2, 22, UICustom.radius - 1, 0xFFFFFF, 0.05f);
+        NvgOverlay.gradientStroke(winX, winY, winW, winH, UICustom.radius, accentRgb, accent2, 0.30f, 0f);
+        NvgOverlay.comet(winX + UICustom.radius, winY, winW - UICustom.radius * 2, 0xFFFFFF, 0.16f, 6f);
+        NvgOverlay.innerTop(winX + 2, winY + 1, winW - 4, UICustom.radius - 2, 0xFFFFFF, 0.10f);
+        NvgOverlay.glass(winX + 1, winY + 1, winW - 2, winH - 2, UICustom.radius - 1, 1f);
         // window style: Solid = flat fill, Sky = gargantua + dark tint, Glass = gargantua barely tinted
         boolean solid = "Solid".equals(UICustom.winStyle);
         g.enableScissor(winX + 1, winY + 1, winX + winW - 1, winY + winH - 1);
@@ -398,6 +405,8 @@ public class NoxWindowScreen extends Screen {
                 headHover ? UICustom.cardAccent : UICustom.border, 0xF2141821);
             NvgOverlay.glow(px, py, panelW(), ph, 8, t.accent() & 0xFFFFFF,
                 headHover ? 0.16f : 0.07f, 12);
+            NvgOverlay.glass(px + 1, py + 1, panelW() - 2, ph - 2, 8, 0.8f);
+            NvgOverlay.innerTop(px + 2, py + 1, panelW() - 4, 7, 0xFFFFFF, 0.08f);
             // header: category icon + label + enabled count; drag grip
             long on = mods.stream().filter(Module::isEnabled).count();
             String cnt = on + "/" + mods.size();
@@ -465,6 +474,8 @@ public class NoxWindowScreen extends Screen {
         Gui.shadow(g, x, y, total, 20, 10);
         Gui.roundBorder(g, x, y, total, 20, 10, UICustom.border, 0xF6141821);
         NvgOverlay.glow(x, y, total, 20, 10, t.accent() & 0xFFFFFF, 0.12f, 12);
+        NvgOverlay.gradientStroke(x, y, total, 20, 10, t.accent() & 0xFFFFFF, 0xFFFFFF, 0.22f, 1.7f);
+        NvgOverlay.comet(x + 10, y, total - 20, t.accent() & 0xFFFFFF, 0.35f, 4f);
         int ix = x + 6;
         for (int i = 0; i < PILL_ICON.length; i++) {
             boolean hov = ModuleCard.inside(mx, my, ix, y + 3, iw[i], 14);
