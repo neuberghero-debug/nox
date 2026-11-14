@@ -61,6 +61,7 @@ public abstract class CapeMixin {
             default -> NOX_CAPE;
         };
         state.skin = new PlayerSkin(skin.body(), cape, cape, skin.model(), skin.secure());
-        state.showCape = true;
+        // cloth cape (NoxCapeLayer) draws instead — hide the rigid vanilla one
+        state.showCape = !Cosmetics.physCapeActive();
     }
 }

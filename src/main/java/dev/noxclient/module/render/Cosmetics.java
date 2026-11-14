@@ -24,6 +24,23 @@ public class Cosmetics extends Module {
     public final Setting.Bool noxCape = add(new Setting.Bool("NOX cape", true));
     public final Setting.Mode capeStyle = add(new Setting.Mode("Cape style", "NOX",
         "NOX", "Inferno", "Void", "Animated", "Custom"));
+    public final Setting.Bool capePhysics = add(new Setting.Bool("Cape physics", true));
+    public final Setting.Num capeWind = add(new Setting.Num("Cape wind", 0.6, 0.0, 2.0));
+    public final Setting.Num capeFlex = add(new Setting.Num("Cape flex", 1.0, 0.3, 2.0));
+    public final Setting.Mode pet = add(new Setting.Mode("Pet", "Off",
+        "Off", "Dragon", "Parrot", "Blob", "Wisp"));
+    public final Setting.Mode petSide = add(new Setting.Mode("Pet side", "Right",
+        "Right", "Left"));
+    public final Setting.Num petScale = add(new Setting.Num("Pet size", 0.9, 0.4, 2.0));
+    public final Setting.Mode hat = add(new Setting.Mode("Hat", "Off",
+        "Off", "Crown", "Horns", "Halo", "Beanie"));
+    public final Setting.Num hatScale = add(new Setting.Num("Hat size", 1.0, 0.5, 2.0));
+    public final Setting.Num hatOffY = add(new Setting.Num("Hat height", -8.5, -14, 0));
+    public final Setting.Mode meshAura = add(new Setting.Mode("3D aura", "Off",
+        "Off", "OrbitRing", "Sigil", "Shards"));
+    public final Setting.Num auraScale = add(new Setting.Num("Aura size", 1.0, 0.4, 2.5));
+    public final Setting.Num auraSpin = add(new Setting.Num("Aura spin", 0.8, 0.0, 4.0));
+    public final Setting.Num auraAlpha = add(new Setting.Num("Aura alpha", 0.55, 0.1, 1.0));
 
     public static volatile Cosmetics INSTANCE;
     private static final java.util.Set<String> PREMIUM =
@@ -42,6 +59,31 @@ public class Cosmetics extends Module {
         return "Custom".equals(INSTANCE.capeStyle.get())
             ? LicenseManager.capeUnlocked()
             : LicenseManager.premium();
+    }
+
+    /** Physics cloth cape: replaces the vanilla rigid cape for the local player. */
+    public static boolean physCapeActive() {
+        return capeActive() && INSTANCE.capePhysics.on();
+    }
+
+    /** Shared cape texture resolution — vanilla-layer swap and the cloth
+     *  renderer both pick the same Identifier. Null = fall back to NOX. */
+    public static net.minecraft.resources.Identifier capeTexId() {
+        if (INSTANCE == null) return null;
+        return switch (INSTANCE.capeStyle.get()) {
+            case "Inferno" -> net.minecraft.resources.Identifier
+                .fromNamespaceAndPath("noxclient", "textures/cape/nox_cape_inferno.png");
+            case "Void" -> net.minecraft.resources.Identifier
+                .fromNamespaceAndPath("noxclient", "textures/cape/nox_cape_void.png");
+            case "Animated" -> dev.noxclient.gui.AnimatedCape.id();
+            case "Custom" -> {
+                if (!dev.noxclient.gui.CustomCape.loaded()
+                    && dev.noxclient.gui.CustomCape.reload() != null) yield null;
+                yield dev.noxclient.gui.CustomCape.id();
+            }
+            default -> net.minecraft.resources.Identifier
+                .fromNamespaceAndPath("noxclient", "textures/cape/nox_cape.png");
+        };
     }
 
     private boolean locked() {
