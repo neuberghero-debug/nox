@@ -51,8 +51,8 @@ public abstract class LoadingOverlayMixin {
     @Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true)
     private void nox$splash(GuiGraphicsExtractor g, int mx, int my, float dt, CallbackInfo ci) {
         ci.cancel();
-        int w = minecraft.getWindow().getGuiScaledWidth();
-        int h = minecraft.getWindow().getGuiScaledHeight();
+        int w = Math.max(1, minecraft.getWindow().getGuiScaledWidth());
+        int h = Math.max(1, minecraft.getWindow().getGuiScaledHeight());
         int cx = w / 2, cy = h / 2;
 
         // vanilla completion logic — lives in extractRenderState, so the

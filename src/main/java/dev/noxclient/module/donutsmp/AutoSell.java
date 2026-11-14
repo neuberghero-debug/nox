@@ -57,7 +57,6 @@ public class AutoSell extends Module {
             if (st.isEmpty()) continue;
             String id = id(st);
             if (!filter.contains(id) && !filter.contains(id.substring(id.indexOf(':') + 1))) continue;
-            last = now;
             if (i >= 9) {
                 // container-0 clicks get reverted without an open screen and the
                 // local prediction is unreliable — never sell a stack that isn't
@@ -69,6 +68,7 @@ public class AutoSell extends Module {
             }
             selectSlot(i);
             send(handCmd.get());
+            last = now; // reset the interval only on an actual sale
             return; // one stack per interval keeps the pacing human
         }
     }

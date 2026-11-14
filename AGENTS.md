@@ -57,7 +57,7 @@
   chat TEXT, state.
 - `move`/`click` set `DebugConsole.hoverX/Y` — `extractRenderState` mx/my args
   come from the real cursor, so screens read the override for hover state.
-- `ScreenTrackMixin` tracks Screen.init + removed for arbitrary-screen input.
+- Arbitrary-screen input: `DebugConsole.hoverAt` sets `AbstractWidget.isHovered` via reflection + `setCursor` moves `MouseHandler.xpos/ypos` (release handlers gate on hover).
 - `tools/relaunch.sh [join]` — kill dev MC, compile, relaunch, wait for title.
 - Test server console: `/var/home/julius/NOX/patch-devin/test-server/ctl.sh
   "cmd"` (tmux send-keys to `dsmp` session). Player name changes each dev

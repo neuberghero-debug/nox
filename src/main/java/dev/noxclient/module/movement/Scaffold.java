@@ -34,9 +34,14 @@ public class Scaffold extends Module {
                     && !inv.getItem(i).is(net.minecraft.world.item.Items.GRAVEL)) { slot = i; break; }
             if (slot < 0) return;
         }
-        if (keepY.on() && mc.player.getY() > lockY + 0.4)
-            mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, -0.28,
-                mc.player.getDeltaMovement().z);
+        if (keepY.on()) {
+            double dly = lockY - mc.player.getY();
+            if (dly < -0.4)
+                mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, -0.28,
+                    mc.player.getDeltaMovement().z);
+            else if (dly > 0.6 && mc.player.onGround())
+                mc.player.jumpFromGround();   // pillar back up to the locked height
+        }
         int dy = tower.on() && mc.options.keyJump.isDown() ? -1 : 0;
         if (down.on() && mc.player.isShiftKeyDown()) dy = -2;
         for (int depth = 1 + Math.max(0, -dy); depth >= 1; depth--) {
@@ -73,9 +78,11 @@ public class Scaffold extends Module {
         var inv = mc.player.getInventory();
         for (int i = 0; i < 9; i++)
             if (!inv.getItem(i).isEmpty() && inv.getItem(i).getItem()
-                    instanceof net.minecraft.world.item.BlockItem)
+                    instanceof net.minecraft.world.item.BlockItem
+                    && !inv.getItem(i).is(net.minecraft.world.item.Items.SAND)
+                    && !inv.getItem(i).is(net.minecraft.world.item.Items.GRAVEL))
                 return "holding blocks — bridging";
-        return "idle — no blocks in hotbar";
+        return "idle — no usable blocks in hotbar";
     }
 
 }

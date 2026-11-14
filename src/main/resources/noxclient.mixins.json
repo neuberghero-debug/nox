@@ -17,7 +17,9 @@
     "ChatMixin",
     "CameraFovMixin",
     "GameModeAccessor",
-    "GuiRendererMixin"
+    "GuiRendererMixin",
+    "AvatarRendererMixin",
+    "LivingEntityRendererAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

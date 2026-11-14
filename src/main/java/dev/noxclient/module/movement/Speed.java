@@ -28,4 +28,10 @@ public class Speed extends Module {
         };
         mc.player.setDeltaMovement(v.x * mult, v.y, v.z * mult);
     }
+
+    @Override public String status() {
+        double eff = mode.get().equals("Legit") ? Math.min(multiplier.get(), 1.12) : multiplier.get();
+        return String.format(java.util.Locale.ROOT, "×%.2f", eff)
+            + (mode.get().equals("Legit") && multiplier.get() > 1.12 ? " (legit cap)" : "");
+    }
 }

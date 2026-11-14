@@ -78,7 +78,8 @@ public class NoxClient implements ClientModInitializer {
         boolean down = InputConstants.isKeyDown(InputConstants.KEY_RSHIFT);
         if (down && !guiKeyWasDown) {
             if (NoxWindowScreen.open) mc.setScreenAndShow(null);
-            else mc.setScreenAndShow(new NoxWindowScreen());
+            else if (mc.gui.screen() == null) mc.setScreenAndShow(new NoxWindowScreen());
+            // screen != null (pause/inventory/chat): don't rip the user out
         }
         guiKeyWasDown = down;
         dev.noxclient.util.DebugConsole.tick(mc);

@@ -131,7 +131,9 @@ public class ConfigManager {
     @SuppressWarnings("unchecked")
     private void applySetting(Setting<?> st, JsonObject s) {
         if (!s.has(st.name)) return;
-        String v = s.get(st.name).getAsString();
+        var el = s.get(st.name);
+        if (!el.isJsonPrimitive()) return;   // getAsString() on objects/arrays throws mid-preset
+        String v = el.getAsString();
         try {
             if (st instanceof Setting.Bool) ((Setting<Boolean>) st).set(Boolean.parseBoolean(v));
             else if (st instanceof Setting.Num n) ((Setting<Double>) st).set(Math.min(n.max, Math.max(n.min, Double.parseDouble(v))));

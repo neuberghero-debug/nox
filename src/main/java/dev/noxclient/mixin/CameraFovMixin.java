@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class CameraFovMixin {
     @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
     private void nox$zoom(CallbackInfoReturnable<Float> cir) {
+        if (NoxClient.INSTANCE == null) return;   // bootstrap edge: camera before onInitializeClient
         var m = NoxClient.INSTANCE.modules.get("Zoom");
         if (m instanceof Zoom z && z.isEnabled())
             cir.setReturnValue(cir.getReturnValue() / Math.max(1, z.factor.intVal()));

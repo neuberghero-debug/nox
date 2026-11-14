@@ -71,7 +71,9 @@ public class NoxRPC {
                 // first hit is often a dangling symlink, the real one later
                 java.util.List<Path> socks = findIpcSockets();
                 if (socks.isEmpty()) log("no discord-ipc socket found");
+                int tried = 0;
                 for (Path sock : socks) {
+                    tried++;
                     try {
                         chan = java.nio.channels.SocketChannel.open(
                             java.net.UnixDomainSocketAddress.of(sock));
@@ -81,10 +83,10 @@ public class NoxRPC {
                         log("connected via " + sock);
                         return true;
                     } catch (Throwable t) {
-                        log(sock + " failed: " + t.getMessage());
                         closeQuietly();   // dead socket → next candidate
                     }
                 }
+                if (tried > 0) log("all " + tried + " discord-ipc sockets dead — retrying later");
             }
             // nothing reachable — WS-RPC parks vesktop's single-client slot
             // while staying unserviced, so only use it when explicitly wanted
@@ -213,12 +215,14 @@ public class NoxRPC {
         String state = "on DonutSMP";
         String server = currentServer();
         if (server != null) state = "playing " + server;
+        // no "buttons" — arRPC (Vesktop/WebCord) rejects SET_ACTIVITY with it
+        // ("Origin is not allowed"). type/name/instance keep strict parsers happy.
         String json = "{\"cmd\":\"SET_ACTIVITY\",\"args\":{\"pid\":"
-            + ProcessHandle.current().pid() + ",\"activity\":{\"details\":\"NOX "
+            + ProcessHandle.current().pid() + ",\"activity\":{\"type\":0,"
+            + "\"name\":\"NOX Client\",\"instance\":true,\"details\":\"NOX "
             + NoxClient.VERSION + "\",\"state\":\"" + state
-            + "\",\"assets\":{\"large_image\":\"nox\",\"large_text\":\"NOX Client\"},"
-            + "\"buttons\":[{\"label\":\"Join Discord\",\"url\":\"" + DiscordLink.get() + "\"}]}},\"nonce\":\""
-            + UUID.randomUUID() + "\"}";
+            + "\",\"assets\":{\"large_image\":\"nox\",\"large_text\":\"NOX Client\"}"
+            + "}},\"nonce\":\"" + UUID.randomUUID() + "\"}";
         if (ws != null) { ws.sendText(json, true); return; }
         frame(1, json);
         String ack = readFrame(5000);    // SET_ACTIVITY echo / error — keeps stream aligned
