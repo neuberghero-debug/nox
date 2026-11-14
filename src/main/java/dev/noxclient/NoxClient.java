@@ -82,6 +82,7 @@ public class NoxClient implements ClientModInitializer {
         }
         guiKeyWasDown = down;
         dev.noxclient.util.DebugConsole.tick(mc);
+        NoxOverlay.noteTick();   // feeds the TPS HUD widget (was never called → stuck at 20.0)
         modules.tick(mc);
         if (dev.noxclient.util.TamperGuard.compromised()) {
             dev.noxclient.util.TamperGuard.maybeShowScreen(mc);

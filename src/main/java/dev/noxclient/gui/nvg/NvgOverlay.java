@@ -97,7 +97,8 @@ public final class NvgOverlay {
 
     /** Called by GuiRendererMixin after GuiRenderer.render() submits the GUI batch. */
     public static void render() {
-        if (ops.isEmpty() || !ensure()) return;
+        if (ops.isEmpty()) return;
+        if (!ensure()) { ops.clear(); return; }   // NVG dead → don't leak queued ops forever
         Minecraft mc = Minecraft.getInstance();
         float scale = (float) mc.getWindow().getGuiScale();
         long now = System.nanoTime();

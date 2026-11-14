@@ -63,8 +63,13 @@ public final class ClothSim {
         float cs = (float) Math.cos(radians), sn = (float) Math.sin(radians);
         for (int i = cols; i < x.length; i++) {   // skip pinned top row
             float dx = x[i] - ax, dz = z[i] - az;
-            x[i] = ax + dx * cs - dz * sn;
-            z[i] = az + dx * sn + dz * cs;
+            x[i]  = ax + dx * cs - dz * sn;
+            z[i]  = az + dx * sn + dz * cs;
+            // rotate the previous position too — otherwise the rotation
+            // shows up as phantom velocity and the cloth whips out
+            dx = ox[i] - ax; dz = oz[i] - az;
+            ox[i] = ax + dx * cs - dz * sn;
+            oz[i] = az + dx * sn + dz * cs;
         }
     }
 

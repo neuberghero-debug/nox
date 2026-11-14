@@ -26,12 +26,13 @@ public class Blink extends Module {
     public static boolean holding() { return holding && !flushing; }
 
     @Override
-    protected void onEnable() { holding = true; }
+    protected void onEnable() { QUEUE.clear(); holding = true; }   // drop packets buffered for a dead connection
     @Override
     protected void onDisable() { holding = false; flush(); }
 
     @Override
     public void onTick() {
+        if (mc.getConnection() == null) QUEUE.clear();   // disconnect/rejoin: never flush stale packets to a new server
         if (mode.get().equals("Pulse")) {
             if (++tick >= pulseTicks.intVal()) { tick = 0; flush(); }
         } else if (++tick >= 200) {

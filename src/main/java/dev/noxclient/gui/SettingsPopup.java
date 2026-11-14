@@ -63,6 +63,11 @@ public class SettingsPopup {
         boolean sh = ModuleCard.inside(mx, my, px + W - 44, py + 6, 18, 18);
         if (sh) Gui.circle(g, px + W - 35, py + 15, 9, 0x30FFFFFF);
         Gui.text(g, font, "↗", px + W - 39, py + 10, sh ? t.accent() : 0xFF888899);
+        if (module instanceof dev.noxclient.module.render.Cosmetics) {
+            boolean eh = ModuleCard.inside(mx, my, px + W - 64, py + 6, 18, 18);
+            if (eh) Gui.circle(g, px + W - 55, py + 15, 9, 0x30FFFFFF);
+            Gui.text(g, font, "✎", px + W - 59, py + 10, eh ? t.accent() : 0xFF888899);
+        }
 
         int sy = py + TITLE + 6;
         if (module.settings.isEmpty())
@@ -130,7 +135,16 @@ public class SettingsPopup {
     /** @return true when the popup consumed the click (or should close via 2) */
     int mouseClicked(double mx, double my, int btn) {
         if (!contains(mx, my)) return 0;
+        // a click anywhere else commits/cancels pending text edit or keybind capture
+        if (editingStr != null) { editingStr.set(strBuf); editingStr = null; }
+        if (capturing != null) { capturing.set(-1); capturing = null; }
         if (ModuleCard.inside(mx, my, px + W - 24, py + 6, 18, 18)) return 2;
+        if (module instanceof dev.noxclient.module.render.Cosmetics
+            && ModuleCard.inside(mx, my, px + W - 64, py + 6, 18, 18)) {
+            Minecraft mc = Minecraft.getInstance();
+            mc.setScreenAndShow(new CapeEditorScreen(mc.gui.screen()));
+            return 1;
+        }
         if (ModuleCard.inside(mx, my, px + W - 44, py + 6, 18, 18)) {
             dev.noxclient.NoxClient.INSTANCE.config.shareModule(module);
             Minecraft.getInstance().getSoundManager().play(
@@ -182,7 +196,11 @@ public class SettingsPopup {
             draggingSlider.set(draggingSlider.min + pct(mx) * (draggingSlider.max - draggingSlider.min));
             return;
         }
-        if (dragging) { px = (int) mx - dragOX; py = Math.max(0, (int) my - dragOY); }
+        if (dragging) {
+            var win = Minecraft.getInstance().getWindow();
+            px = Math.max(-W + 40, Math.min((int) mx - dragOX, win.getGuiScaledWidth() - 40));
+            py = Math.max(0, Math.min((int) my - dragOY, win.getGuiScaledHeight() - 20));
+        }
     }
 
     void mouseReleased() { dragging = false; draggingSlider = null; }

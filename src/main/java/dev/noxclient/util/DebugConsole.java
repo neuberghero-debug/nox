@@ -57,6 +57,7 @@ public final class DebugConsole {
             String customAck = run(mc, p, line);
             Files.writeString(ack, customAck != null ? customAck : "ok " + line);
         } catch (Throwable t) {
+            t.printStackTrace();
             try { Files.writeString(ack, "err " + t); } catch (Exception ignored) {}
         }
     }
@@ -132,6 +133,7 @@ public final class DebugConsole {
                 if (s != null) {
                     int sdl = toSdl(code);
                     boolean r = s.keyPressed(new KeyEvent(sdl, 0, 0));
+                    s.keyReleased(new KeyEvent(sdl, 0, 0));   // tap = press+release
                     return "key " + code + " (sdl " + sdl + ") -> " + r
                         + " screen=" + s.getClass().getSimpleName();
                 }
@@ -324,27 +326,35 @@ public final class DebugConsole {
             case "set" -> {   // set <module> <setting> <value...>
                 var m = NoxClient.INSTANCE.modules.get(p[1]);
                 if (m == null) return "no module " + p[1];
-                String name = p[2].replace('_', ' ');
-                String val = raw.substring(raw.indexOf(p[2]) + p[2].length()).trim();
+                // strip "set <module>" prefix — setting names may contain spaces
+                String rest = raw.substring(4 + p[1].length()).trim();
+                dev.noxclient.setting.Setting<?> hit = null;
+                String val = null;
                 for (var st : m.settings) {
-                    if (!st.name.equalsIgnoreCase(name)) continue;
-                    try {
-                        if (st instanceof dev.noxclient.setting.Setting.Bool b)
-                            b.set(val.equalsIgnoreCase("true") || val.equals("1") || val.equalsIgnoreCase("on"));
-                        else if (st instanceof dev.noxclient.setting.Setting.Num n)
-                            n.set(Math.min(n.max, Math.max(n.min, Double.parseDouble(val))));
-                        else if (st instanceof dev.noxclient.setting.Setting.Mode mo)
-                            mo.set(val);
-                        else if (st instanceof dev.noxclient.setting.Setting.Col c)
-                            c.set((int) Long.parseLong(val.replace("#", ""), 16));
-                        else if (st instanceof dev.noxclient.setting.Setting.Bind b)
-                            b.set(Integer.parseInt(val));
-                        else
-                            ((dev.noxclient.setting.Setting<String>) st).set(val);
-                        return "set " + p[1] + "." + st.name + " = " + st.get();
-                    } catch (Exception ex) { return "err value '" + val + "': " + ex; }
+                    for (String cand : new String[]{st.name, st.name.replace(' ', '_')}) {
+                        if (rest.regionMatches(true, 0, cand, 0, cand.length())
+                            && (rest.length() == cand.length() || rest.charAt(cand.length()) == ' ')) {
+                            hit = st; val = rest.substring(cand.length()).trim(); break;
+                        }
+                    }
+                    if (hit != null) break;
                 }
-                return "no setting '" + name + "' on " + p[1];
+                if (hit == null) return "no setting on " + p[1] + " matching '" + rest + "'";
+                try {
+                    if (hit instanceof dev.noxclient.setting.Setting.Bool b)
+                        b.set(val.equalsIgnoreCase("true") || val.equals("1") || val.equalsIgnoreCase("on"));
+                    else if (hit instanceof dev.noxclient.setting.Setting.Num n)
+                        n.set(Math.min(n.max, Math.max(n.min, Double.parseDouble(val))));
+                    else if (hit instanceof dev.noxclient.setting.Setting.Mode mo)
+                        mo.set(val);
+                    else if (hit instanceof dev.noxclient.setting.Setting.Col c)
+                        c.set((int) Long.parseLong(val.replace("#", ""), 16));
+                    else if (hit instanceof dev.noxclient.setting.Setting.Bind b)
+                        b.set(Integer.parseInt(val));
+                    else
+                        ((dev.noxclient.setting.Setting<String>) hit).set(val);
+                    return "set " + p[1] + "." + hit.name + " = " + hit.get();
+                } catch (Exception ex) { return "err value '" + val + "': " + ex; }
             }
             case "get" -> {   // get <module> -> dump module settings
                 if (p.length < 2) return "usage: get <module>";
@@ -384,10 +394,12 @@ public final class DebugConsole {
             var f = net.minecraft.client.gui.components.AbstractWidget.class.getDeclaredField("isHovered");
             f.setAccessible(true);
             for (var c : s.children())
-                if (c instanceof net.minecraft.client.gui.components.AbstractWidget w
-                    && x >= w.getX() && x < w.getX() + w.getWidth()
-                    && y >= w.getY() && y < w.getY() + w.getHeight())
-                    f.setBoolean(w, true);
+                if (c instanceof net.minecraft.client.gui.components.AbstractWidget w) {
+                    f.setBoolean(w, false);   // clear stale hover — release handlers gate on this
+                    if (x >= w.getX() && x < w.getX() + w.getWidth()
+                        && y >= w.getY() && y < w.getY() + w.getHeight())
+                        f.setBoolean(w, true);
+                }
         } catch (Throwable ignored) {}
     }
 
@@ -416,8 +428,8 @@ public final class DebugConsole {
             case 32 -> 44;    case 340 -> 225; case 342 -> 227; case 341 -> 224;
             case 343 -> 226;  case 344 -> 229; case 345 -> 228; case 346 -> 230;
             case 260 -> 80;   case 261 -> 79;  case 262 -> 81;  case 263 -> 82;
-            case 264 -> 75;   case 265 -> 78;  case 266 -> 74;  case 267 -> 77;
-            case 268 -> 73;   case 269 -> 76;  default -> glfw;
+            case 264 -> 73;   case 265 -> 76;  case 266 -> 74;  case 267 -> 77;
+            case 268 -> 75;   case 269 -> 78;  default -> glfw;
         };
     }
 }

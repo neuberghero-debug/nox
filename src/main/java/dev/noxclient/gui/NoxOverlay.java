@@ -450,7 +450,9 @@ public class NoxOverlay implements HudElement {
         for (var en : marks.entrySet()) {
             double[] p = project(Vec3.atCenterOf(en.getKey()), cp, mat, w, h);
             if (p == null || p[2] > 200) continue;
-            int s = (int) Math.max(3, 900 / p[2]);
+            // p[2] is view-space depth in blocks — uncapped 900/depth produced
+            // screen-filling squares for close markers
+            int s = (int) Math.max(3, Math.min(14, 160 / p[2]));
             g.fill((int) p[0] - s, (int) p[1] - s, (int) p[0] + s, (int) p[1] + s, en.getValue() & 0x55FFFFFF);
             g.outline((int) p[0] - s, (int) p[1] - s, s * 2, s * 2, en.getValue());
         }

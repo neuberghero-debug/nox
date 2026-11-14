@@ -41,8 +41,9 @@ public abstract class CapeMixin {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || !Cosmetics.capeActive()) return;
         PlayerSkin skin = state.skin, own = mc.player.getSkin();
-        if (skin == null || own == null) return;
-        if (!skin.body().texturePath().equals(own.body().texturePath())) return;
+        if (skin == null || own == null || skin.body() == null || own.body() == null
+            || skin.body().texturePath() == null || own.body().texturePath() == null
+            || !skin.body().texturePath().equals(own.body().texturePath())) return;
 
         ClientAsset.Texture cape = switch (Cosmetics.INSTANCE.capeStyle.get()) {
             case "Inferno" -> INFERNO_CAPE;

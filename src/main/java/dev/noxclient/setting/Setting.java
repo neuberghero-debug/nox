@@ -36,6 +36,7 @@ public abstract class Setting<T> {
         public Num(String n, double d, double min, double max) { super(n, d); this.min = min; this.max = max; }
         @Override public Double get() { return numOr(super.get(), def); }
         public int intVal() { return get().intValue(); }
+        public float floatVal() { return get().floatValue(); }
     }
     public static class Mode extends Setting<String> {
         public final String[] modes;

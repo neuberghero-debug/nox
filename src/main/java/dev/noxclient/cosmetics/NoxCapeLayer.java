@@ -89,9 +89,9 @@ public class NoxCapeLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
         Cosmetics c = Cosmetics.INSTANCE;
         int flex = c != null ? (int) (1 + c.capeFlex.floatVal() * 3) : 4;
         cloth.iterations = dist2 > 12 * 12 ? Math.max(2, flex - 2) : flex + 1;
-        cloth.drag = 0.994f - (c != null ? c.capeFlex.floatVal() : 1f) * 0.005f;
+        cloth.drag = 0.988f - (c != null ? c.capeFlex.floatVal() : 0.5f) * 0.008f;
 
-        float windAmt = c.capeWind.floatVal();
+        float windAmt = c != null ? c.capeWind.floatVal() : 0.5f;
         float t = now / 1e9f;
         long seed = state.id * 31L;
         float bodyRot = state.bodyRot;
@@ -109,18 +109,26 @@ public class NoxCapeLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
             while (accum >= SUB) {
                 accum -= SUB;
                 // wind: slow noise-driven gusts, rotated into the body frame
-                float wa = AnimMath.noise2(seed, t * 0.35f, 0f) * 140f * windAmt;
-                float wy = AnimMath.noise2(seed, 0f, t * 0.3f) * 18f * windAmt;
+                float wa = AnimMath.noise2(seed, t * 0.35f, 0f) * 34f * windAmt;
+                float wy = AnimMath.noise2(seed, 0f, t * 0.3f) * 9f * windAmt;
                 float yaw = (float) Math.toRadians(-bodyRot);
                 float cs = (float) Math.cos(yaw), sn = (float) Math.sin(yaw);
                 float wx = wa * cs, wz = wa * sn;
-                // motion drag: opposing apparent airflow + fall draft
+                // motion drag: opposing apparent airflow + fall draft.
+                // player speed is ~90 px/s at sprint → keep accel in the
+                // same ballpark as gravity (~140 px/s^2), not orders above
                 if (mc.player != null) {
                     var v = mc.player.getDeltaMovement();
-                    float lvx = (float) (v.x * cs - v.z * sn) * -320f;
-                    float lvz = (float) (v.x * sn + v.z * cs) * -320f;
+                    float lvx = (float) (v.x * cs - v.z * sn) * -26f;
+                    float lvz = (float) (v.x * sn + v.z * cs) * -26f;
                     wx += lvx; wz += lvz;
-                    wy += (float) -v.y * 60f;
+                    wy += (float) -v.y * 12f;
+                }
+                // clamp total accel so stacked gusts can't explode the cloth
+                float a2 = wx * wx + wy * wy + wz * wz;
+                if (a2 > 320f * 320f) {
+                    float s = 320f / (float) Math.sqrt(a2);
+                    wx *= s; wy *= s; wz *= s;
                 }
                 cloth.setWind(wx, wy, wz);
                 cloth.step(SUB);

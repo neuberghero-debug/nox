@@ -842,7 +842,14 @@ public class NoxWindowScreen extends Screen {
             int startX = Math.max(8, (width - rowW) / 2);
             int ox = (int) e.x() - panelDragOX - startX - col * (panelW() + PANEL_GAP);
             int oy = (int) e.y() - panelDragOY - PANEL_TOP - row * panelRowH();
-            panelOff.put(panelDrag, new int[]{ox, Math.max(8 - PANEL_TOP - row * panelRowH(), oy)});
+            // keep the header grabbable — panels dragged fully offscreen were unreachable
+            int minOy = 8 - PANEL_TOP - row * panelRowH();
+            int maxOy = height - PANEL_HEAD - 24 - PANEL_TOP - row * panelRowH();
+            int maxOx = width - 40 - panelW() - startX - col * (panelW() + PANEL_GAP);
+            int minOx = -panelW() + 40 - startX - col * (panelW() + PANEL_GAP);
+            panelOff.put(panelDrag, new int[]{
+                Math.max(minOx, Math.min(maxOx, ox)),
+                Math.max(minOy, Math.min(maxOy, oy))});
             return true;
         }
         if (dragging) {
