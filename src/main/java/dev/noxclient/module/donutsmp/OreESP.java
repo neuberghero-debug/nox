@@ -38,7 +38,10 @@ public class OreESP extends Module {
                 for (int y = Math.max(y0, mc.level.getMinY()); y <= Math.min(y1, mc.level.getMaxY()); y++) {
                     pos.set(cp.getMinBlockX() + x, y, cp.getMinBlockZ() + z);
                     var st = chunk.getBlockState(pos);
-                    if (!st.toString().toLowerCase().contains(f)) continue;
+                    // registry id lookup — st.toString() per block over ~1.3M
+                    // positions was the lag source
+                    if (!net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                        .getKey(st.getBlock()).getPath().contains(f)) continue;
                     // only flag blocks exposed to air/fluid (visible, not deep-hidden)
                     if (!mc.level.getBlockState(pos.above()).isAir()
                         && !mc.level.getBlockState(pos.below()).isAir()
@@ -48,6 +51,7 @@ public class OreESP extends Module {
                         && !mc.level.getBlockState(pos.west()).isAir()) continue;
                     HITS.put(pos.immutable(), color.get() | 0xFF000000);
                 }
+            return; // one chunk per tick — don't stall the render thread
         }
     }
 

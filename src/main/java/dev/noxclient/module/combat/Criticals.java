@@ -10,7 +10,6 @@ import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
  * hits register as crits while falling — timing jittered via Legitifier.
  */
 public class Criticals extends Module {
-    private final Setting.Mode mode = add(new Setting.Mode("Mode", "Packet", "Packet", "Jump"));
     private final Setting.Num cps = add(new Setting.Num("CPS", 8, 1, 15));
 
     public Criticals() { super("Criticals", "Forces critical hits", Category.COMBAT); }
@@ -18,8 +17,9 @@ public class Criticals extends Module {
     @Override
     public void onTick() {
         if (mc.player == null || mc.getConnection() == null) return;
+        // join/teleport grace — early move packets kick with "invalid move"
+        if (mc.player.tickCount < 60) return;
         if (!mc.player.onGround() || mc.player.getAttackStrengthScale(0) < 1.0f) return;
-        if (mode.get().equals("Jump")) return; // jump mode handled by input mixin
         // Only hop when something is actually hittable — idle micro-hops are
         // pure packet spam that packet-order checks love to flag.
         boolean near = KillAura.currentTarget != null;

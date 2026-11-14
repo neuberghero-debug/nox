@@ -35,8 +35,11 @@ public class HoleESP extends Module {
                 pp.offset(-r, -6, -r), pp.offset(r, 6, r))) {
             if (!mc.level.getBlockState(p).isAir()
                 || !mc.level.getBlockState(p.above()).isAir()) continue;
+            // floor must be solid AND not lava — holes over lava aren't safe
+            var below = mc.level.getBlockState(p.below());
             if (solid(p.north()) && solid(p.south()) && solid(p.east())
-                && solid(p.west()) && !mc.level.getBlockState(p.below()).isAir())
+                && solid(p.west()) && !below.isAir()
+                && below.getFluidState().isEmpty())
                 HITS.put(p.immutable(), 0xFF40E080);
         }
     }

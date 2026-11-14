@@ -25,6 +25,8 @@ public final class Webhook {
         Minecraft mc = Minecraft.getInstance();
         mc.keyboardHandler.setClipboard("[NOX " + kind + "] version=" + dev.noxclient.NoxClient.VERSION + " ");
         chat("§e[NOX] " + kind + " template copied — posting it in the Discord now.");
+        dev.noxclient.gui.Toasts.push(kind + " template copied — paste it in Discord",
+            0xFF8B5CF6);
         try {
             if (java.awt.Desktop.isDesktopSupported())
                 java.awt.Desktop.getDesktop().browse(

@@ -32,8 +32,12 @@ public class Blink extends Module {
 
     @Override
     public void onTick() {
-        if (!mode.get().equals("Pulse")) return;
-        if (++tick >= pulseTicks.intVal()) { tick = 0; flush(); }
+        if (mode.get().equals("Pulse")) {
+            if (++tick >= pulseTicks.intVal()) { tick = 0; flush(); }
+        } else if (++tick >= 200) {
+            // 200-tick valve in Hold mode — never let the connection look dead
+            tick = 0; flush();
+        }
     }
 
     private void flush() {

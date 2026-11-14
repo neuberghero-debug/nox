@@ -12,11 +12,17 @@ public class ChestStealer extends Module {
     public final Setting.Num cps = add(new Setting.Num("CPS", 5, 1, 15));
     public final Setting.Bool close = add(new Setting.Bool("Close when done", false));
     public final Setting.Str filter = add(new Setting.Str("Filter (empty=all)", ""));
+    private long openedAt = -1;
 
     public ChestStealer() { super("ChestStealer", "Loots open chests fast", Category.DONUTSMP); }
 
     @Override public void onTick() {
-        if (mc.player == null || !(mc.gui.screen() instanceof AbstractContainerScreen<?> sc)) return;
+        if (mc.player == null || !(mc.gui.screen() instanceof AbstractContainerScreen<?> sc))
+            { openedAt = -1; return; }
+        if (openedAt < 0) openedAt = System.currentTimeMillis();
+        // contents arrive a tick or two after the screen opens — closing or
+        // clicking on tick 0 looted nothing
+        if (System.currentTimeMillis() - openedAt < 250) return;
         if (!Legitifier.ready(this, cps.get(), 0.25)) return;
         var menu = sc.getMenu();
         int invStart = menu.slots.size() - 36;

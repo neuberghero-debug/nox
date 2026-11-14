@@ -43,4 +43,9 @@ public class AutoMLG extends Module {
         mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
         placed = true;
     }
+
+    @Override protected void onDisable() {
+        if (placed && mc.player != null) mc.player.setXRot(prevPitch);
+        placed = false; slot = -1;
+    }
 }

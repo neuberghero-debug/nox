@@ -27,10 +27,11 @@ public class AutoGG extends Module {
             if (p.distanceToSqr(mc.player) < r2) seen.put(p.getUUID(), p.getHealth());
         }
         for (var en : hp.entrySet()) {
-            if (!seen.containsKey(en.getKey()) || seen.get(en.getKey()) <= 0) {
-                if (en.getValue() > 0 && !msg.get().isEmpty())
-                    mc.getConnection().sendChat(msg.get());
-            }
+            // only a REAL death: tracked player still visible and at 0 HP.
+            // walking out of render range is not a death (gg spam on busy spawns)
+            if (seen.containsKey(en.getKey()) && seen.get(en.getKey()) <= 0
+                && en.getValue() > 0 && !msg.get().isEmpty())
+                mc.getConnection().sendChat(msg.get());
         }
         hp.clear(); hp.putAll(seen);
     }

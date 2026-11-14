@@ -49,10 +49,16 @@ public class AutoTrap extends Module {
             var st = mc.level.getBlockState(t);
             if (!st.isAir() && !st.canBeReplaced()) continue;
             BlockPos support = t.below();
-            if (!mc.level.getBlockState(support).isSolid()) support = t.offset(1, 0, 0);
+            Direction face = Direction.UP;
+            if (!mc.level.getBlockState(support).isSolid()) {
+                // click the east neighbour's WEST face → block lands in our spot
+                // (the old UP click put it on top of the neighbour → open roof)
+                support = t.east(); face = Direction.WEST;
+                if (mc.level.getBlockState(support).isAir()) continue;
+            }
             if (!Legitifier.ready(this, cps.get(), 0.2)) return;
             var hit = new BlockHitResult(Vec3.atCenterOf(support),
-                Direction.UP, support, false);
+                face, support, false);
             mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
             return;
         }

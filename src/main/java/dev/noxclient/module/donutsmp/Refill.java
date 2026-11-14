@@ -17,6 +17,7 @@ public class Refill extends Module {
     public final Setting.Bool blocks = add(new Setting.Bool("Blocks", true));
     public final Setting.Bool food = add(new Setting.Bool("Food", true));
     public final Setting.Num delay = add(new Setting.Num("Actions/s", 4, 1, 10));
+    private long lastWarn;
 
     public Refill() { super("Refill", "Refills hotbar stacks", Category.DONUTSMP); }
 
@@ -31,14 +32,25 @@ public class Refill extends Module {
             for (int j = 9; j < 36; j++) {
                 ItemStack cand = inv.getItem(j);
                 if (cand.isEmpty() || !ItemStack.isSameItemSameComponents(hot, cand)) continue;
+                // container-0 inputs are only accepted while the player has an
+                // inventory/container screen open (server reverts them
+                // otherwise) — so refill is a restock-assist, and outside a
+                // screen we warn once per stack instead of spamming.
+                if (mc.gui.screen() == null) {
+                    if (System.currentTimeMillis() - lastWarn > 8000) {
+                        lastWarn = System.currentTimeMillis();
+                        dev.noxclient.gui.Toasts.push("Refill: " + hot.getHoverName().getString()
+                            + " low — restock!", 0xFFFFD870);
+                    }
+                    return;
+                }
                 if (!Legitifier.ready(this, delay.get(), 0.2)) return;
-                // container-0 clicks get reverted → swap via hotbar-select + click
-                // workaround: use the server inventory click path only when a
-                // container screen is open; otherwise move via packets is not
-                // supported in 26.3 → mark for user instead.
-                dev.noxclient.gui.Toasts.push("Refill: " + hot.getHoverName().getString()
-                    + " low — restock!", 0xFFFFD870);
-                return; // one warning per pass
+                // SWAP = the vanilla "hover slot, press hotkey N" path — swaps
+                // inventory slot j with hotbar slot i in ONE container-0 input.
+                if (mc.gameMode != null)
+                    mc.gameMode.handleContainerInput(0, j, i,
+                        net.minecraft.world.inventory.ContainerInput.SWAP, mc.player);
+                return; // one move per pass
             }
         }
     }

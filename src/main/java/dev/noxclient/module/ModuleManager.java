@@ -159,6 +159,8 @@ public class ModuleManager {
         reg(new SelfWeb());
         reg(new AutoBreed());
         reg(new AutoShear());
+        reg(new dev.noxclient.module.donutsmp.AutoTool());
+        reg(new dev.noxclient.module.donutsmp.FastPlace());
         // TamperGuard is core — runs always, not a module
         reg(new Interface());
         reg(new GhostMode());
@@ -174,16 +176,21 @@ public class ModuleManager {
     }
     public void tick(Minecraft mc) {
         for (Module m : all) {
-            // keybind: edge-detect toggle, or track key state in hold mode
-            if (m.keybind() > 0 && !NoxWindowScreen.open) {
+            // keybind: edge-detect toggle, or track key state in hold mode.
+            // pressed[] updates unconditionally — while the GUI is open only the
+            // action is skipped, otherwise a stale 'down' would eat the next press.
+            if (m.keybind() > 0) {
                 boolean down = InputConstants.isKeyDown(m.keybind())
                     || FAKE_KEYS.contains(m.keybind());
                 if (m.holdMode()) {
-                    if (down != m.isEnabled()) m.setEnabled(down);
                     pressed.put(m, down);
+                    // gated premium in Hold mode: setEnabled would re-open the
+                    // premium screen every tick without ever enabling
+                    if (!NoxWindowScreen.open && down != m.isEnabled() && !(down && m.gated()))
+                        m.setEnabled(down);
                 } else {
                     Boolean was = pressed.put(m, down);
-                    if (down && was != Boolean.TRUE) m.toggle();
+                    if (!NoxWindowScreen.open && down && was != Boolean.TRUE) m.toggle();
                 }
             }
             if (m.isEnabled()) {

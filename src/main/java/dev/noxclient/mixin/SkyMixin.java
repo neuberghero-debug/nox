@@ -20,7 +20,8 @@ public abstract class SkyMixin {
                          CallbackInfoReturnable<Vector3fc> cir) {
         var m = NoxClient.INSTANCE == null ? null : NoxClient.INSTANCE.modules.get("CustomSky");
         if (m instanceof CustomSky sky && sky.isEnabled()) {
-            cir.setReturnValue(sky.skyColor());
+            Vector3f col = sky.skyColor();
+            if (col != null) cir.setReturnValue(col);   // "Off" leaves vanilla alone
         }
     }
 }

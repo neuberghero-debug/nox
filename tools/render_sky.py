@@ -21,11 +21,11 @@ OUT = os.environ.get("SKY_OUT", os.path.join(os.path.dirname(__file__), "..",
                    "src", "main", "resources", "assets", "noxclient", "sky"))
 QUALITY = 87
 
-CX, CY = W * 0.5, H * 0.545          # hole slightly below center like ref
-R_SH = 78.0                          # shadow radius (px)
-R_PH = 82.0                          # photon ring radius
+CX, CY = W * 0.72, H * 0.36          # off-center (rule of thirds) — clear of menu buttons
+R_SH = 92.0                          # shadow radius (px)
+R_PH = 97.0                          # photon ring radius
 TILT = 0.16                          # disk inclination squash (edge-on ≈0.15)
-R_DISK0, R_DISK1 = 92.0, 300.0       # accretion disk inner/outer radius (disk plane)
+R_DISK0, R_DISK1 = 106.0, 330.0      # accretion disk inner/outer radius (disk plane)
 
 rng = np.random.default_rng(7)
 

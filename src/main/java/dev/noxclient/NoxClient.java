@@ -71,6 +71,10 @@ public class NoxClient implements ClientModInitializer {
     }
 
     private void onTick(Minecraft mc) {
+        // open is re-derived every tick — ShopScreen/PremiumScreen can replace
+        // the window without calling onClose(), which used to wedge the flag
+        // (RShift then closed a null screen and keybinds stayed dead).
+        NoxWindowScreen.open = mc.gui.screen() instanceof NoxWindowScreen;
         boolean down = InputConstants.isKeyDown(InputConstants.KEY_RSHIFT);
         if (down && !guiKeyWasDown) {
             if (NoxWindowScreen.open) mc.setScreenAndShow(null);

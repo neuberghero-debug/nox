@@ -100,8 +100,14 @@ public final class MediaService {
     private static String run(String... cmd) {
         try {
             Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+            // a hung playerctl/wmic would block the media thread forever —
+            // hard-kill after 2s
+            if (!p.waitFor(2, java.util.concurrent.TimeUnit.SECONDS)) {
+                p.destroyForcibly();
+                return null;
+            }
             String out = new String(p.getInputStream().readAllBytes()).trim();
-            return p.waitFor() == 0 ? out : null;
+            return p.exitValue() == 0 ? out : null;
         } catch (Throwable e) { return null; }
     }
 

@@ -31,8 +31,10 @@ public class AutoMace extends Module {
                 int w = find(Items.WIND_CHARGE);
                 if (w < 0) { phase = 1; return; }
                 mc.player.getInventory().setSelectedSlot(w);
+                float oldPitch = mc.player.getXRot();
                 mc.player.setXRot(90f);
                 mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
+                mc.player.setXRot(oldPitch);   // don't go into the smash blind
                 phase = 1;
             }
             case 1 -> { // wait for apex, swap to mace

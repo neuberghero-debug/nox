@@ -35,6 +35,9 @@ public class AHSniper extends Module {
         if (System.currentTimeMillis() - last < cooldown.get() * 1000) return;
 
         for (Slot slot : menu.slots) {
+            // skip our own 36 inventory slots — their lore prices made the bot
+            // "buy" items out of our own inventory onto the cursor
+            if (slot.container == mc.player.getInventory()) continue;
             ItemStack st = slot.getItem();
             if (st.isEmpty()) continue;
             if (!itemFilter.get().isEmpty()

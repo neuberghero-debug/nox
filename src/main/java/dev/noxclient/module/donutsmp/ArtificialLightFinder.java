@@ -32,6 +32,7 @@ public class ArtificialLightFinder extends Module {
             if (done.contains(cp) || !mc.level.hasChunk(cp.x(), cp.z())) continue;
             done.add(cp);
             scan(cp);
+            return; // one chunk-column per tick — full scans froze the game
         }
     }
 

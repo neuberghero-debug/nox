@@ -27,7 +27,8 @@ public class Surround extends Module {
             slot = -1;
             for (int i = 0; i < 9; i++)
                 if (inv.getItem(i).is(Items.OBSIDIAN)) { slot = i; break; }
-            if (slot < 0) { setEnabled(false); return; }
+            // out of obsidian ≠ done — only auto-off may disable us
+            if (slot < 0) return;
         }
         BlockPos feet = mc.player.blockPosition();
         if (center.on()) {

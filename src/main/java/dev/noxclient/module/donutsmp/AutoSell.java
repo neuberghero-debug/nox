@@ -85,6 +85,12 @@ public class AutoSell extends Module {
 
     private void selectSlot(int invSlot) {
         mc.player.getInventory().setSelectedSlot(invSlot);
+        // setSelectedSlot only writes the local field — the vanilla pick packet
+        // goes out later in gameMode.tick(), so the sell command would run with
+        // the previously held item. Send the carried-item packet first.
+        if (mc.getConnection() != null)
+            mc.getConnection().send(
+                new net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket(invSlot));
     }
 
     private void send(String cmd) {

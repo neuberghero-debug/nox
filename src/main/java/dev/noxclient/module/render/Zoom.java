@@ -17,14 +17,15 @@ public class Zoom extends Module {
     }
 
     @Override public void onTick() {
-        if (smooth.on()) mc.options.smoothCamera = true;
+        // release the option immediately if it gets unticked mid-zoom
+        mc.options.smoothCamera = smooth.on() || origSmooth;
     }
 
     @Override public void onDisable() {
         mc.options.smoothCamera = origSmooth;
     }
     @Override public String status() {
-        return "FOV /" + factor.get().intValue() + " (visual only, options untouched)";
+        return "FOV /" + factor.get().intValue();
     }
 
 }

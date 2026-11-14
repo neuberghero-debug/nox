@@ -73,7 +73,10 @@ public final class TamperGuard {
         URL loc = cs.getLocation();
         if (!loc.getPath().endsWith(".jar")) return null;   // classes dir → dev
         MessageDigest md = MessageDigest.getInstance("SHA-256");
-        try (ZipFile jar = new ZipFile(URI.create(loc.toString()).toURL().getPath())) {
+        // new File(loc.toURI()) handles Windows "/C:/..." paths correctly —
+        // URI→URL→getPath() produced a path ZipFile rejects, making the whole
+        // integrity check a silent no-op on Windows.
+        try (ZipFile jar = new ZipFile(new java.io.File(loc.toURI()))) {
             var entries = new ArrayList<>(jar.stream()
                 .filter(e -> (e.getName().startsWith("dev/noxclient/") && e.getName().endsWith(".class"))
                     || e.getName().equals("fabric.mod.json") || e.getName().equals("noxclient.mixins.json"))

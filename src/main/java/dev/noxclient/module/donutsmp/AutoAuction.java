@@ -24,6 +24,10 @@ public class AutoAuction extends Module {
                 && !st.getItem().toString().toLowerCase().contains(itemId.get().toLowerCase()))
                 continue;
             inv.setSelectedSlot(i);
+            // carried-item packet first — setSelectedSlot alone only writes the
+            // local field, so /ah sell would list the previously held item
+            mc.getConnection().send(
+                new net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket(i));
             mc.getConnection().sendCommand("ah sell " + (int) (double) price.get());
             return;
         }

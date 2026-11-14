@@ -17,6 +17,10 @@ public class AutoReconnect extends Module {
         var server = mc.getCurrentServer();
         if (server != null) { lastServer = server; dcAt = -1; return; }
         if (lastServer == null) return;
+        // only reconnect on a REAL disconnect — getCurrentServer() is also null
+        // on the title screen and in singleplayer (yanked players out of SP worlds)
+        if (!(mc.gui.screen() instanceof net.minecraft.client.gui.screens.DisconnectedScreen)
+            || mc.player != null) { dcAt = -1; return; }
         if (dcAt < 0) { dcAt = System.currentTimeMillis(); return; }
         if (System.currentTimeMillis() - dcAt < delay.get() * 1000) return;
         dcAt = -1;

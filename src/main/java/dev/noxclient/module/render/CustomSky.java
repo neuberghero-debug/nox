@@ -19,8 +19,10 @@ public class CustomSky extends Module {
 
     public CustomSky() { super("CustomSky", "Custom sky colors", Category.RENDER); }
 
+    /** null = don't override (Off) — the mixin checks for it. */
     public Vector3f skyColor() {
         return switch (sky.get()) {
+            case "Off"       -> null;
             case "Void"      -> new Vector3f(0.0f, 0.0f, 0.0f);
             case "Sunset"    -> new Vector3f(0.95f, 0.45f, 0.10f);
             case "Bloodmoon" -> new Vector3f(0.55f, 0.02f, 0.02f);

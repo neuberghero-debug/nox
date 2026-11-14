@@ -27,9 +27,11 @@ public class AutoPot extends Module {
             var s = inv.getItem(i);
             if (s.is(Items.SPLASH_POTION) || s.is(Items.LINGERING_POTION)) {
                 prev = inv.getSelectedSlot();
+                float oldPitch = mc.player.getXRot();
                 inv.setSelectedSlot(i);
                 mc.player.setXRot(85f);
                 mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
+                mc.player.setXRot(oldPitch);   // was left at 85° after every pot
                 return;
             }
         }

@@ -18,7 +18,9 @@ public class ElytraSwap extends Module {
         if (mc.player == null || mc.gameMode == null) return;
         if (mc.player.onGround()) falling = 0;
         else if (mc.player.getDeltaMovement().y < -0.1) falling++;
-        boolean wantElytra = falling > fallTicks.intVal() && !mc.player.isFallFlying();
+        // keep wanting the elytra while actually gliding — the old "!isFallFlying"
+        // swapped back to a chestplate mid-glide and dropped you
+        boolean wantElytra = mc.player.isFallFlying() || falling > fallTicks.intVal();
         var chest = mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST);
         boolean wearingElytra = chest.is(Items.ELYTRA);
         if (wantElytra == wearingElytra) return;

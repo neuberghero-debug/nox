@@ -152,7 +152,7 @@ public class SettingsPopup {
         if (s instanceof Setting.Bool b) b.set(!b.on());
         else if (s instanceof Setting.Mode mo) {
             int i = java.util.Arrays.asList(mo.modes).indexOf(mo.get());
-            i = btn == 1 ? (i + 1) % mo.modes.length : (i - 1 + mo.modes.length) % mo.modes.length;
+            i = btn == 1 ? (i - 1 + mo.modes.length) % mo.modes.length : (i + 1) % mo.modes.length;
             mo.set(mo.modes[i]);
         } else if (s instanceof Setting.Str) {
             @SuppressWarnings("unchecked") var st = (Setting<String>) s;
@@ -160,7 +160,8 @@ public class SettingsPopup {
         } else if (s instanceof Setting.Col c) {
             int[] pal = {0xFF6EC7, 0xFF5555, 0xFFAA00, 0x55FF88, 0x5599FF, 0xB44DFF, 0xFFFFFF};
             int i = 0;
-            for (int k = 0; k < pal.length; k++) if ((c.get() | 0xFF000000) == pal[k]) i = k;
+            // compare RGB only — stored value carries full alpha, entries are 24-bit
+            for (int k = 0; k < pal.length; k++) if ((c.get() & 0xFFFFFF) == (pal[k] & 0xFFFFFF)) i = k;
             c.set(pal[(i + 1) % pal.length]);
         } else if (s instanceof Setting.Bind bi) {
             capturing = bi;

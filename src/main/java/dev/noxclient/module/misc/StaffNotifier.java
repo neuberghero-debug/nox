@@ -53,7 +53,8 @@ public class StaffNotifier extends Module {
 
     private void panic() {
         for (Module m : NoxClient.INSTANCE.modules.all())
-            if (m.category == Category.DONUTSMP || m.category == Category.DONUTSMP) m.setEnabled(false);
+            if (m.category == Category.COMBAT || m.category == Category.MOVEMENT
+                || m.category == Category.DONUTSMP) m.setEnabled(false);
         if (mc.player != null) mc.player.sendSystemMessage(Component.literal(
             "§6[NOX] Panic: PvP/movement modules disabled."));
     }

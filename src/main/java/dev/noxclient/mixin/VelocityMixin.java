@@ -18,6 +18,7 @@ public abstract class VelocityMixin {
     private void nox$scaleKb(ClientboundSetEntityMotionPacket packet, CallbackInfo ci) {
         var m = NoxClient.INSTANCE == null ? null : NoxClient.INSTANCE.modules.get("Velocity");
         if (!(m instanceof Velocity v) || !v.isEnabled()) return;
+        if (v.chance.get() < 100 && Math.random() * 100 >= v.chance.get()) return;
         var mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
         var e = mc.level.getEntity(packet.id());

@@ -28,8 +28,11 @@ public abstract class Module {
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean v) {
         if (v && premium && !dev.noxclient.premium.LicenseManager.premium()) {
-            net.minecraft.client.Minecraft.getInstance().setScreenAndShow(
-                new dev.noxclient.gui.PremiumScreen());
+            if (dev.noxclient.gui.NoxWindowScreen.open)
+                dev.noxclient.gui.Toasts.push(name + " requires Premium — see Shop", 0xFFFFD870);
+            else
+                net.minecraft.client.Minecraft.getInstance().setScreenAndShow(
+                    new dev.noxclient.gui.PremiumScreen());
             return;
         }
         if (v == enabled) return;
@@ -46,6 +49,8 @@ public abstract class Module {
         if (v) onEnable(); else onDisable();
     }
     public void toggle() { setEnabled(!enabled); }
+    /** True when enabling is blocked by the premium gate. */
+    public boolean gated() { return premium && !dev.noxclient.premium.LicenseManager.premium(); }
     public int keybind() {
         Object v = ((Setting<?>) bind).get();
         return v instanceof Number n ? n.intValue() : -1;

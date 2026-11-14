@@ -38,7 +38,7 @@ public class NoxWindowScreen extends Screen {
     public static int activeTab;
 
     private static final int TITLE_H = 30, TAB_H = 24, SEARCH_H = 22, FOOT_H = 30;
-    private static final int MIN_W = 520, MIN_H = 300;
+    private static final int MIN_W = 480, MIN_H = 240;
     private static final int GAP = 9;
     private static final String[] FOOT = {"Discord", "Report", "Suggest", "Share", "Import", "Shop", "PANIC"};
 
@@ -68,8 +68,8 @@ public class NoxWindowScreen extends Screen {
     @Override
     protected void init() {
         if (winW < 0) {
-            winW = Math.max(MIN_W, Math.min(660, (int) (width * 0.62)));
-            winH = Math.max(MIN_H, Math.min(580, (int) (height * 0.76)));
+            winW = Math.max(MIN_W, Math.min(640, (int) (width * 0.60)));
+            winH = Math.max(MIN_H, Math.min(560, (int) (height * 0.72)));
             winX = (width - winW) / 2;
             winY = (height - winH) / 2;
         }
@@ -667,10 +667,15 @@ public class NoxWindowScreen extends Screen {
         return true; // swallow backdrop clicks so the screen stays open
     }
 
+    /** 26.3 passes RAW SDL buttons (1=LMB, 2=MMB, 3=RMB) — map to 0/1/2 used below. */
+    private static int normButton(int sdl) {
+        return switch (sdl) { case 1 -> 0; case 3 -> 1; case 2 -> 2; default -> sdl; };
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent e, boolean doubleClick) {
         double mx = e.x(), my = e.y();
-        int btn = e.button();
+        int btn = normButton(e.button());
 
         if (popup != null) {
             int r = popup.mouseClicked(mx, my, btn);
@@ -692,13 +697,25 @@ public class NoxWindowScreen extends Screen {
             int[] r = footRects.get(i);
             if (ModuleCard.inside(mx, my, r[0], r[1], r[2], r[3])) {
                 switch (i) {
-                    case 0 -> openUri(dev.noxclient.discord.DiscordLink.get());
+                    case 0 -> {
+                        openUri(dev.noxclient.discord.DiscordLink.get());
+                        dev.noxclient.gui.Toasts.push("Discord invite opened", 0xFF8B5CF6);
+                    }
                     case 1 -> dev.noxclient.discord.Webhook.reportBug();
                     case 2 -> dev.noxclient.discord.Webhook.suggest();
-                    case 3 -> NoxClient.INSTANCE.config.share();
-                    case 4 -> NoxClient.INSTANCE.config.importConfig(minecraft.keyboardHandler.getClipboard());
+                    case 3 -> {
+                        NoxClient.INSTANCE.config.share();
+                        dev.noxclient.gui.Toasts.push("Config copied to clipboard", 0xFF66D9A0);
+                    }
+                    case 4 -> {
+                        NoxClient.INSTANCE.config.importConfig(minecraft.keyboardHandler.getClipboard());
+                        dev.noxclient.gui.Toasts.push("Config imported", 0xFF66D9A0);
+                    }
                     case 5 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ShopScreen(this));
-                    case 6 -> NoxClient.INSTANCE.modules.get("GhostMode").setEnabled(true);
+                    case 6 -> {
+                        NoxClient.INSTANCE.modules.get("GhostMode").setEnabled(true);
+                        dev.noxclient.gui.Toasts.push("PANIC — all modules off", 0xFFFF5C7A);
+                    }
                 }
                 return true;
             }

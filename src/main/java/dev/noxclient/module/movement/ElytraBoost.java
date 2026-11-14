@@ -26,6 +26,9 @@ public class ElytraBoost extends Module {
             prev = inv.getSelectedSlot();
             inv.setSelectedSlot(i);
             mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
+            // restore the slot — leaving it on the rocket kept the "already
+            // firing" guard true forever (exactly one rocket per flight)
+            inv.setSelectedSlot(prev);
             return;
         }
     }

@@ -6,7 +6,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -20,13 +19,28 @@ import java.util.Map;
 public final class SmoothShapes {
     private static final int T = 64;       // texture size
     private static final int R = 22;       // corner radius inside the texture
-    private static final Map<Long, Identifier> CACHE = new HashMap<>();
     private static final int SS = 8;       // supersample factor
+    private static final int MAX_CACHE = 160;
+    /** LRU — evicts GL textures instead of leaking one per animation frame. */
+    private static final Map<Long, Identifier> CACHE =
+        new java.util.LinkedHashMap<>(64, 0.75f, true) {
+            @Override protected boolean removeEldestEntry(Map.Entry<Long, Identifier> e) {
+                if (size() <= MAX_CACHE) return false;
+                Minecraft.getInstance().getTextureManager().release(e.getValue());
+                return true;
+            }
+        };
 
     private SmoothShapes() {}
 
+    /** Quantize each channel to /4 — kills the per-frame-interpolated-color
+     *  cache explosion while staying visually identical. */
+    private static long qkey(int argb, int kind) {
+        return (((long) (argb & 0xFCFCFCFC)) << 3) | kind;
+    }
+
     private static Identifier tex(int argb, boolean ring) {
-        long key = ((long) argb << 1) | (ring ? 1 : 0);
+        long key = qkey(argb, ring ? 1 : 0);
         Identifier id = CACHE.get(key);
         if (id != null) return id;
         NativeImage img = new NativeImage(T, T, true);
@@ -66,7 +80,7 @@ public final class SmoothShapes {
     }
 
     private static Identifier discTex(int argb) {
-        long key = ((long) argb << 2) | 2L;
+        long key = qkey(argb, 2);
         Identifier id = CACHE.get(key);
         if (id != null) return id;
         NativeImage img = new NativeImage(T, T, true);

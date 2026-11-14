@@ -42,12 +42,16 @@ public class AutoWeb extends Module {
         if (spot == null || !solid(support)) return;
 
         int prev = mc.player.getInventory().getSelectedSlot();
+        float oldYaw = mc.player.getYRot(), oldPitch = mc.player.getXRot();
         mc.player.getInventory().setSelectedSlot(slot);
         if (rotate.on()) face(support);
         mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,
             new BlockHitResult(Vec3.atCenterOf(support), Direction.UP, support, false));
         mc.player.swing(InteractionHand.MAIN_HAND,
             net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
+        // restore camera — rotate used to yank yaw/pitch up to 6x/s
+        mc.player.setYRot(oldYaw);
+        mc.player.setXRot(oldPitch);
         mc.player.getInventory().setSelectedSlot(prev);
     }
 

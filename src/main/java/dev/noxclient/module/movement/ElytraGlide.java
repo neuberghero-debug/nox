@@ -11,6 +11,7 @@ public class ElytraGlide extends Module {
     private final Setting.Num pitch = add(new Setting.Num("Glide pitch", -3, -30, 30));
     private final Setting.Bool autoSwap = add(new Setting.Bool("Auto equip elytra", true));
     private int prevSlot = -1;
+    private long lastJump;
 
     public ElytraGlide() { super("ElytraGlide", "Smooth elytra control + swap", Category.MOVEMENT); }
 
@@ -30,7 +31,13 @@ public class ElytraGlide extends Module {
         }
         if (mc.player.isFallFlying()) {
             mc.player.setXRot(pitch.get().floatValue());
-        } else if (mc.player.fallDistance > 1.5 && !mc.player.onGround()) {
+        } else if (mc.player.fallDistance > 1.5 && !mc.player.onGround()
+            && mc.player.tickCount > 60
+            && mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST).is(Items.ELYTRA)
+            && System.currentTimeMillis() - lastJump > 500) {
+            // needs a worn elytra, the join grace and a 500ms floor — the old
+            // code spammed START_FALL_FLYING 20x/s with no elytra at all
+            lastJump = System.currentTimeMillis();
             mc.getConnection().send(new ServerboundPlayerCommandPacket(
                 mc.player, ServerboundPlayerCommandPacket.Action.START_FALL_FLYING));
         }

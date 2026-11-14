@@ -40,6 +40,7 @@ public class ChunkFinder extends Module {
                     mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
                         "§e[NOX] Suspicious chunk at " + cp.x() + ", " + cp.z()));
             }
+            return; // one chunk-column per tick — full scans froze the game
         }
     }
 
