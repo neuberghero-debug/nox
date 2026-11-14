@@ -1,0 +1,90 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.20.0-alpha.31'
+    id 'java'
+}
+
+version = '0.1.0-alpha'
+group = 'dev.noxclient'
+
+base { archivesName = 'nox' }
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+    mavenCentral()
+}
+
+dependencies {
+    minecraft 'com.mojang:minecraft:26.3'
+    implementation 'net.fabricmc:fabric-loader:0.20.1'
+    implementation 'net.fabricmc.fabric-api:fabric-api:0.166.2+26.3'
+    implementation 'com.google.code.gson:gson:2.11.0'
+    // NanoVG (LWJGL module) — vector overlay pass for GUI glow/gradients
+    implementation 'org.lwjgl:lwjgl-nanovg:3.4.3'
+    ['natives-linux', 'natives-linux-arm64', 'natives-windows', 'natives-windows-arm64', 'natives-macos', 'natives-macos-arm64'].each { c ->
+        runtimeOnly "org.lwjgl:lwjgl-nanovg:3.4.3:${c}"
+        include "org.lwjgl:lwjgl-nanovg:3.4.3:${c}@jar"
+    }
+}
+
+loom {
+    runs {
+        client {
+            client()
+            runDir 'run'
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = 'UTF-8'
+    it.options.release = 25
+}
+
+// TamperGuard signature: SHA-256 over class + metadata entries (name bytes
+// then file bytes, sorted) — mirrors TamperGuard.selfHash() exactly.
+// Computed on the FINAL jar (loom 'include' remaps fabric.mod.json), then
+// sig.txt is appended into the jar — sig.txt itself is never hashed.
+def noxJarSig = tasks.register('noxJarSig') {
+    def jarFile = layout.buildDirectory.file("libs/nox-${project.version}.jar")
+    inputs.file(jarFile)
+    dependsOn 'jar'
+    doLast {
+        def jarPath = jarFile.get().asFile
+        def tmp = new File(jarPath.parentFile, jarPath.name + '.sigtmp')
+        def md = java.security.MessageDigest.getInstance('SHA-256')
+        // zip archives can't be appended to — rewrite: hash entries, copy all,
+        // add sig.txt, then atomically replace the jar
+        def sig
+        new java.util.zip.ZipFile(jarPath).withCloseable { z ->
+            def hashed = z.stream().filter { e ->
+                (e.name.startsWith('dev/noxclient/') && e.name.endsWith('.class')) ||
+                    e.name == 'fabric.mod.json' || e.name == 'noxclient.mixins.json'
+            }.collect()
+            hashed.sort { a, b -> a.name <=> b.name }
+            hashed.each { e ->
+                md.update(e.name.getBytes('UTF-8'))
+                md.update(z.getInputStream(e).bytes)
+            }
+            sig = md.digest().encodeHex().toString()
+            new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(tmp)).withCloseable { zos ->
+                z.stream().each { e ->
+                    if (e.name == 'assets/noxclient/sig.txt') return
+                    zos.putNextEntry(new java.util.zip.ZipEntry(e))
+                    if (!e.directory) zos.write(z.getInputStream(e).bytes)
+                    zos.closeEntry()
+                }
+                zos.putNextEntry(new java.util.zip.ZipEntry('assets/noxclient/sig.txt'))
+                zos.write(sig.getBytes('UTF-8'))
+                zos.closeEntry()
+            }
+        }
+        if (!tmp.renameTo(jarPath)) throw new GradleException("sig rewrite failed")
+        println "nox sig -> ${sig} (embedded)"
+    }
+}
+tasks.named('jar') { finalizedBy noxJarSig }

@@ -1,0 +1,37 @@
+# ---- build outputs ----
+.gradle/
+build/
+dist/
+out/
+*.class
+
+# ---- runtime / dev environment ----
+run/
+profiles/
+logs/
+*.log
+
+# ---- agent/tooling internals (not part of the project) ----
+.agents/
+.claude/
+.devin/
+.idea/
+.vscode/
+.DS_Store
+skills-lock.json
+
+# ---- is-a.dev registration working copy ----
+domain/
+
+# ---- secrets & runtime state ----
+.env
+*.pem
+nox-bot/keys/
+nox-bot/.env
+nox-bot/.venv/
+nox-community-bot/.env
+nox-community-bot/node_modules/
+nox-community-bot/data/state.json
+
+# ---- node ----
+node_modules/

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOX — DonutSMP Client</title>
+<meta name="description" content="NOX — open-source Fabric client for DonutSMP. Early alpha coming soon.">
+<style>
+  :root{--bg:#0D0F14;--panel:#141821;--card:#1C222E;--accent:#8B5CF6;--accent2:#A78BFA;--text:#E8E8F0;--dim:#9AA3B8}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:radial-gradient(1200px 600px at 50% -10%,#1a1430 0%,var(--bg) 55%);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+  .card{background:linear-gradient(160deg,rgba(28,34,46,.9),rgba(20,24,33,.9));border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:56px 48px;max-width:560px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+  .logo{font-size:52px;font-weight:800;letter-spacing:.14em;background:linear-gradient(120deg,var(--accent),var(--accent2),#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{color:var(--dim);margin-top:10px;font-size:15px;letter-spacing:.04em}
+  .badge{display:inline-block;margin-top:26px;padding:6px 16px;border-radius:999px;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.35);color:var(--accent2);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+  p.soon{margin-top:22px;color:var(--dim);font-size:14px;line-height:1.7}
+  p.soon b{color:var(--text)}
+  .cta{display:inline-flex;align-items:center;gap:10px;margin-top:30px;padding:14px 28px;border-radius:12px;background:linear-gradient(120deg,var(--accent),#6D28D9);color:#fff;font-weight:600;text-decoration:none;font-size:15px;transition:transform .15s,box-shadow .15s}
+  .cta:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(139,92,246,.35)}
+  .feat{display:flex;gap:10px;justify-content:center;margin-top:34px;flex-wrap:wrap}
+  .feat span{font-size:12px;color:var(--dim);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 12px}
+  footer{margin-top:36px;font-size:12px;color:#5b6478}
+  a{color:var(--accent2)}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">NOX</div>
+    <div class="tag">Fabric client for DonutSMP &middot; Minecraft 26.3</div>
+    <div class="badge">Early Alpha &middot; Coming Soon</div>
+    <p class="soon">Our full website is on the way — <b>j6ilbrk.is-a.dev</b> is being registered and will land here soon.<br>
+    In the meantime, grab the early alpha and hang out with us on Discord:</p>
+    <a class="cta" href="https://discord.gg/tewtZTsZf5">&#9889; Join the Discord</a>
+    <div class="feat">
+      <span>140+ modules</span><span>Custom ClickGUI</span><span>Animated sky</span>
+      <span>Discord RPC</span><span>Open source (MIT)</span><span>Free</span>
+    </div>
+    <footer>MIT licensed &middot; contribute on <a href="https://github.com/a0yark/patch-devin">GitHub</a> &middot; discord.gg/tewtZTsZf5</footer>
+  </div>
+</body>
+</html>

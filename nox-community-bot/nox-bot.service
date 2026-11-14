@@ -1,0 +1,25 @@
+[Unit]
+Description=NOX community Discord bot (panels, tickets, roles, stats)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/nox-community-bot
+ExecStart=/usr/bin/node index.js
+Restart=always
+RestartSec=5
+# run as an unprivileged user — create with: useradd -r -s /usr/sbin/nologin noxbot
+User=noxbot
+Group=noxbot
+Environment=NODE_ENV=production
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+# logs: journalctl -u nox-bot -f
+StandardOutput=append:/var/log/nox-bot.log
+StandardError=append:/var/log/nox-bot.log
+
+[Install]
+WantedBy=multi-user.target

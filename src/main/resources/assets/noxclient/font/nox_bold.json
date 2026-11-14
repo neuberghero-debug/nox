@@ -1,0 +1,12 @@
+{
+  "providers": [
+    {
+      "type": "ttf",
+      "file": "noxclient:inter_semibold.ttf",
+      "shift": [0, -0.2],
+      "size": 10.5,
+      "oversample": 4.0
+    },
+    { "type": "reference", "id": "minecraft:default" }
+  ]
+}

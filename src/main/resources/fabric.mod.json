@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "noxclient",
+  "version": "0.1.0-alpha",
+  "name": "NOX",
+  "description": "NOX client for DonutSMP \u2014 modules, finders, PvP utilities, anticheat-aware legit layer",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.noxclient.NoxClient"
+    ],
+    "nox:addon": []
+  },
+  "depends": {
+    "fabricloader": ">=0.20.0",
+    "fabric-api": "*",
+    "minecraft": ">=26.3",
+    "java": ">=21"
+  },
+  "mixins": [
+    "noxclient.mixins.json"
+  ],
+  "icon": "assets/noxclient/icon.png"
+}

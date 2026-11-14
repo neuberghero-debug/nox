@@ -1,0 +1,25 @@
+{
+  "required": true,
+  "package": "dev.noxclient.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "ScreenMixin",
+    "TitleScreenMixin",
+    "LoadingOverlayMixin",
+    "ButtonMixin",
+    "VelocityMixin",
+    "BlinkMixin",
+    "AttackMixin",
+    "CapeMixin",
+    "PayloadSpoofMixin",
+    "SkyMixin",
+    "FullbrightMixin",
+    "ChatMixin",
+    "CameraFovMixin",
+    "GameModeAccessor",
+    "GuiRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
