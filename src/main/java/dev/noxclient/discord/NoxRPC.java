@@ -163,18 +163,48 @@ public class NoxRPC {
     }
 
     /** Read exactly one RPC frame: 8-byte LE header (op,len) + body. */
-    private String readFrame() throws IOException {
-        byte[] hdr = in.readNBytes(8);
+    private String readFrame() throws IOException { return readFrame(0); }
+
+    /** readFrame with an optional deadline — a socket that accepts but never
+        answers (dangling flatpak ipc) must not park the rpc thread forever. */
+    private String readFrame(long timeoutMs) throws IOException {
+        byte[] hdr = readN(8, timeoutMs);
         if (hdr.length < 8) throw new EOFException("socket closed");
         int len = (hdr[4] & 0xFF) | (hdr[5] & 0xFF) << 8
             | (hdr[6] & 0xFF) << 16 | (hdr[7] & 0xFF) << 24;   // u32 LE
         if (len < 0 || len > 1 << 20) throw new IOException("bad frame len " + len);
-        return new String(in.readNBytes(len), StandardCharsets.UTF_8);
+        byte[] body = readN(len, timeoutMs);
+        if (body.length < len) throw new EOFException("socket closed mid-frame");
+        return new String(body, StandardCharsets.UTF_8);
+    }
+
+    /** readNBytes with a deadline on unix sockets (non-blocking poll); falls
+        back to a plain blocking read for windows pipes. */
+    private byte[] readN(int n, long timeoutMs) throws IOException {
+        if (timeoutMs <= 0 || chan == null) return in.readNBytes(n);
+        long end = System.currentTimeMillis() + timeoutMs;
+        ByteArrayOutputStream acc = new ByteArrayOutputStream(n);
+        java.nio.ByteBuffer buf = java.nio.ByteBuffer.allocate(n);
+        try { chan.configureBlocking(false); } catch (Throwable ignored) {}
+        try {
+            while (acc.size() < n) {
+                buf.clear();
+                buf.limit(Math.min(n - acc.size(), n));
+                int r = chan.read(buf);
+                if (r < 0) break;                       // EOF
+                if (r > 0) { acc.write(buf.array(), 0, r); continue; }
+                if (System.currentTimeMillis() >= end) throw new IOException("rpc read timed out");
+                try { Thread.sleep(10); } catch (InterruptedException ie) { break; }
+            }
+        } finally {
+            try { chan.configureBlocking(true); } catch (Throwable ignored) {}
+        }
+        return acc.toByteArray();
     }
 
     private void handshake() throws IOException {
         frame(0, "{\"v\":1,\"client_id\":\"" + CLIENT_ID + "\"}");
-        String ready = readFrame();      // DISPATCH/READY — real size, no blind 4k read
+        String ready = readFrame(4000);  // DISPATCH/READY — real size, no blind 4k read
         if (ready.contains("Invalid Client ID")) throw new IOException("invalid client id");
         if (!ready.contains("READY")) log("handshake: " + ready.substring(0, Math.min(120, ready.length())));
     }
@@ -191,7 +221,7 @@ public class NoxRPC {
             + UUID.randomUUID() + "\"}";
         if (ws != null) { ws.sendText(json, true); return; }
         frame(1, json);
-        String ack = readFrame();        // SET_ACTIVITY echo / error — keeps stream aligned
+        String ack = readFrame(5000);    // SET_ACTIVITY echo / error — keeps stream aligned
         if (ack.contains("\"code\"") || ack.contains("rror"))
             log("activity: " + ack.substring(0, Math.min(160, ack.length())));
     }
