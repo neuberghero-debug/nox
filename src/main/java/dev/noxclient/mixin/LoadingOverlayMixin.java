@@ -83,9 +83,21 @@ public abstract class LoadingOverlayMixin {
 
         g.fillGradient(0, 0, w, h, A | 0x0B0716, A | 0x030309);
 
-        // icon with soft accent underglow
+        // sparse deterministic starfield — same every frame, no allocations
+        int starA = (A >>> 24) / 3 << 24;
+        for (int i = 0; i < 90; i++) {
+            int hx = (int) (i * 2654435761L), hz = i * 40503;
+            int sx = (hx & 0x7FFFFFFF) % w, sy = (hz & 0x7FFFFFFF) % h;
+            int tw = (i * 31 + (int) (now / 9)) % 100 < 60 ? starA : starA / 2;
+            g.fill(sx, sy, sx + 1, sy + 1, tw | 0xB8C4FF);
+        }
+
+        // radial accent glow behind the icon (concentric fading discs)
         int is = Math.min(96, h / 5);
         int glow = ((A >>> 24) / 5) << 24;
+        for (int i = 4; i >= 1; i--)
+            dev.noxclient.gui.Gui.round(g, cx - is / 2 - 6 * i, cy - is / 2 - 24 - 6 * i,
+                is + 12 * i, is + 12 * i, 18 + i * 6, (glow / (i + 1)) | 0x7A2BE2);
         dev.noxclient.gui.Gui.round(g, cx - is / 2 - 6, cy - is / 2 - 24,
             is + 12, is + 12, 18, glow | 0x7A2BE2);
         if (iconReady)

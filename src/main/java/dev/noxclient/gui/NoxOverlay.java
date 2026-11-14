@@ -61,6 +61,7 @@ public class NoxOverlay implements HudElement {
 
     private static final long sessionStart = System.currentTimeMillis();
     private static double lastTickNanos = -1, ema = 20f;
+    private static final java.util.Map<String, Float> listAnim = new java.util.HashMap<>();
     private static String tpsText() { return String.format("%.1f tps", ema); }
     /** Called from a tick mixin if present; falls back to 20. */
     public static void noteTick() {
@@ -131,7 +132,7 @@ public class NoxOverlay implements HudElement {
         }
         int infoBottom = y;   // first free row below the info block
 
-        // arraylist — translucent pills with an accent edge on the outer side
+        // arraylist — glass pills w/ accent edge + slide-in animation
         if (hw.arraylist.on()) {
             var mods = NoxClient.INSTANCE.modules.all().stream()
                 .filter(dev.noxclient.module.Module::isEnabled)
@@ -140,29 +141,41 @@ public class NoxOverlay implements HudElement {
             boolean lRight = hw.listSide.get().contains("Right");
             boolean lBot = hw.listSide.get().contains("Bottom");
             // cap the list to what actually fits — overflow becomes "+N more"
-            int maxRows = Math.max(3, (h - 8) / 12);
+            int maxRows = Math.max(3, (h - 8) / 13);
             int hidden = Math.max(0, mods.size() - maxRows);
             if (hidden > 0) mods = mods.subList(0, maxRows - 1);
             // same corner as the info block? start below it instead of overlapping
             boolean sameCorner = lRight == rightSide && lBot == bottom;
-            int ay = lBot ? h - 4 - (mods.size() + (hidden > 0 ? 1 : 0)) * 12
-                          : (sameCorner && !lines.isEmpty() ? infoBottom + 2 : 4);
+            int ay = lBot ? h - 4 - (mods.size() + (hidden > 0 ? 1 : 0)) * 13
+                          : (sameCorner && !lines.isEmpty() ? infoBottom + 3 : 4);
             if (sameCorner && lBot && !lines.isEmpty())
-                ay = Math.min(ay, infoTop - 2 - (mods.size() + (hidden > 0 ? 1 : 0)) * 12);
+                ay = Math.min(ay, infoTop - 3 - (mods.size() + (hidden > 0 ? 1 : 0)) * 13);
+            long nowMs = System.currentTimeMillis();
+            var live = new java.util.HashSet<String>();
             for (var mod : mods) {
+                live.add(mod.name);
+                // slide-in: modules ease from the screen edge over ~180ms
+                float a = listAnim.computeIfAbsent(mod.name,
+                    k -> nowMs / 1000f);
+                float p = Math.min(1f, (nowMs / 1000f - a) / 0.18f);
+                float ease = 1f - (1f - p) * (1f - p);            // ease-out quad
                 int tw = Gui.width(mc.font, mod.name);
-                int px = lRight ? w - 6 - rightPad - tw - 6 : 4;
-                Gui.round(g, px, ay, tw + 8, 11, 3, 0x5A0A0A12);
-                Gui.pill(g, lRight ? px + tw + 6 : px, ay, 2, 11, t.accent());
-                Gui.textShadow(g, mc.font, mod.name, px + 5, ay + 2, t.accent());
-                ay += 12;
+                int slide = (int) ((1f - ease) * 16);
+                int px = lRight ? w - 6 - rightPad - tw - 8 + slide : 4 - slide;
+                // glass pill: soft vertical gradient + hairline accent edge
+                Gui.vgrad(g, px, ay, tw + 10, 12, 4, 0xC0131824, 0x800A0E16);
+                Gui.pill(g, lRight ? px + tw + 8 : px, ay + 1, 2, 10, t.accent());
+                Gui.textShadow(g, mc.font, mod.name, px + 6, ay + 3,
+                    (int) (0xFF * ease) << 24 | (t.text() & 0xFFFFFF));
+                ay += 13;
             }
+            listAnim.keySet().retainAll(live); // evict disabled modules
             if (hidden > 0) {
                 String more = "+" + hidden + " more";
                 int tw = Gui.width(mc.font, more);
-                int px = lRight ? w - 6 - rightPad - tw - 6 : 4;
-                Gui.round(g, px, ay, tw + 8, 11, 3, 0x5A0A0A12);
-                Gui.textShadow(g, mc.font, more, px + 5, ay + 2, 0xFF8A8A9E);
+                int px = lRight ? w - 6 - rightPad - tw - 8 : 4;
+                Gui.vgrad(g, px, ay, tw + 10, 12, 4, 0xC0131824, 0x800A0E16);
+                Gui.textShadow(g, mc.font, more, px + 6, ay + 3, 0xFF8A8A9E);
             }
         }
         if (hw.armor.on() || hw.totems.on()) drawGear(g, mc, w, h, hw);

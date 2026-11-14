@@ -117,6 +117,7 @@ public class NoxWindowScreen extends Screen {
     private final List<int[]> libTiles = new ArrayList<>(); // x,y,w,h
     private final List<Module> libTileMods = new ArrayList<>();
     private int libHudBtnX, libHudBtnY, libHudBtnW, libSearchX, libSearchY, libSearchW;
+    private int hudBtnX, hudBtnY;
 
     private boolean library() { return "Hub".equals(UICustom.clickStyle); }
 
@@ -285,15 +286,20 @@ public class NoxWindowScreen extends Screen {
             }
         }
 
-        // search
+        // search (+ HUD-settings shortcut — was only reachable via library mode)
         int sx = contentX(), sy = winY + TITLE_H + (sidebar() ? 6 : TAB_H + 10),
-            sw = sidebar() ? contentW() : winW - 24;
+            sw = (sidebar() ? contentW() : winW - 24) - 50;
         Gui.roundBorder(g, sx, sy, sw, SEARCH_H, 11,
             searchFocused ? t.accent() : UICustom.border, 0xFF0E131C);
         Gui.text(g, font, "⌕", sx + 9, sy + 7, 0xFF555566);
         String shown = search.isEmpty() && !searchFocused ? "Search modules…"
             : search + (searchFocused && (System.currentTimeMillis() / 500) % 2 == 0 ? "▏" : "");
         Gui.text(g, font, shown, sx + 20, sy + 7, search.isEmpty() && !searchFocused ? 0xFF4E4E62 : t.text());
+        hudBtnX = sx + sw + 6; hudBtnY = sy;
+        boolean hb = ModuleCard.inside(mx, my, hudBtnX, hudBtnY, 44, SEARCH_H);
+        Gui.roundBorder(g, hudBtnX, hudBtnY, 44, SEARCH_H, 11,
+            hb ? t.accent() : UICustom.border, hb ? 0xFF1A2030 : 0xFF0E131C);
+        Gui.textCenter(g, font, "▤", hudBtnX + 22, hudBtnY + 7, hb ? t.text() : 0xFF7C7C90);
 
         // card grid
         int cy = contentY(), ch = contentH();
@@ -350,9 +356,18 @@ public class NoxWindowScreen extends Screen {
             Gui.pill(g, winX + winW - 6, barY, 3, barH, t.accent());
         }
 
-        // resize grip
-        for (int i = 0; i < 3; i++)
-            Gui.circle(g, winX + winW - 8 - i * 5, winY + winH - 6, 1, 0xFF555566);
+        // resize grip — diagonal drag lines, brighter when hovered/dragging
+        {
+            boolean gripHot = resizing
+                || ModuleCard.inside(mx, my, winX + winW - 24, winY + winH - 24, 24, 24);
+            int gc = gripHot ? (0xFF000000 | Theme.current().accent()) : 0xFF6A6A80;
+            for (int i = 0; i < 3; i++) {
+                int o = 6 + i * 5;
+                for (int d = 0; d < o; d++)
+                    g.fill(winX + winW - 4 - d, winY + winH - 4 - o + d,
+                        winX + winW - 3 - d, winY + winH - 3 - o + d, gc);
+            }
+        }
 
         // footer
         footRects.clear();
@@ -683,14 +698,17 @@ public class NoxWindowScreen extends Screen {
             return true; // modal: swallow everything while open
         }
 
+        // resize grip — checked BEFORE panels() so it works in every layout;
+        // generous 24px zone (was 16 and unreachable in panels mode)
+        if (ModuleCard.inside(mx, my, winX + winW - 24, winY + winH - 24, 24, 24)) {
+            resizing = true; return true;
+        }
+
         if (panels()) return panelsClick(mx, my, btn);
 
         if (ModuleCard.inside(mx, my, winX + winW - 24, winY + 4, 18, 18)) { onClose(); return true; }
         if (ModuleCard.inside(mx, my, winX, winY, winW, TITLE_H)) {
             dragging = true; dragOX = (int) mx - winX; dragOY = (int) my - winY; return true;
-        }
-        if (ModuleCard.inside(mx, my, winX + winW - 16, winY + winH - 16, 16, 16)) {
-            resizing = true; return true;
         }
         // footer pills — shared across all window layouts
         for (int i = 0; i < footRects.size(); i++) {
@@ -779,8 +797,13 @@ public class NoxWindowScreen extends Screen {
                 tx += w + 4;
             }
         }
+        if (ModuleCard.inside(mx, my, hudBtnX, hudBtnY, 44, SEARCH_H)) {
+            Module hw = NoxClient.INSTANCE.modules.get("HudWidgets");
+            if (hw != null) popup = new SettingsPopup(hw, (int) mx, (int) my, width, height);
+            return true;
+        }
         if (ModuleCard.inside(mx, my, contentX(), winY + TITLE_H + (sidebar() ? 6 : TAB_H + 10),
-                sidebar() ? contentW() : winW - 24, SEARCH_H)) {
+                (sidebar() ? contentW() : winW - 24) - 50, SEARCH_H)) {
             searchFocused = true; return true;
         }
         searchFocused = false;
