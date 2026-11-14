@@ -25,6 +25,9 @@ print("sha match:", s == d)
 sys.exit(0 if s == d else 1)
 EOF
 
+echo "== changelog =="
+python3 tools/changelog.py || echo "changelog post failed (non-fatal)"
+
 echo "== latest nox log lines =="
 LOG="$HOME/.var/app/com.modrinth.ModrinthApp/data/ModrinthApp/profiles/NOX/logs/latest.log"
 CRASH=$(ls -t "$HOME/.var/app/com.modrinth.ModrinthApp/data/ModrinthApp/profiles/NOX/crash-reports/"*.txt 2>/dev/null | head -1)

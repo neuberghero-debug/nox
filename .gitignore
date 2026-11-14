@@ -35,3 +35,4 @@ nox-community-bot/data/state.json
 
 # ---- node ----
 node_modules/
+.changelog_state
