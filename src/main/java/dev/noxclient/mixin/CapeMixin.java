@@ -40,10 +40,8 @@ public abstract class CapeMixin {
                               AvatarRenderState state, float f1, float f2, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || !Cosmetics.capeActive()) return;
-        PlayerSkin skin = state.skin, own = mc.player.getSkin();
-        if (skin == null || own == null || skin.body() == null || own.body() == null
-            || skin.body().texturePath() == null || own.body().texturePath() == null
-            || !skin.body().texturePath().equals(own.body().texturePath())) return;
+        PlayerSkin skin = state.skin;
+        if (skin == null || state.id != mc.player.getId()) return;
 
         ClientAsset.Texture cape = switch (Cosmetics.INSTANCE.capeStyle.get()) {
             case "Inferno" -> INFERNO_CAPE;
@@ -54,13 +52,15 @@ public abstract class CapeMixin {
                 yield animCape;
             }
             case "Custom" -> {
-                if (!CustomCape.loaded() && CustomCape.reload() != null) yield NOX_CAPE;
-                if (customCape == null)
-                    customCape = new ClientAsset.ResourceTexture(CustomCape.id());
+                Identifier id = CustomCape.id();
+                if (id == null) yield null;
+                if (customCape == null || !customCape.texturePath().equals(id))
+                    customCape = new ClientAsset.ResourceTexture(id);
                 yield customCape;
             }
             default -> NOX_CAPE;
         };
+        if (cape == null) return; // loading/failure preserves the player's original cape
         state.skin = new PlayerSkin(skin.body(), cape, cape, skin.model(), skin.secure());
         // cloth cape (NoxCapeLayer) draws instead — hide the rigid vanilla one
         state.showCape = !Cosmetics.physCapeActive();

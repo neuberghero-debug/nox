@@ -46,9 +46,20 @@ public final class Gui {
         new FontDescription.Resource(Identifier.fromNamespaceAndPath("noxclient", "nox"));
     private static final FontDescription F_NOX_BOLD =
         new FontDescription.Resource(Identifier.fromNamespaceAndPath("noxclient", "nox_bold"));
+    private static final java.util.Map<String, Component> TEXT = new java.util.LinkedHashMap<>(256, .75f, true) {
+        @Override protected boolean removeEldestEntry(java.util.Map.Entry<String, Component> e) {
+            return size() > 2048;
+        }
+    };
 
     public static Component styled(String s, boolean bold) {
-        return Component.literal(s).withStyle(st -> st.withFont(bold ? F_NOX_BOLD : F_NOX));
+        String key = (bold ? "\1" : "\0") + s;
+        Component result = TEXT.get(key);
+        if (result == null) {
+            result = Component.literal(s).withStyle(st -> st.withFont(bold ? F_NOX_BOLD : F_NOX));
+            TEXT.put(key, result);
+        }
+        return result;
     }
 
     public static void text(GuiGraphicsExtractor g, Font f, String s, int x, int y, int color) {
@@ -70,7 +81,8 @@ public final class Gui {
     }
 
     public static void textCenterBold(GuiGraphicsExtractor g, Font f, String s, int cx, int y, int color) {
-        g.text(f, styled(s, true), cx - width(f, s) / 2, y, color);
+        Component text = styled(s, true);
+        g.text(f, text, cx - f.width(text) / 2, y, color);
     }
 
     public static int width(Font f, String s) {

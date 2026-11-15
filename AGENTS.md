@@ -137,3 +137,16 @@
   drains + clears. NVG coords = GUI units via nvgBeginFrame(guiW, guiH, guiScale).
 - sig: noxJarSig runs AFTER jar (loom include remaps fabric.mod.json) and
   REWRITES the zip (ZipOutputStream append corrupts — never append).
+
+## Animation + cape (session 3)
+- `EntityTypes` (plural) holds the constants in 26.3, not `EntityType`.
+- Model hooks: `LivingEntityRenderer.extractRenderState` → attach frame to
+  `LivingEntityRenderState` (mixin interface, no allocations), evaluate pose
+  in `Model.setupAnim` TAIL — `AvatarRenderState.id` = entity id (skin-object
+  compare breaks on skin rebuild).
+- `AnimMath.spring` is an exact ODE solve — callers pass stiffness k and
+  damping ratio ζ (c = 2·√k·ζ), not a raw damping coefficient.
+- Custom cape: `CustomCape.id()` may return null while loading — never force
+  a texture; `CustomCape.reload()` is async, status via `cape` cmd.
+- ESP: clip box edges at w=0.01 (near plane) — dropping the whole box on one
+  clipped corner = the near-range flicker.

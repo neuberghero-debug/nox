@@ -7,6 +7,7 @@ public abstract class Setting<T> {
     protected Setting(String name, T def) { this.name = name; this.def = def; this.value = def; }
     public T get() { return value; }
     public void set(T v) { value = v; }
+    public void reset() { value = def; }
 
     protected static double numOr(Object v, double def) {
         if (v instanceof Number n) return n.doubleValue();
@@ -34,7 +35,10 @@ public abstract class Setting<T> {
     public static class Num extends Setting<Double> {
         public final double min, max;
         public Num(String n, double d, double min, double max) { super(n, d); this.min = min; this.max = max; }
-        @Override public Double get() { return numOr(super.get(), def); }
+        @Override public Double get() {
+            double v = numOr(super.get(), def);
+            return Double.isFinite(v) ? Math.max(min, Math.min(max, v)) : def;
+        }
         public int intVal() { return get().intValue(); }
         public float floatVal() { return get().floatValue(); }
     }

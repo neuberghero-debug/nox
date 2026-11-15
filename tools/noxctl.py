@@ -56,25 +56,36 @@ def send(gd, line):
     print(f"$ {line}\n  -> {r}")
     return r
 
-def latest_shot(gd, out="/tmp/nox_shot.png"):
-    shots = sorted(glob.glob(os.path.join(gd, "screenshots", "*.png")),
-                   key=os.path.getmtime)
-    if not shots:
-        print("  (no screenshot)")
-        return None
-    shutil.copy(shots[-1], out)
-    print("  saved ->", out)
-    return out
+def latest_shot(gd, since, out="/tmp/nox_shot.png"):
+    # Screenshot.grab schedules an asynchronous encode. An ack and a filename
+    # do not mean the PNG has finished writing.
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        shots = sorted(glob.glob(os.path.join(gd, "screenshots", "*.png")),
+                       key=os.path.getmtime, reverse=True)
+        for shot in shots:
+            if os.path.getmtime(shot) < since:
+                continue
+            with open(shot, "rb") as f:
+                data = f.read()
+            if data.startswith(b"\x89PNG\r\n\x1a\n") and data.endswith(b"\0\0\0\0IEND\xaeB`\x82"):
+                with open(out, "wb") as f:
+                    f.write(data)
+                print("  saved ->", out)
+                return out
+        time.sleep(0.1)
+    print("  (screenshot did not finish within 15s)")
+    return None
 
 def main():
     which = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in DIRS else "run"
     args = sys.argv[2:] if which in DIRS and len(sys.argv) > 2 else sys.argv[1:]
     gd = os.path.abspath(DIRS[which])
     for a in args:
+        started = time.time()
         send(gd, a)
         if a == "shot":
-            time.sleep(0.8)
-            latest_shot(gd)
+            latest_shot(gd, started)
         time.sleep(0.25)
 
 if __name__ == "__main__":

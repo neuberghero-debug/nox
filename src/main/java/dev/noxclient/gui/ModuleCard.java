@@ -17,7 +17,7 @@ import java.util.Map;
  *   LMB card → toggle   LMB gear → settings popup   MMB card → keybind listen
  */
 public class ModuleCard {
-    public static final int CARD_W = 150;
+    public static final int CARD_W = 210;
     private static int ch() { return dev.noxclient.gui.UICustom.cardH; }
 
     private static final Map<Category, String> CAT_ICON = Map.of(
@@ -64,6 +64,8 @@ public class ModuleCard {
     private boolean listening;
     private float anim;                     // 0=off .. 1=on, lerped per frame
     private long lastFrame;
+    private String cachedDescription = "", cachedFirst = "", cachedSecond = "", cachedName = "";
+    private int cachedWidth = -1;
 
     public ModuleCard(Module module) { this.module = module; }
 
@@ -92,90 +94,48 @@ public class ModuleCard {
         Theme t = Theme.current();
         var font = Minecraft.getInstance().font;
         boolean on = module.isEnabled();
-        long now = System.currentTimeMillis();
-        float dt = lastFrame == 0 ? 0.016f : Math.min(0.1f, (now - lastFrame) / 1000f);
+        long now = System.nanoTime();
+        float dt = lastFrame == 0 ? 0.016f : Math.min(0.1f, (now - lastFrame) / 1e9f);
         lastFrame = now;
-        anim += ((on ? 1f : 0f) - anim) * Math.min(1f, dt * 12f);
+        anim += ((on ? 1f : 0f) - anim) * (UICustom.reducedMotion ? 1f : (float) (1 - Math.exp(-16f * dt)));
         height = UICustom.cardH;
         boolean hover = inside(mx, my, x, y, width, height);
         hoverNow = hover;
         boolean gearHover = inside(mx, my, gearX(), gearY(), 14, 14);
-        on = anim > 0.5f;
-
         int accent = UICustom.cardAccent;
+        int fill = blend(UICustom.cardFillBottom, UICustom.cardFillTop, hover ? 1 : .45f);
+        if ("Neon".equals(UICustom.cardStyle)) fill = blend(fill, accent, anim * .12f);
+        Gui.roundBorder(g, x, y, width, height, 8,
+            hover ? UICustom.borderHover : UICustom.border, fill);
+        if (on) Gui.round(g, x + 1, y + 14, 2, height - 28, 1, accent);
 
-        // shadow + surface — style-aware (Flat / Glass / Neon)
-        String cst = UICustom.cardStyle;
-        boolean neon = cst.equals("Neon"), flat = cst.equals("Flat");
-        if (!flat) Gui.shadow(g, x, y, width, height, 10);
-        int borderCol = hover ? UICustom.borderHover : UICustom.border;
-        if (neon && anim > 0.02f)
-            borderCol = blend(borderCol, accent & 0x00FFFFFF | 0xFF000000, anim);
-        else if (anim > 0.02f)
-            borderCol = blend(borderCol, accent & 0x00FFFFFF | 0xFF000000, anim * 0.7f);
-        if (cst.equals("Glass"))
-            borderCol = hover ? UICustom.borderHover : UICustom.border;
-        if (!flat)
-            Gui.round(g, x, y, width, height, 10, borderCol);
-        if (neon && anim > 0.15f)
-            Gui.roundBorder(g, x - 1, y - 1, width + 2, height + 2, 11,
-                (accent & 0x00FFFFFF) | ((int) (0x60 * anim) << 24), 0x00000000);
-        int fillTop = blend(UICustom.cardFillTop, (accent & 0xF2FFFFFF) | 0xF2000000,
-            anim * (neon ? 0.5f : 0.35f));
-        int fillBot = UICustom.cardFillBottom;
-        if (flat) { Gui.round(g, x, y, width, height, 10, fillTop); }
-        else Gui.vgrad(g, x + 1, y + 1, width - 2, height - 2, 9, fillTop, fillBot);
-
-        // accent bar on the left edge while enabled
-        if (anim > 0.02f) {
-            int aa = (int) (0xE6 * anim) << 24;
-            Gui.round(g, x + 1, y + 8, 3, height - 16, 1, (accent & 0x00FFFFFF) | aa);
-        }
-
-        // icon chip
-        int icX = x + 10, icY = y + (height - 28) / 2;
-        int chipBg = blend(0xFF20202E, accent & 0x00FFFFFF | 0xFF000000, anim * 0.35f);
-        Gui.round(g, icX, icY, 28, 28, 8, chipBg);
-        String ic = icon();
-        Gui.textCenterBold(g, font, ic, icX + 14, icY + 9,
-            on ? accent : (hover ? t.text() : 0xFF8A8A9E));
-
-        // name (bold, clipped) + description (small, muted, clipped)
-        int tx = icX + 36, tw = width - 36 - 12 - (module.premium ? 14 : 0) - 14;
-        String nm = clip(font, module.name, tw);
-        Gui.textBold(g, font, nm, tx, y + 11, on ? 0xFFF0E8FF : t.text());
         String ds = module.description == null ? "" : module.description;
-        Gui.text(g, font, clip(font, ds, tw + 16), tx, y + 23, 0xFF7C7C90);
-
-        // iOS-style toggle bottom-right
-        int swX = x + width - 34, swY = y + height - 18;
-        Gui.pill(g, swX, swY, 26, 12, blend(0xFF2A2A3A, accent & 0x00FFFFFF | 0xFF000000, anim));
-        Gui.circle(g, swX + 6 + (int) (14 * anim), swY + 6, 4,
-            blend(0xFF6A6A80, 0xFFFFFFFF, anim));
-
-        // gear top-right
-        Gui.text(g, font, "⚙", gearX() + 3, gearY() + 3, gearHover ? accent : 0xFF5A5A6E);
-
-        // premium star — left of the gear
-        if (module.premium) Gui.text(g, font, "★", gearX() - 12, gearY() + 3, 0xFFFFD870);
-
-        // bottom strip: status dot + label, keybind chip tucked right of it
-        int bx = x + 10;
-        int dotA = (int) (0xFF * (0.35f + 0.65f * anim)) << 24;
-        Gui.circle(g, bx + 3, y + height - 12, 3,
-            (blend(0xFF4A4A5E, accent, anim) & 0x00FFFFFF) | dotA);
-        String st = anim > 0.5f ? "Active" : "Idle";
-        Gui.text(g, font, st, bx + 10, y + height - 15,
-            blend(0xFF55556A, 0xFF9C9CB8, anim));
-        bx += 12 + Gui.width(font, st) + 6;
-        if (module.keybind() > 0) {
-            String kb = keyName(module.keybind());
-            int kw = Gui.width(font, kb) + 8;
-            Gui.round(g, bx, y + height - 17, kw, 11, 3, 0xFF1E1E2C);
-            Gui.text(g, font, kb, bx + 4, y + height - 15, 0xFF6A6A80);
+        if (cachedWidth != width || !cachedDescription.equals(ds)) {
+            cachedWidth = width; cachedDescription = ds;
+            cachedName = clip(font, module.name, width - 42);
+            String first = clip(font, ds, width - 28);
+            if (!first.equals(ds)) {
+                int end = Math.max(0, first.length() - 1);
+                int space = ds.lastIndexOf(' ', end);
+                if (space > 8) end = space;
+                cachedFirst = ds.substring(0, end);
+                cachedSecond = clip(font, ds.substring(end).stripLeading(), width - 28);
+            } else { cachedFirst = ds; cachedSecond = ""; }
         }
+        Gui.textBold(g, font, cachedName, x + 14, y + 12, t.text());
+        Gui.text(g, font, cachedFirst, x + 14, y + 29, UICustom.textDim);
+        if (height >= 76) Gui.text(g, font, cachedSecond, x + 14, y + 41, UICustom.textDim);
+
+        int swX = x + width - 42, swY = y + height - 22;
+        Gui.pill(g, swX, swY, 28, 14, blend(0xFF373D4A, accent | 0xFF000000, anim));
+        Gui.circle(g, swX + 6 + (int) (14 * anim), swY + 6, 4,
+            blend(0xFFB4BBC8, 0xFFFFFFFF, anim));
+        for (int i = 0; i < 3; i++) Gui.circle(g, gearX() + 4 + i * 3, gearY() + 10, 1,
+            gearHover ? t.text() : UICustom.textDim);
+        String meta = module.gated() ? "Premium" : module.keybind() > 0 ? keyName(module.keybind()) : module.category.label;
+        Gui.text(g, font, meta, x + 14, y + height - 19, module.gated() ? 0xFFE4BD7B : UICustom.textDim);
         if (listening)
-            Gui.textCenter(g, font, "press key…", x + width / 2, y + height - 16, 0xFFFFD870);
+            Gui.text(g, font, "Press a key…", x + 14, y + height - 19, 0xFFFFD870);
     }
 
     private static String clip(net.minecraft.client.gui.Font font, String s, int w) {

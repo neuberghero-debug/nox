@@ -1,0 +1,7 @@
+package dev.noxclient.physics;
+
+public enum AnimState {
+    IDLE, WALK, SPRINT, SNEAK, SNEAK_WALK, JUMP, FALL, LAND,
+    SWIM, SWIM_IDLE, ELYTRA, CLIMB, ATTACK, USE_ITEM, BOW_DRAW,
+    CROSSBOW, SHIELD_BLOCK, HURT, DEATH, RIDING
+}

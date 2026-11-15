@@ -163,6 +163,7 @@ public class ModuleManager {
         reg(new dev.noxclient.module.donutsmp.FastPlace());
         // TamperGuard is core — runs always, not a module
         reg(new Interface());
+        reg(new Animations());
         reg(new GhostMode());
         reg(new DiscordRPCModule());
         reg(new SelfDestruct());

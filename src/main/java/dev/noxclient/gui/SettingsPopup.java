@@ -1,251 +1,317 @@
 package dev.noxclient.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.noxclient.gui.theme.Theme;
 import dev.noxclient.module.Module;
 import dev.noxclient.setting.Setting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.sounds.SoundEvents;
 
-/**
- * Floating settings popup for one module — its own little draggable window
- * rendered on top of the card grid. Replaces the old inline dropdown.
- */
-public class SettingsPopup {
-    private static final int PAD = 14, TITLE = 30, W = 250;
-
+/** Fixed header/footer and scrollable typed controls, bounded to the viewport. */
+public final class SettingsPopup {
+    private static final int PAD = 16, TITLE = 44, FOOT = 32;
     private final Module module;
-    private int px, py;
+    private int px, py, width, height;
+    private double scroll;
     private boolean dragging;
-    private int dragOX, dragOY;
+    private int dragOX, dragOY, focus = -1, colorDrag;
     private Setting.Num draggingSlider;
     private Setting.Bind capturing;
-    @SuppressWarnings("unchecked")
-    private Setting<String> editingStr;
-    private String strBuf = "";
+    private Setting<?> editing;
+    private Setting.Mode expandedMode;
+    private Setting.Col expandedColor;
+    private String buffer = "", error = "";
+    private boolean replaceText;
+    private float hue, saturation, brightness, alpha;
 
     public SettingsPopup(Module m, int x, int y, int screenW, int screenH) {
-        module = m;
-        int h = height();
-        px = Math.max(4, Math.min(x, screenW - W - 4));
-        py = Math.max(4, Math.min(y, screenH - h - 4));
+        module = m; px = x; py = y;
+        layout();
     }
-
-    private static int rowH(Setting<?> s) { return s instanceof Setting.Num ? 34 : 26; }
-
-    private int height() {
-        int h = TITLE + 8 + (module.settings.isEmpty() ? 18 : 0);
-        for (Setting<?> s : module.settings) h += rowH(s);
-        return h + 8;
+    private int rowH(Setting<?> s) {
+        if (s == expandedMode) return 36 + expandedMode.modes.length * 22;
+        if (s == expandedColor) return 174;
+        return s instanceof Setting.Num ? 48 : 36;
     }
-
-    boolean contains(double mx, double my) {
-        return mx >= px && mx <= px + W && my >= py && my <= py + height();
+    private int contentHeight() {
+        int total = 0;
+        for (Setting<?> s : module.settings) total += rowH(s);
+        return total;
     }
+    private void layout() {
+        var win = Minecraft.getInstance().getWindow();
+        int sw = win.getGuiScaledWidth(), sh = win.getGuiScaledHeight();
+        width = Math.min(360, Math.max(1, sw - 16));
+        height = Math.min(contentHeight() + TITLE + FOOT + 12, Math.max(1, sh - 16));
+        px = Math.max(8, Math.min(px, sw - width - 8));
+        py = Math.max(8, Math.min(py, sh - height - 8));
+        scroll = Math.max(0, Math.min(scroll, Math.max(0, contentHeight() - bodyHeight())));
+    }
+    private int bodyHeight() { return Math.max(1, height - TITLE - FOOT - 12); }
+    private int bodyTop() { return py + TITLE + 6; }
+    private int rowY(Setting<?> target) {
+        int y = bodyTop() - (int) scroll;
+        for (Setting<?> s : module.settings) {
+            if (s == target) return y;
+            y += rowH(s);
+        }
+        return y;
+    }
+    boolean contains(double x, double y) { return hit(x, y, px, py, width, height); }
 
     void render(GuiGraphicsExtractor g, int mx, int my) {
-        Theme t = Theme.current();
+        layout();
         var font = Minecraft.getInstance().font;
-        int h = height();
-
-        Gui.shadow(g, px, py, W, h, 11);
-        Gui.round(g, px, py, W, h, 11, t.accent() & 0x66FFFFFF);
-        Gui.vgrad(g, px + 1, py + 1, W - 2, h - 2, 10, UICustom.cardFillTop, UICustom.cardFillBottom);
-
-        // header
-        Gui.textBold(g, font, module.name, px + PAD, py + 10, t.accent());
-        Gui.text(g, font, "settings", px + PAD + Gui.width(font, module.name) + 6, py + 10, 0xFF6A6A80);
-        g.fill(px + PAD, py + TITLE - 1, px + W - PAD, py + TITLE, UICustom.border);
-        boolean ch = ModuleCard.inside(mx, my, px + W - 24, py + 6, 18, 18);
-        if (ch) Gui.circle(g, px + W - 15, py + 15, 9, 0x40FF5555);
-        Gui.text(g, font, "✕", px + W - 19, py + 10, ch ? 0xFFFF5555 : 0xFF888899);
-        boolean sh = ModuleCard.inside(mx, my, px + W - 44, py + 6, 18, 18);
-        if (sh) Gui.circle(g, px + W - 35, py + 15, 9, 0x30FFFFFF);
-        Gui.text(g, font, "↗", px + W - 39, py + 10, sh ? t.accent() : 0xFF888899);
-        if (module instanceof dev.noxclient.module.render.Cosmetics) {
-            boolean eh = ModuleCard.inside(mx, my, px + W - 64, py + 6, 18, 18);
-            if (eh) Gui.circle(g, px + W - 55, py + 15, 9, 0x30FFFFFF);
-            Gui.text(g, font, "✎", px + W - 59, py + 10, eh ? t.accent() : 0xFF888899);
+        Theme t = Theme.current();
+        Gui.shadow(g, px, py, width, height, 12);
+        Gui.roundBorder(g, px, py, width, height, 12, UICustom.borderHover, UICustom.winFill);
+        Gui.textBold(g, font, clip(module.name, width - 130), px + PAD, py + 10, t.text());
+        Gui.text(g, font, module.category.label + " / Settings", px + PAD, py + 26, UICustom.textDim);
+        button(g, "Close", px + width - 56, py + 10, 44, mx, my);
+        button(g, "Copy", px + width - 106, py + 10, 44, mx, my);
+        g.fill(px + 1, py + TITLE, px + width - 1, py + TITLE + 1, UICustom.border);
+        g.enableScissor(px + 4, bodyTop(), px + width - 4, bodyTop() + bodyHeight());
+        int y = bodyTop() - (int) scroll;
+        for (int i = 0; i < module.settings.size(); i++) {
+            Setting<?> s = module.settings.get(i);
+            int rh = rowH(s);
+            if (y + rh > bodyTop() && y < bodyTop() + bodyHeight()) {
+                if (i == focus) Gui.round(g, px + 8, y, width - 16, rh - 2, 5, 0x0DFFFFFF);
+                row(g, s, y, mx, my);
+            }
+            y += rh;
         }
-
-        int sy = py + TITLE + 6;
-        if (module.settings.isEmpty())
-            Gui.textCenter(g, font, "no settings", px + W / 2, sy + 4, 0xFF5A5A6E);
-        for (Setting<?> s : module.settings) {
-            row(g, font, t, s, sy, mx, my);
-            sy += rowH(s);
+        g.disableScissor();
+        if (contentHeight() > bodyHeight()) {
+            int thumb = Math.max(16, bodyHeight() * bodyHeight() / contentHeight());
+            int ty = bodyTop() + (int) ((bodyHeight() - thumb) * scroll / (contentHeight() - bodyHeight()));
+            Gui.round(g, px + width - 7, ty, 2, thumb, 1, UICustom.borderHover);
         }
+        int fy = py + height - FOOT;
+        g.fill(px + 1, fy, px + width - 1, fy + 1, UICustom.border);
+        button(g, "Reset", px + PAD, fy + 6, 52, mx, my);
+        if (module instanceof dev.noxclient.module.render.Cosmetics)
+            button(g, "Cape editor", px + PAD + 60, fy + 6, 78, mx, my);
+        button(g, "Done", px + width - 68, fy + 6, 52, mx, my);
+        if (!error.isEmpty())
+            Gui.text(g, font, clip(error, width - 32), px + PAD, fy - 11, 0xFFFF8C8C);
     }
-
-    private void row(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font,
-                     Theme t, Setting<?> s, int sy, int mx, int my) {
+    private void row(GuiGraphicsExtractor g, Setting<?> s, int y, int mx, int my) {
+        var font = Minecraft.getInstance().font;
+        int right = px + width - PAD, fieldX = px + width / 2;
+        int fieldW = right - fieldX;
+        Gui.text(g, font, clip(s.name, width / 2 - PAD - 8), px + PAD, y + 12, Theme.current().text());
         if (s instanceof Setting.Bool b) {
-            Gui.text(g, font, s.name, px + PAD, sy + 8, t.text());
-            int bx = px + W - PAD - 28, by = sy + 6;
-            Gui.pill(g, bx, by, 28, 13, b.on() ? t.accent() : 0xFF32324A);
-            Gui.circle(g, bx + (b.on() ? 20 : 7), by + 6, 5, 0xFFFFFFFF);
+            Gui.pill(g, right - 30, y + 10, 30, 14, b.on() ? Theme.current().accent() : 0xFF373D4A);
+            Gui.circle(g, right - (b.on() ? 8 : 22), y + 17, 5, 0xFFF1F2F6);
         } else if (s instanceof Setting.Num n) {
-            Gui.text(g, font, s.name, px + PAD, sy + 5, t.text());
-            String v = fmt(n.get());
-            Gui.text(g, font, v, px + W - PAD - Gui.width(font, v), sy + 5, t.accent());
-            int sx = px + PAD, sw = W - PAD * 2, ly = sy + 20;
-            double pct = (n.get() - n.min) / (n.max - n.min);
-            Gui.pill(g, sx, ly, sw, 4, UICustom.border);
-            Gui.pill(g, sx, ly, Math.max(4, (int) (sw * pct)), 4, t.accent());
-            boolean knobHov = ModuleCard.inside(mx, my, sx + (int) (sw * pct) - 6, ly - 4, 12, 12);
-            Gui.circle(g, sx + (int) (sw * pct), ly + 2, knobHov || draggingSlider == n ? 5 : 4, 0xFFFFFFFF);
-        } else if (s instanceof Setting.Mode mo) {
-            Gui.text(g, font, s.name, px + PAD, sy + 8, t.text());
-            String cur = "‹ " + mo.get() + " ›";
-            int mw = Gui.width(font, cur) + 12;
-            boolean hov = ModuleCard.inside(mx, my, px + W - PAD - mw, sy + 4, mw, 15);
-            Gui.pill(g, px + W - PAD - mw, sy + 4, mw, 15, hov ? t.accent() & 0x88FFFFFF : t.accent() & 0x44FFFFFF);
-            Gui.text(g, font, cur, px + W - PAD - mw + 6, sy + 7, hov ? 0xFFFFFFFF : t.accent());
-        } else if (s instanceof Setting.Bind bi) {
-            Gui.text(g, font, s.name, px + PAD, sy + 8, t.text());
-            String kn = capturing == bi ? "press key…" : keyName(bi.get());
-            int kw = Gui.width(font, kn) + 14;
-            boolean hov = ModuleCard.inside(mx, my, px + W - PAD - kw, sy + 4, kw, 15);
-            Gui.pill(g, px + W - PAD - kw, sy + 4, kw, 15,
-                capturing == bi ? t.accent() : hov ? t.accent() & 0x88FFFFFF : 0xFF32324A);
-            Gui.text(g, font, kn, px + W - PAD - kw + 7, sy + 7,
-                capturing == bi ? 0xFF101018 : hov ? 0xFFFFFFFF : t.accent());
-        } else if (s instanceof Setting.Str) {
-            Gui.text(g, font, s.name, px + PAD, sy + 8, t.text());
-            boolean editing = editingStr == s;
-            String val = editing ? strBuf + "▌" : String.valueOf(s.get());
-            val = clip(font, val, W - PAD * 2 - 90);
-            int vw = Math.max(60, Gui.width(font, val) + 14);
-            boolean hov = ModuleCard.inside(mx, my, px + W - PAD - vw, sy + 4, vw, 15);
-            Gui.pill(g, px + W - PAD - vw, sy + 4, vw, 15,
-                editing ? t.accent() : hov ? t.accent() & 0x88FFFFFF : 0xFF32324A);
-            Gui.text(g, font, val, px + W - PAD - vw + 7, sy + 7,
-                editing ? 0xFF101018 : hov ? 0xFFFFFFFF : 0xFF9C9CB8);
+            field(g, s, y, fieldX, fieldW, fmt(n.get()), mx, my);
+            double span = n.max - n.min;
+            double pct = span <= 0 ? 0 : Math.max(0, Math.min(1, (n.get() - n.min) / span));
+            int barW = width - PAD * 2, barY = y + 34;
+            Gui.pill(g, px + PAD, barY, barW, 3, UICustom.border);
+            Gui.pill(g, px + PAD, barY, Math.max(3, (int) (barW * pct)), 3, Theme.current().accent());
+            Gui.circle(g, px + PAD + (int) (barW * pct), barY + 1, 4, 0xFFFFFFFF);
+        } else if (s instanceof Setting.Mode m) {
+            field(g, s, y, fieldX, fieldW, m.get() + (expandedMode == m ? "  −" : "  +"), mx, my);
+            if (expandedMode == m) {
+                for (int i = 0; i < m.modes.length; i++) {
+                    int yy = y + 36 + i * 22;
+                    boolean selected = m.get().equals(m.modes[i]);
+                    Gui.round(g, px + PAD, yy, width - PAD * 2, 20, 4,
+                        selected ? Theme.current().accent() & 0x33FFFFFF : 0xFF1C222E);
+                    Gui.text(g, font, m.modes[i], px + PAD + 8, yy + 6, selected ? Theme.current().text() : UICustom.textDim);
+                }
+            }
         } else if (s instanceof Setting.Col c) {
-            Gui.text(g, font, s.name, px + PAD, sy + 8, t.text());
-            String hex = String.format("#%06X", c.get() & 0xFFFFFF);
-            Gui.text(g, font, hex, px + W - PAD - 30 - Gui.width(font, hex), sy + 8, 0xFF6A6A80);
-            Gui.roundBorder(g, px + W - PAD - 22, sy + 5, 22, 14, 4, t.accent(), c.get() | 0xFF000000);
+            field(g, s, y, fieldX, fieldW - 28, String.format("#%08X", c.get()), mx, my);
+            Gui.roundBorder(g, right - 22, y + 8, 22, 20, 4, UICustom.borderHover, c.get() | 0xFF000000);
+            if (expandedColor == c) colorPicker(g, y);
         } else {
-            Gui.text(g, font, s.name + ":  " + s.get(), px + PAD, sy + 8, t.text());
+            String value = s instanceof Setting.Bind b ? (capturing == b ? "Press a key…" : keyName(b.get())) : String.valueOf(s.get());
+            field(g, s, y, fieldX, fieldW, value, mx, my);
         }
     }
-
-    /** @return true when the popup consumed the click (or should close via 2) */
+    private void field(GuiGraphicsExtractor g, Setting<?> s, int y, int x, int w, String value, int mx, int my) {
+        boolean active = editing == s || capturing == s;
+        Gui.roundBorder(g, x, y + 6, w, 24, 5,
+            active ? Theme.current().accent() : hit(mx, my, x, y + 6, w, 24) ? UICustom.borderHover : UICustom.border,
+            0xFF10141C);
+        String display = editing == s ? buffer + ((System.currentTimeMillis() / 500) % 2 == 0 ? "|" : "") : value;
+        Gui.text(g, Minecraft.getInstance().font, clip(display, w - 14), x + 7, y + 13,
+            active ? Theme.current().text() : UICustom.textDim);
+    }
+    private void colorPicker(GuiGraphicsExtractor g, int y) {
+        int x = px + PAD, top = y + 40, w = width - PAD * 2;
+        for (int i = 0; i < 64; i++) {
+            int x0 = x + i * w / 64, x1 = x + (i + 1) * w / 64;
+            int col = java.awt.Color.HSBtoRGB(hue, i / 63f, 1);
+            g.fillGradient(x0, top, x1, top + 82, col, 0xFF000000);
+            g.fill(x0, top + 92, x1, top + 102, java.awt.Color.HSBtoRGB(i / 63f, 1, 1));
+            int a = (int) (i / 63f * 255);
+            g.fill(x0, top + 112, x1, top + 122, 0xFF343944);
+            g.fill(x0, top + 112, x1, top + 122, (expandedColor.get() & 0xFFFFFF) | a << 24);
+        }
+        Gui.roundBorder(g, x + (int) (saturation * (w - 1)) - 3, top + (int) ((1 - brightness) * 81) - 3,
+            7, 7, 3, 0xFFFFFFFF, 0x00000000);
+        g.fill(x + (int) (hue * (w - 1)), top + 90, x + (int) (hue * (w - 1)) + 2, top + 104, 0xFFFFFFFF);
+        g.fill(x + (int) (alpha * (w - 1)), top + 110, x + (int) (alpha * (w - 1)) + 2, top + 124, 0xFFFFFFFF);
+    }
     int mouseClicked(double mx, double my, int btn) {
-        if (!contains(mx, my)) return 0;
-        // a click anywhere else commits/cancels pending text edit or keybind capture
-        if (editingStr != null) { editingStr.set(strBuf); editingStr = null; }
-        if (capturing != null) { capturing.set(-1); capturing = null; }
-        if (ModuleCard.inside(mx, my, px + W - 24, py + 6, 18, 18)) return 2;
-        if (module instanceof dev.noxclient.module.render.Cosmetics
-            && ModuleCard.inside(mx, my, px + W - 64, py + 6, 18, 18)) {
-            Minecraft mc = Minecraft.getInstance();
-            mc.setScreenAndShow(new CapeEditorScreen(mc.gui.screen()));
+        layout();
+        if (!contains(mx, my)) { editing = null; capturing = null; return 2; }
+        if (editing != null && !commit()) return 1;
+        capturing = null; error = "";
+        if (hit(mx, my, px + width - 56, py + 10, 44, 22)) return 2;
+        if (hit(mx, my, px + width - 106, py + 10, 44, 22)) {
+            dev.noxclient.NoxClient.INSTANCE.config.shareModule(module); return 1;
+        }
+        int fy = py + height - FOOT;
+        if (my >= fy) {
+            if (hit(mx, my, px + width - 68, fy + 6, 52, 22)) return 2;
+            if (hit(mx, my, px + PAD, fy + 6, 52, 22)) {
+                for (Setting<?> s : module.settings) s.reset();
+                expandedColor = null; expandedMode = null;
+            }
+            if (module instanceof dev.noxclient.module.render.Cosmetics && hit(mx, my, px + PAD + 60, fy + 6, 78, 22)) {
+                Minecraft mc = Minecraft.getInstance();
+                mc.setScreenAndShow(new CapeEditorScreen(mc.gui.screen()));
+            }
             return 1;
         }
-        if (ModuleCard.inside(mx, my, px + W - 44, py + 6, 18, 18)) {
-            dev.noxclient.NoxClient.INSTANCE.config.shareModule(module);
-            Minecraft.getInstance().getSoundManager().play(
-                SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
-            return 1;
-        }
-        if (ModuleCard.inside(mx, my, px, py, W, TITLE)) {
-            dragging = true; dragOX = (int) mx - px; dragOY = (int) my - py; return 1;
-        }
-        int sy = py + TITLE + 6;
-        for (Setting<?> s : module.settings) {
-            if (ModuleCard.inside(mx, my, px + 8, sy, W - 16, rowH(s))) { clickSetting(s, mx, btn); return 1; }
-            sy += rowH(s);
+        if (my < py + TITLE) { dragging = true; dragOX = (int) mx - px; dragOY = (int) my - py; return 1; }
+        if (my < bodyTop() || my >= bodyTop() + bodyHeight()) return 1;
+        int y = bodyTop() - (int) scroll;
+        for (int i = 0; i < module.settings.size(); i++) {
+            Setting<?> s = module.settings.get(i);
+            if (my >= y && my < y + rowH(s)) {
+                focus = i;
+                if (s == expandedColor && my >= y + 40) {
+                    colorDrag = my < y + 126 ? 1 : my < y + 148 ? 2 : 3;
+                    updateColor(mx, my); return 1;
+                }
+                if (s == expandedMode && my >= y + 36) {
+                    int index = (int) (my - y - 36) / 22;
+                    if (index < expandedMode.modes.length) expandedMode.set(expandedMode.modes[index]);
+                    expandedMode = null; return 1;
+                }
+                if (s instanceof Setting.Bool b) b.set(!b.on());
+                else if (s instanceof Setting.Mode m) { expandedMode = expandedMode == m ? null : m; expandedColor = null; }
+                else if (s instanceof Setting.Bind b) capturing = b;
+                else if (s instanceof Setting.Num n && my >= y + 28) { draggingSlider = n; updateSlider(mx); }
+                else if (s instanceof Setting.Col c && mx > px + width - PAD - 28) {
+                    expandedColor = expandedColor == c ? null : c; expandedMode = null;
+                    float[] hsv = java.awt.Color.RGBtoHSB((c.get() >> 16) & 255, (c.get() >> 8) & 255, c.get() & 255, null);
+                    hue = hsv[0]; saturation = hsv[1]; brightness = hsv[2]; alpha = (c.get() >>> 24) / 255f;
+                } else beginEdit(s);
+                return 1;
+            }
+            y += rowH(s);
         }
         return 1;
     }
-
-    private void clickSetting(Setting<?> s, double mx, int btn) {
-        if (s instanceof Setting.Bool b) b.set(!b.on());
-        else if (s instanceof Setting.Mode mo) {
-            int i = java.util.Arrays.asList(mo.modes).indexOf(mo.get());
-            i = btn == 1 ? (i - 1 + mo.modes.length) % mo.modes.length : (i + 1) % mo.modes.length;
-            mo.set(mo.modes[i]);
-        } else if (s instanceof Setting.Str) {
-            @SuppressWarnings("unchecked") var st = (Setting<String>) s;
-            editingStr = st; strBuf = st.get();
-        } else if (s instanceof Setting.Col c) {
-            int[] pal = {0xFF6EC7, 0xFF5555, 0xFFAA00, 0x55FF88, 0x5599FF, 0xB44DFF, 0xFFFFFF};
-            int i = 0;
-            // compare RGB only — stored value carries full alpha, entries are 24-bit
-            for (int k = 0; k < pal.length; k++) if ((c.get() & 0xFFFFFF) == (pal[k] & 0xFFFFFF)) i = k;
-            c.set(pal[(i + 1) % pal.length]);
-        } else if (s instanceof Setting.Bind bi) {
-            capturing = bi;
-        } else if (s instanceof Setting.Num n) {
-            draggingSlider = n;
-            n.set(n.min + pct(mx) * (n.max - n.min));
+    private void beginEdit(Setting<?> s) {
+        editing = s; replaceText = true; error = "";
+        buffer = s instanceof Setting.Col c ? String.format("#%08X", c.get()) : String.valueOf(s.get());
+    }
+    private boolean commit() {
+        if (editing == null) return true;
+        try {
+            if (editing instanceof Setting.Num n) {
+                double value = Double.parseDouble(buffer);
+                if (!Double.isFinite(value)) throw new IllegalArgumentException();
+                n.set(Math.max(n.min, Math.min(n.max, value)));
+            } else if (editing instanceof Setting.Col c) {
+                String hex = buffer.startsWith("#") ? buffer.substring(1) : buffer;
+                if (!hex.matches("[0-9a-fA-F]{6}([0-9a-fA-F]{2})?")) throw new IllegalArgumentException();
+                c.set((int) Long.parseLong(hex, 16) | (hex.length() == 6 ? 0xFF000000 : 0));
+                expandedColor = null;
+            } else if (editing instanceof Setting.Str s) s.set(buffer);
+            editing = null; error = ""; return true;
+        } catch (IllegalArgumentException ex) {
+            error = editing instanceof Setting.Col ? "Enter RGB or ARGB hex" : "Enter a finite number";
+            return false;
         }
-        Minecraft.getInstance().getSoundManager().play(
-            SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
     }
-
-    private double pct(double mx) {
-        return Math.max(0, Math.min(1, (mx - (px + PAD)) / (W - PAD * 2.0)));
+    private void updateSlider(double mx) {
+        double pct = Math.max(0, Math.min(1, (mx - px - PAD) / (width - PAD * 2.0)));
+        draggingSlider.set(draggingSlider.min + pct * (draggingSlider.max - draggingSlider.min));
     }
-
+    private void updateColor(double mx, double my) {
+        if (expandedColor == null) return;
+        float f = (float) Math.max(0, Math.min(1, (mx - px - PAD) / (width - PAD * 2.0)));
+        if (colorDrag == 1) {
+            saturation = f; brightness = (float) (1 - Math.max(0, Math.min(1, (my - rowY(expandedColor) - 40) / 82)));
+        } else if (colorDrag == 2) hue = f;
+        else if (colorDrag == 3) alpha = f;
+        expandedColor.set((java.awt.Color.HSBtoRGB(hue, saturation, brightness) & 0xFFFFFF) | ((int) (alpha * 255) << 24));
+    }
     void mouseDragged(double mx, double my) {
-        if (draggingSlider != null) {
-            draggingSlider.set(draggingSlider.min + pct(mx) * (draggingSlider.max - draggingSlider.min));
-            return;
-        }
-        if (dragging) {
-            var win = Minecraft.getInstance().getWindow();
-            px = Math.max(-W + 40, Math.min((int) mx - dragOX, win.getGuiScaledWidth() - 40));
-            py = Math.max(0, Math.min((int) my - dragOY, win.getGuiScaledHeight() - 20));
-        }
+        if (draggingSlider != null) updateSlider(mx);
+        else if (colorDrag != 0) updateColor(mx, my);
+        else if (dragging) { px = (int) mx - dragOX; py = (int) my - dragOY; layout(); }
     }
-
-    void mouseReleased() { dragging = false; draggingSlider = null; }
-
-    /** @return true when a bind capture / str edit consumed the key. */
+    void mouseReleased() { dragging = false; draggingSlider = null; colorDrag = 0; }
+    void mouseScrolled(double mx, double my, double amount) { scroll -= amount * 30; layout(); }
     boolean keyPressed(int key) {
-        if (editingStr != null) {
-            if (key == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN) {
-                editingStr.set(strBuf); editingStr = null;
-            } else if (key == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
-                editingStr = null; // cancel
-            } else if (key == com.mojang.blaze3d.platform.InputConstants.KEY_BACKSPACE
-                && !strBuf.isEmpty()) {
-                strBuf = strBuf.substring(0, strBuf.length() - 1);
+        if (editing != null) {
+            if (key == InputConstants.KEY_ESCAPE) { editing = null; error = ""; }
+            else if (key == InputConstants.KEY_RETURN) commit();
+            else if (key == InputConstants.KEY_BACKSPACE && !buffer.isEmpty()) {
+                buffer = replaceText ? "" : buffer.substring(0, buffer.offsetByCodePoints(buffer.length(), -1));
+                replaceText = false;
             }
             return true;
         }
-        if (capturing == null) return false;
-        if (key == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) capturing.set(-1);
-        else capturing.set(key);
-        capturing = null;
-        return true;
+        if (capturing != null) {
+            if (key != InputConstants.KEY_ESCAPE) capturing.set(key == InputConstants.KEY_BACKSPACE ? -1 : key);
+            capturing = null; return true;
+        }
+        if (key == InputConstants.KEY_TAB && !module.settings.isEmpty()) {
+            focus = (focus + 1) % module.settings.size();
+            Setting<?> s = module.settings.get(focus);
+            int y = rowY(s);
+            if (y < bodyTop()) scroll -= bodyTop() - y;
+            else if (y + rowH(s) > bodyTop() + bodyHeight()) scroll += y + rowH(s) - bodyTop() - bodyHeight();
+            layout(); return true;
+        }
+        if (key == InputConstants.KEY_RETURN && focus >= 0) {
+            Setting<?> s = module.settings.get(focus);
+            if (s instanceof Setting.Bool b) b.set(!b.on());
+            else if (s instanceof Setting.Bind b) capturing = b;
+            else if (s instanceof Setting.Mode m) expandedMode = expandedMode == m ? null : m;
+            else beginEdit(s);
+            return true;
+        }
+        return false;
     }
-
     boolean charTyped(char c) {
-        if (editingStr == null) return false;
-        if (strBuf.length() < 120 && c >= 32 && c != 127) strBuf += c;
+        if (editing == null) return false;
+        if (c >= 32 && c != 127 && buffer.length() < 512) {
+            if (replaceText) { buffer = ""; replaceText = false; }
+            buffer += c;
+        }
         return true;
     }
-
-    private static String clip(net.minecraft.client.gui.Font font, String s, int w) {
-        String out = s;
-        while (Gui.width(font, out + "…") > w && !out.isEmpty())
-            out = out.substring(0, out.length() - 1);
-        return out.equals(s) ? s : out + "…";
+    private static boolean hit(double x, double y, int rx, int ry, int w, int h) {
+        return x >= rx && x < rx + w && y >= ry && y < ry + h;
     }
-
+    private static void button(GuiGraphicsExtractor g, String text, int x, int y, int w, int mx, int my) {
+        Gui.round(g, x, y, w, 22, 5, hit(mx, my, x, y, w, 22) ? 0xFF303747 : 0xFF222936);
+        Gui.textCenter(g, Minecraft.getInstance().font, text, x + w / 2, y + 7, Theme.current().text());
+    }
+    private static String clip(String s, int w) {
+        var font = Minecraft.getInstance().font;
+        if (Gui.width(font, s) <= w) return s;
+        int end = s.length();
+        while (end > 0 && Gui.width(font, s.substring(0, end) + "…") > w) end = s.offsetByCodePoints(end, -1);
+        return s.substring(0, end) + "…";
+    }
     static String keyName(int code) {
-        if (code <= 0) return "none";
-        try { return com.mojang.blaze3d.platform.InputConstants.Type.KEYBOARD
-            .getOrCreate(code).getDisplayName().getString(); }
-        catch (Throwable t) { return "key " + code; }
+        if (code <= 0) return "Unbound";
+        return InputConstants.Type.KEYBOARD.getOrCreate(code).getDisplayName().getString();
     }
-
-    private static String fmt(double v) {
-        return v == Math.floor(v) ? String.valueOf((int) v) : String.format("%.2f", v);
+    private static String fmt(double value) {
+        return value == Math.floor(value) ? String.valueOf((long) value) : String.format(java.util.Locale.ROOT, "%.2f", value);
     }
 }

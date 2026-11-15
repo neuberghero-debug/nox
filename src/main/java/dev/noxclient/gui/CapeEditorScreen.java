@@ -138,11 +138,12 @@ public class CapeEditorScreen extends Screen {
             img.close();
             if (Cosmetics.INSTANCE != null) {
                 Cosmetics.INSTANCE.capeStyle.set("Custom");
+                Cosmetics.INSTANCE.capeFile.set("nox_edited.png");
                 Cosmetics.INSTANCE.noxCape.set(true);
                 if (!Cosmetics.INSTANCE.isEnabled()) Cosmetics.INSTANCE.toggle();
             }
             String err = CustomCape.reload();
-            Toasts.push(err == null ? "cape saved & worn" : "saved, load failed: " + err, 0xFF8B5CF6);
+            Toasts.push(err == null ? "Cape saved — loading texture" : "Saved, load failed: " + err, 0xFF8B5CF6);
             onClose();
         } catch (Exception e) {
             Toasts.push("save failed: " + e.getMessage(), 0xFFFF5555);

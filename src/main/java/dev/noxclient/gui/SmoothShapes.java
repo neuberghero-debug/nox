@@ -36,10 +36,13 @@ public final class SmoothShapes {
     /** Quantize each channel to /4 — kills the per-frame-interpolated-color
      *  cache explosion while staying visually identical. */
     private static long qkey(int argb, int kind) {
-        return (((long) (argb & 0xFCFCFCFC)) << 3) | kind;
+        // Geometry is independent of color. Tint the three reusable masks at
+        // submission time instead of rasterizing/uploading every hover color.
+        return kind;
     }
 
     private static Identifier tex(int argb, boolean ring) {
+        argb = 0xFFFFFFFF;
         long key = qkey(argb, ring ? 1 : 0);
         Identifier id = CACHE.get(key);
         if (id != null) return id;
@@ -76,10 +79,11 @@ public final class SmoothShapes {
     public static void circle(GuiGraphicsExtractor g, int cx, int cy, int r, int color) {
         if (r <= 0 || ((color >>> 24) & 0xFF) == 0) return;
         Identifier id = discTex(color);
-        g.blit(id, cx - r, cy - r, cx + r, cy + r, 0, 1f, 0, 1f);
+        tinted(g, id, cx - r, cy - r, r * 2, r * 2, 0, 0, T, T, color);
     }
 
     private static Identifier discTex(int argb) {
+        argb = 0xFFFFFFFF;
         long key = qkey(argb, 2);
         Identifier id = CACHE.get(key);
         if (id != null) return id;
@@ -123,10 +127,10 @@ public final class SmoothShapes {
         // corners (bilinear-filtered → smooth alpha edges)
         // blit(id, x0,y0,x1,y1, u0,u1,v0,v1) — end coords + normalized UVs
         float c = (float) R / T, e = 1f - c;
-        g.blit(id, x, y, x + cs, y + cs, 0, c, 0, c);
-        g.blit(id, x + w - cs, y, x + w, y + cs, e, 1f, 0, c);
-        g.blit(id, x, y + h - cs, x + cs, y + h, 0, c, e, 1f);
-        g.blit(id, x + w - cs, y + h - cs, x + w, y + h, e, 1f, e, 1f);
+        tinted(g, id, x, y, cs, cs, 0, 0, R, R, color);
+        tinted(g, id, x + w - cs, y, cs, cs, T - R, 0, R, R, color);
+        tinted(g, id, x, y + h - cs, cs, cs, 0, T - R, R, R, color);
+        tinted(g, id, x + w - cs, y + h - cs, cs, cs, T - R, T - R, R, R, color);
         // crisp middle (axis-aligned fills don't need AA)
         g.fill(x + cs, y, x + w - cs, y + h, color);
         g.fill(x, y + cs, x + cs, y + h - cs, color);
@@ -141,10 +145,10 @@ public final class SmoothShapes {
         Identifier ring = tex(borderColor, true);
         // ring corners = border — blit(id, x0,y0,x1,y1, u0,u1,v0,v1)
         float c = (float) R / T, e = 1f - c;
-        g.blit(ring, x, y, x + cs, y + cs, 0, c, 0, c);
-        g.blit(ring, x + w - cs, y, x + w, y + cs, e, 1f, 0, c);
-        g.blit(ring, x, y + h - cs, x + cs, y + h, 0, c, e, 1f);
-        g.blit(ring, x + w - cs, y + h - cs, x + w, y + h, e, 1f, e, 1f);
+        tinted(g, ring, x, y, cs, cs, 0, 0, R, R, borderColor);
+        tinted(g, ring, x + w - cs, y, cs, cs, T - R, 0, R, R, borderColor);
+        tinted(g, ring, x, y + h - cs, cs, cs, 0, T - R, R, R, borderColor);
+        tinted(g, ring, x + w - cs, y + h - cs, cs, cs, T - R, T - R, R, R, borderColor);
         // border edges
         g.fill(x + cs, y, x + w - cs, y + 1, borderColor);
         g.fill(x + cs, y + h - 1, x + w - cs, y + h, borderColor);
@@ -152,5 +156,13 @@ public final class SmoothShapes {
         g.fill(x + w - 1, y + cs, x + w, y + h - cs, borderColor);
         // inner fill with inset corners (plain round, r-1)
         round(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, cs - 1), fillColor);
+    }
+
+    /** 26.3 public blit overload: destination size, source size, texture size, ARGB. */
+    private static void tinted(GuiGraphicsExtractor g, Identifier id, int x, int y,
+                               int w, int h, int u, int v, int uw, int vh, int color) {
+        if (w <= 0 || h <= 0) return;
+        g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, id,
+            x, y, (float) u, (float) v, w, h, uw, vh, T, T, color);
     }
 }

@@ -20,6 +20,16 @@
     "GameModeAccessor",
     "GuiRendererMixin",
     "AvatarRendererMixin",
+    "AnimationStateMixin",
+    "AnimationExtractMixin",
+    "PlayerAnimationMixin",
+    "HumanoidAnimationMixin",
+    "EndermanAnimationMixin",
+    "CreeperAnimationMixin",
+    "SpiderAnimationMixin",
+    "WolfAnimationMixin",
+    "FirstPersonAnimationMixin",
+    "CameraMotionMixin",
     "LivingEntityRendererAccessor"
   ],
   "injectors": {

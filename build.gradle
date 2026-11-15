@@ -45,6 +45,13 @@ tasks.withType(JavaCompile).configureEach {
     it.options.release = 25
 }
 
+tasks.register('physicsCheck', JavaExec) {
+    dependsOn 'testClasses'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.noxclient.physics.PhysicsTest'
+}
+tasks.named('check') { dependsOn 'physicsCheck' }
+
 // TamperGuard signature: SHA-256 over class + metadata entries (name bytes
 // then file bytes, sorted) — mirrors TamperGuard.selfHash() exactly.
 // Computed on the FINAL jar (loom 'include' remaps fabric.mod.json), then

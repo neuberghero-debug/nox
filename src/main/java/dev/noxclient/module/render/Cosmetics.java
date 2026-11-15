@@ -27,6 +27,9 @@ public class Cosmetics extends Module {
     public final Setting.Bool capePhysics = add(new Setting.Bool("Cape physics", true));
     public final Setting.Num capeWind = add(new Setting.Num("Cape wind", 0.6, 0.0, 2.0));
     public final Setting.Num capeFlex = add(new Setting.Num("Cape flex", 1.0, 0.3, 2.0));
+    public final Setting.Str capeFile = add(new Setting.Str("Cape file", ""));
+    public final Setting.Str capeUrl = add(new Setting.Str("Cape URL", ""));
+    public final Setting.Num capeDistance = add(new Setting.Num("Cape distance", 32, 8, 64));
     public final Setting.Mode pet = add(new Setting.Mode("Pet", "Off",
         "Off", "Dragon", "Parrot", "Blob", "Wisp"));
     public final Setting.Mode petSide = add(new Setting.Mode("Pet side", "Right",
@@ -76,11 +79,7 @@ public class Cosmetics extends Module {
             case "Void" -> net.minecraft.resources.Identifier
                 .fromNamespaceAndPath("noxclient", "textures/cape/nox_cape_void.png");
             case "Animated" -> dev.noxclient.gui.AnimatedCape.id();
-            case "Custom" -> {
-                if (!dev.noxclient.gui.CustomCape.loaded()
-                    && dev.noxclient.gui.CustomCape.reload() != null) yield null;
-                yield dev.noxclient.gui.CustomCape.id();
-            }
+            case "Custom" -> dev.noxclient.gui.CustomCape.id();
             default -> net.minecraft.resources.Identifier
                 .fromNamespaceAndPath("noxclient", "textures/cape/nox_cape.png");
         };

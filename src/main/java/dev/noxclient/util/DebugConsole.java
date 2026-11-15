@@ -251,9 +251,15 @@ public final class DebugConsole {
                         .reduce("", (a, b) -> a.isEmpty() ? b : a + ", " + b)
                         + " (dir=" + dev.noxclient.gui.CustomCape.dir() + ")";
                 }
-                String err = dev.noxclient.gui.CustomCape.reload();
-                return err == null ? "cape loaded: " + dev.noxclient.gui.CustomCape.loadedFrom()
-                    : "cape err: " + err;
+                if (p.length > 1 && "reload".equals(p[1])) {
+                    dev.noxclient.gui.CustomCape.reload();
+                    return "cape reload queued";
+                }
+                // bare `cape` = status only — do NOT trigger a reload
+                return "cape loaded=" + dev.noxclient.gui.CustomCape.loaded()
+                    + " from=" + dev.noxclient.gui.CustomCape.loadedFrom()
+                    + " err=" + dev.noxclient.gui.CustomCape.lastError()
+                    + " id=" + dev.noxclient.gui.CustomCape.id();
             }
             case "why" -> {   // why <module> — what is it doing right now / why idle
                 var m = NoxClient.INSTANCE.modules.get(p[1]);

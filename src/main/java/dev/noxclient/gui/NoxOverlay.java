@@ -474,23 +474,56 @@ public class NoxOverlay implements HudElement {
 
     /**
      * Projects the 8 bounding-box corners → tight screen rect
-     * [minX, minY, maxX, maxY, maxDepth]; null when any corner sits behind the
-     * camera (avoids screen-filling artifacts at close range).
+     * [minX, minY, maxX, maxY, maxDepth]. Corners behind the camera used to
+     * drop the whole box — the near-range flicker. Instead we clip the 12
+     * box edges against the near plane (w is linear in world space, so a
+     * world-space lerp hits w=0 exactly) and keep the visible portion.
+     * Null only when the entire box is behind the camera.
      */
+    private static final int[][] BOX_EDGES = {
+        {0,1},{2,3},{4,5},{6,7},{0,2},{1,3},{4,6},{5,7},{0,4},{1,5},{2,6},{3,7}};
+    private final Vector4f[] boxClip = {new Vector4f(), new Vector4f(), new Vector4f(), new Vector4f(),
+        new Vector4f(), new Vector4f(), new Vector4f(), new Vector4f()};
+    private final boolean[] boxVis = new boolean[8];
+
     private double[] projectBox(net.minecraft.world.phys.AABB bb, Vec3 cp,
                                 Matrix4f mat, int w, int h) {
         double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
         double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE, depth = 0;
-        for (int c = 0; c < 8; c++) {
-            Vec3 corner = new Vec3((c & 1) == 0 ? bb.minX : bb.maxX,
-                (c & 2) == 0 ? bb.minY : bb.maxY, (c & 4) == 0 ? bb.minZ : bb.maxZ);
-            double[] p = project(corner, cp, mat, w, h);
-            if (p == null) return null;
-            minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
-            minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
-            depth = Math.max(depth, p[2]);
+        boolean any = false;
+        for (int i = 0; i < 8; i++) {
+            double cx = (i & 1) == 0 ? bb.minX : bb.maxX,
+                   cy = (i & 2) == 0 ? bb.minY : bb.maxY,
+                   cz = (i & 4) == 0 ? bb.minZ : bb.maxZ;
+            Vector4f v = boxClip[i].set((float) (cx - cp.x), (float) (cy - cp.y),
+                (float) (cz - cp.z), 1f).mul(mat);
+            boxVis[i] = v.w > 0.01f;
         }
-        return new double[] {minX, minY, maxX, maxY, depth};
+        for (int[] e : BOX_EDGES) {
+            for (int i : e) {
+                if (!boxVis[i]) continue;
+                double[] p = projectClip(boxClip[i], w, h);
+                minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
+                minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
+                depth = Math.max(depth, p[2]); any = true;
+            }
+            if (boxVis[e[0]] == boxVis[e[1]]) continue;
+            Vector4f a = boxClip[e[0]], b = boxClip[e[1]];
+            float t = (0.01f - a.w) / (b.w - a.w);
+            // clip point is behind the near plane by construction — evaluate
+            // its clip-space position directly instead of a full re-project
+            float cx = a.x + (b.x - a.x) * t, cy = a.y + (b.y - a.y) * t, cw = 0.01f;
+            double sx = (cx / cw * 0.5 + 0.5) * w, sy = (0.5 - cy / cw * 0.5) * h;
+            minX = Math.min(minX, sx); maxX = Math.max(maxX, sx);
+            minY = Math.min(minY, sy); maxY = Math.max(maxY, sy);
+            any = true;
+        }
+        return any ? new double[] {minX, minY, maxX, maxY, depth} : null;
+    }
+
+    private double[] projectClip(Vector4f v, int w, int h) {
+        float ndcX = v.x / v.w, ndcY = v.y / v.w;
+        return new double[] {(ndcX * 0.5f + 0.5f) * w, (0.5f - ndcY * 0.5f) * h, v.w};
     }
 
     private void drawMarks(GuiGraphicsExtractor g, Vec3 cp, Matrix4f mat, int w, int h,

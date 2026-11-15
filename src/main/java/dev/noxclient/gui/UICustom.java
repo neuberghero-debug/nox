@@ -21,11 +21,12 @@ public final class UICustom {
     public static int textDim      = 0xFF8A8A9E;
     public static int textMute     = 0xFF5A5A6E;
     public static int radius = 12;
-    public static int cardH  = 60;            // density → card height
+    public static int cardH  = 80;            // density → card height
     public static float hudScale = 1f;        // reserved for HUD scaling
-    public static String clickStyle = "Cards"; // Cards | Compact rows | Sidebar | Panels | Hub
+    public static String clickStyle = "Studio"; // Studio | Cards | Compact rows | Sidebar | Panels | Hub
     public static String cardStyle = "Glass";  // Flat | Glass | Neon
-    public static String winStyle  = "Sky";    // Solid | Sky | Glass
+    public static String winStyle  = "Solid";  // Solid | Sky | Glass
+    public static boolean reducedMotion;
 
     /** Reset to NOX Dark defaults. */
     public static void reset() {
@@ -34,7 +35,7 @@ public final class UICustom {
         cardFillTop = 0xFF1C222E; cardFillBottom = 0xFF161B26;
         border = 0x26FFFFFF; borderHover = 0x4DFFFFFF;
         textDim = 0xFF8A8A9E; textMute = 0xFF5A5A6E;
-        radius = 12; cardH = 60; hudScale = 1f; clickStyle = "Cards";
+        radius = 12; cardH = 80; hudScale = 1f; clickStyle = "Studio"; winStyle = "Solid";
         cardStyle = "Glass"; cardAccent = 0xFF7A2BE2;
     }
 }

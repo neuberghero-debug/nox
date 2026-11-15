@@ -45,6 +45,7 @@ public class NoxCapeLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
     private float lastBodyRot = Float.NaN;
     private double lastPX = Double.NaN, lastPY, lastPZ;
     private boolean first = true;
+    private net.minecraft.client.player.LocalPlayer lastPlayer;
 
     public NoxCapeLayer(RenderLayerParent<AvatarRenderState, PlayerModel> parent) {
         super(parent);
@@ -52,10 +53,8 @@ public class NoxCapeLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
 
     private static boolean isLocal(AvatarRenderState state) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return false;
-        PlayerSkin skin = state.skin, own = mc.player.getSkin();
-        return skin != null && own != null
-            && skin.body().texturePath().equals(own.body().texturePath());
+        // entity id, not skin compare — survives skin rebuilds (reload/dim change)
+        return mc.player != null && state.id == mc.player.getId();
     }
 
     @Override
@@ -66,6 +65,7 @@ public class NoxCapeLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
         if (tex == null) return;
 
         step(state);
+        if (cloth == null) return;   // beyond cull distance
 
         pose.pushPose();
         getParentModel().body.translateAndRotate(pose);
@@ -83,10 +83,14 @@ public class NoxCapeLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
         float dt = lastNanos == 0 ? 0 : Math.min((now - lastNanos) / 1e9f, 0.1f);
         lastNanos = now;
 
-        // LOD: far capes use the coarse grid + fewer constraint passes.
-        float dist2 = (float) state.distanceToCameraSq;
-        cloth = dist2 > 20 * 20 ? far : near;
         Cosmetics c = Cosmetics.INSTANCE;
+        // LOD: coarse grid + fewer passes beyond half the cull distance;
+        // resample between grids so the switch doesn't snap the drape.
+        float dist2 = (float) state.distanceToCameraSq;
+        double cull = c != null ? c.capeDistance.get() : 32;
+        if (dist2 > cull * cull) { cloth = null; return; }
+        ClothSim want = dist2 > (cull * 0.5) * (cull * 0.5) ? far : near;
+        if (want != cloth) { if (cloth != null) want.copyFrom(cloth); cloth = want; }
         int flex = c != null ? (int) (1 + c.capeFlex.floatVal() * 3) : 4;
         cloth.iterations = dist2 > 12 * 12 ? Math.max(2, flex - 2) : flex + 1;
         cloth.drag = 0.988f - (c != null ? c.capeFlex.floatVal() : 0.5f) * 0.008f;
@@ -97,10 +101,12 @@ public class NoxCapeLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
         float bodyRot = state.bodyRot;
 
         Minecraft mc = Minecraft.getInstance();
+        // respawn/dimension change creates a new player instance — re-drape
+        if (mc.player != null && mc.player != lastPlayer) { lastPlayer = mc.player; first = true; }
         if (mc.player != null && first) {
-            cloth.reset(0, 7.5f, 2.2f);
+            near.reset(0, 7.5f, 2.2f); far.reset(0, 7.5f, 2.2f);
             lastPX = mc.player.getX(); lastPY = mc.player.getY(); lastPZ = mc.player.getZ();
-            lastBodyRot = bodyRot;
+            lastBodyRot = bodyRot; accum = 0;
             first = false;
         }
 
@@ -148,7 +154,7 @@ public class NoxCapeLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
         if (mc.player != null) {
             double dx = mc.player.getX() - lastPX, dy = mc.player.getY() - lastPY,
                    dz = mc.player.getZ() - lastPZ;
-            if (dx * dx + dy * dy + dz * dz > 16) cloth.reset(0, 7.5f, 2.2f);
+            if (dx * dx + dy * dy + dz * dz > 16) { near.reset(0, 7.5f, 2.2f); far.reset(0, 7.5f, 2.2f); }
             lastPX = mc.player.getX(); lastPY = mc.player.getY(); lastPZ = mc.player.getZ();
         }
     }

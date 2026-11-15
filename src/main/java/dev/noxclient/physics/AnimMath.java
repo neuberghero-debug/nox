@@ -33,25 +33,58 @@ public final class AnimMath {
         return t * t * t * (t * (t * 6 - 15) + 10);
     }
 
-    /** CSS-style cubic bezier through (0,0),(p1,p2 anchor-free x),(1,1).
-     *  Control points (p1x=1/3+p1, p2x=2/3) — we only need a y(t) approx, so
-     *  blend the two control ys over t with the classic basis. */
+    /** Parametric Bezier ordinate, not a CSS time-to-progress easing. */
     public static float cubicBezier(float t, float p1y, float p2y) {
         float u = 1f - t;
         return 3f * u * u * t * p1y + 3f * u * t * t * p2y + t * t * t;
     }
 
-    // ---- spring-damper ----------------------------------------------------
+    /** CSS timing curve: solve x(parameter)=time, then evaluate y(parameter). */
+    public static float cubicBezier(float time, float x1, float y1, float x2, float y2) {
+        if (!Float.isFinite(time)) return 0;
+        if (time <= 0 || time >= 1) return Math.max(0, Math.min(1, time));
+        x1 = Math.max(0, Math.min(1, x1)); x2 = Math.max(0, Math.min(1, x2));
+        float lo = 0, hi = 1, u = time;
+        for (int i = 0; i < 22; i++) {
+            float x = cubicBezier(u, x1, x2);
+            if (x < time) lo = u; else hi = u;
+            u = (lo + hi) * .5f;
+        }
+        return cubicBezier(u, y1, y2);
+    }
 
     /**
-     * Critically-damped spring step. {@code vel} is a one-element in/out
-     * velocity. Stable for variable dt (substeps recommended above ~50ms).
+     * Exact solution of x'' + damping*x' + stiffness*(x-target)=0 for a
+     * constant target over dt. Unit mass; critical damping = 2*sqrt(stiffness).
+     * Unlike Euler integration this remains stable at variable frame times.
      */
     public static float spring(float pos, float target, float[] vel,
                                float stiffness, float damping, float dt) {
-        float f = -stiffness * (pos - target) - damping * vel[0];
-        vel[0] += f * dt;
-        return pos + vel[0] * dt;
+        if (!Float.isFinite(target)) return pos;
+        if (!Float.isFinite(pos) || !Float.isFinite(vel[0])) { vel[0] = 0; return target; }
+        if (!Float.isFinite(dt) || dt <= 0) return pos;
+        double k = Math.max(0, Float.isFinite(stiffness) ? stiffness : 0);
+        double c = Math.max(0, Float.isFinite(damping) ? damping : 0);
+        double x = pos - target, v = vel[0], h = c / 2, d = h * h - k;
+        double nx, nv;
+        if (k == 0) {
+            double decay = Math.exp(-c * dt);
+            nx = x + (c == 0 ? v * dt : v * (1 - decay) / c); nv = v * decay;
+        } else if (Math.abs(d) < 1e-6 * Math.max(1, k)) {
+            double b = v + h * x, e = Math.exp(-h * dt);
+            nx = (x + b * dt) * e; nv = (v - h * b * dt) * e;
+        } else if (d < 0) {
+            double w = Math.sqrt(-d), e = Math.exp(-h * dt), cos = Math.cos(w * dt), sin = Math.sin(w * dt);
+            nx = e * (x * cos + (v + h * x) / w * sin);
+            nv = e * (v * cos - (h * v + k * x) / w * sin);
+        } else {
+            double w = Math.sqrt(d), r1 = -h + w, r2 = -h - w;
+            double a = (v - r2 * x) / (r1 - r2), b = x - a;
+            double e1 = Math.exp(r1 * dt), e2 = Math.exp(r2 * dt);
+            nx = a * e1 + b * e2; nv = r1 * a * e1 + r2 * b * e2;
+        }
+        vel[0] = (float) nv;
+        return target + (float) nx;
     }
 
     // ---- noise ------------------------------------------------------------
