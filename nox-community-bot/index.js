@@ -939,6 +939,36 @@ async function postOnboarding(guild) {
   console.log('[onboard] posted', ONBOARD_MSGS.length);
 }
 
+/* Dump every open ticket channel (↳*) to the log — lets automation read
+   bug reports without REST access. state.dumpV gates the boot dump;
+   /ticketdump runs it on demand for staff. */
+async function dumpTickets(guild, channel) {
+  const out = [];
+  const chans = await guild.channels.fetch();
+  for (const [, ch] of chans) {
+    if (!ch || !ch.name?.startsWith('↳') || ch.type !== ChannelType.GuildText) continue;
+    const msgs = await ch.messages.fetch({ limit: 40 }).catch(() => null);
+    if (!msgs) continue;
+    out.push(`=== ${ch.name} (${ch.id}) ===`);
+    for (const m of [...msgs.values()].reverse()) {
+      out.push(`<${m.author.username}> ${m.content.slice(0, 1600)}`);
+      for (const a of m.attachments.values()) {
+        // CDN URLs expire — fetch text attachments while they're fresh
+        if (a.size < 24_000 && /\.(txt|md|log|json)$/i.test(a.name ?? '')) {
+          const body = await fetch(a.url).then((r) => r.ok ? r.text() : null).catch(() => null);
+          if (body) { out.push(`  ATT ${a.name}:\n${body.slice(0, 6000)}`); continue; }
+        }
+        out.push(`  ATT ${a.url}`);
+      }
+    }
+  }
+  const text = out.join('\n') || 'no tickets';
+  console.log('[ticketdump] ' + out.length + ' lines -> ticket_dump.txt');
+  try { require('node:fs').writeFileSync('ticket_dump.txt', text); } catch (e) { console.warn('[dump]', e.message); }
+  if (channel) channel.send({ content: '```\n' + text.slice(0, 1900) + '\n```' }).catch(() => {});
+  return text;
+}
+
 /* ------------------------------------------------------------------ events */
 
 client.once(Events.ClientReady, async () => {
@@ -960,6 +990,7 @@ client.once(Events.ClientReady, async () => {
       state.onboardV1 = true;
       save();
     }
+    await dumpTickets(guild).catch((e) => console.warn('[dump]', e.message));
     await ensurePanels(guild);
     await rehydrateOrders(guild).catch((e) => console.warn('[order]', e.message));
     await syncStickers(guild);

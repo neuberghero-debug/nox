@@ -16,6 +16,7 @@ public final class Toasts {
     private static final long LIFE = 2600;
 
     public static void push(String text, int color) {
+        LIST.removeIf(x -> x.text.equals(text));   // dedup — re-push bumps to front
         LIST.add(new Toast(text, color, System.currentTimeMillis()));
         while (LIST.size() > 4) LIST.remove(0);
     }

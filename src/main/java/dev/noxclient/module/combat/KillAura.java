@@ -43,7 +43,10 @@ public class KillAura extends Module {
         float ny = Legitifier.approach(mc.player.getYRot(), (float) yaw, max);
         float np = Legitifier.approach(mc.player.getXRot(), (float) pitch, max);
         if (rotMode.get().equals("Silent")) {
-            Legitifier.silentRot(ny, np);           // packets see aim, you don't
+            // zero-packet silent aim: the next outgoing Rot/PosRot/StatusOnly
+            // is rewritten in-flight by MoveGuard — GrimAC Timer kicks on any
+            // extra move packet we used to inject here.
+            dev.noxclient.util.MoveGuard.requestRot(ny, np);
         } else {
             mc.player.setYRot(ny);
             mc.player.setXRot(np);

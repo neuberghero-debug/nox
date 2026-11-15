@@ -1,7 +1,6 @@
 package dev.noxclient.util;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 
 import java.util.Random;
 
@@ -65,12 +64,13 @@ public final class Legitifier {
         return current + gcdFix(step);
     }
 
-    /** Send a look packet without touching the client view (silent rotation). */
+    /**
+     * Silent rotation without sending an extra packet — GrimAC Timer kicks on
+     * injected move packets, so the rotation is rewritten onto the next
+     * outgoing packet by MoveGuard instead.
+     */
     public static void silentRot(float yaw, float pitch) {
-        var mc = Minecraft.getInstance();
-        if (mc.getConnection() == null || mc.player == null) return;
-        mc.getConnection().send(new ServerboundMovePlayerPacket.Rot(
-            yaw, pitch, mc.player.onGround(), false));
+        MoveGuard.requestRot(yaw, pitch);
     }
 
     public static float wrap(float deg) {

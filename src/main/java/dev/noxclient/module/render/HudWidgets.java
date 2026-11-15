@@ -19,6 +19,7 @@ public class HudWidgets extends Module {
     public final Setting.Bool effects = add(new Setting.Bool("Potion effects", false));
     public final Setting.Bool tps = add(new Setting.Bool("Server TPS", false));
     public final Setting.Bool session = add(new Setting.Bool("Session time", false));
+    public final Setting.Bool compass = add(new Setting.Bool("Compass", true));
     public final Setting.Mode anchor = add(new Setting.Mode("Info anchor", "TopLeft",
         "TopLeft", "TopRight", "BottomLeft", "BottomRight"));
     public final Setting.Mode listSide = add(new Setting.Mode("List anchor", "TopRight",

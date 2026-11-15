@@ -382,6 +382,7 @@ public final class DebugConsole {
                     + " rpc=" + (NoxClient.INSTANCE.rpc != null);
                 return info;
             }
+            case "moveguard" -> { return MoveGuard.dump(); }
         }
         return null;
     }

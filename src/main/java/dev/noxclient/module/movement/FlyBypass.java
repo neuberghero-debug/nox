@@ -3,7 +3,6 @@ package dev.noxclient.module.movement;
 import dev.noxclient.module.Category;
 import dev.noxclient.module.Module;
 import dev.noxclient.setting.Setting;
-import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -23,8 +22,6 @@ public class FlyBypass extends Module {
     public void onTick() {
         if (mc.player == null || mc.getConnection() == null) return;
         if (mc.player.tickCount < 60) return;   // post-teleport confirm window
-        var conn = mc.getConnection();
-
         double yOff = (phase = !phase) ? jitter.get() : -jitter.get();
         Vec3 input = inputVector().scale(speed.get());
         double nx = mc.player.getX() + input.x;
@@ -34,8 +31,9 @@ public class FlyBypass extends Module {
 
         mc.player.setPos(nx, ny, nz);
         mc.player.setDeltaMovement(Vec3.ZERO);
-        conn.send(new ServerboundMovePlayerPacket.Pos(nx, ny, nz, true, false));
-        conn.send(new ServerboundMovePlayerPacket.StatusOnly(true, false));
+        // no manual Pos packet — setPos makes vanilla send one PosRot itself,
+        // and a second hasPosition() packet in the same server tick disconnects
+        // with invalid_player_movement (26.3 check).
         mc.player.resetFallDistance();
     }
 

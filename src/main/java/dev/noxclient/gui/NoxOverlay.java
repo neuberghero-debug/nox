@@ -56,7 +56,10 @@ public class NoxOverlay implements HudElement {
         drawTargetHud(g, mc, sw, sh);
         drawSessionStats(g, mc, sw, sh);
         if (hs != 1f) g.pose().popMatrix();
-        Toasts.render(g, mc.font, w, 4);
+        var hm = NoxClient.INSTANCE.modules.get("HudWidgets");
+        boolean compassOn = hm instanceof dev.noxclient.module.render.HudWidgets hw
+            && hw.isEnabled() && hw.compass.on() && mc.player != null;
+        Toasts.render(g, mc.font, w, compassOn ? (int) (24 * hs) + 2 : 4);
     }
 
     private static final long sessionStart = System.currentTimeMillis();
@@ -111,10 +114,18 @@ public class NoxOverlay implements HudElement {
             long s3 = (System.currentTimeMillis() - sessionStart) / 1000;
             lines.add(new String[]{String.format("session %d:%02d", s3 / 60, s3 % 60), "text"});
         }
-        if (hw.effects.on() && mc.player != null)
-            for (var eff : mc.player.getActiveEffects())
+        if (hw.effects.on() && mc.player != null) {
+            var active = mc.player.getActiveEffects().stream().toList();
+            int ei = 0;
+            for (var eff : active) {
+                if (++ei > 8) {
+                    lines.add(new String[]{"+" + (active.size() - 8) + " more", "effect"});
+                    break;
+                }
                 lines.add(new String[]{eff.getEffect().getRegisteredName()
                     + " " + (eff.getAmplifier() + 1), "effect"});
+            }
+        }
 
         int rightPad = scoreboardPad(mc);
         boolean rightSide = hw.anchor.get().contains("Right");
@@ -178,6 +189,7 @@ public class NoxOverlay implements HudElement {
                 Gui.textShadow(g, mc.font, more, px + 6, ay + 3, 0xFF8A8A9E);
             }
         }
+        if (hw.compass.on()) drawCompass(g, mc, w, t);
         if (hw.armor.on() || hw.totems.on()) drawGear(g, mc, w, h, hw);
         drawSpotify(g, mc, t, w, h);
         var lm = NoxClient.INSTANCE.modules.get("LyricsSky");
@@ -198,6 +210,43 @@ public class NoxOverlay implements HudElement {
                         + Gui.width(mc.font, " " + e.value()));
             return Math.min(w + 24, mc.getWindow().getGuiScaledWidth() / 2);
         } catch (Throwable t) { return 0; }
+    }
+
+    /**
+     * Top-center compass strip: cardinal/intercardinal letters + 15° ticks
+     * sliding with player yaw, accent needle marks the facing direction.
+     * MC yaw: 0=S(+Z), 90=W, 180=N, 270=E.
+     */
+    private void drawCompass(GuiGraphicsExtractor g, Minecraft mc, int w,
+                             dev.noxclient.gui.theme.Theme t) {
+        int cw = Math.min(220, w - 120);
+        if (cw < 90) return;
+        int cx = w / 2, cy = 6, ch = 16;
+        Gui.vgrad(g, cx - cw / 2, cy, cw, ch, 8, 0xC0131824, 0x800A0E16);
+        float yaw = mc.player.getYRot() % 360f;
+        if (yaw < 0) yaw += 360f;
+        float ppd = cw / 160f;                       // ~±80° visible range
+        g.enableScissor(cx - cw / 2 + 2, cy, cx + cw / 2 - 2, cy + ch);
+        for (int deg = 0; deg < 360; deg += 15) {
+            float d = deg - yaw;
+            d -= Math.round(d / 360f) * 360f;         // wrap to ±180
+            int x = Math.round(cx + d * ppd);
+            if (x < cx - cw / 2 + 6 || x > cx + cw / 2 - 6) continue;
+            float fade = Math.max(0.3f, 1f - Math.abs(d) / 95f);
+            int a = ((int) (0xFF * fade)) << 24;
+            if (deg % 45 == 0) {
+                String l = switch (deg) {
+                    case 0 -> "S"; case 45 -> "SW"; case 90 -> "W"; case 135 -> "NW";
+                    case 180 -> "N"; case 225 -> "NE"; case 270 -> "E"; default -> "SE";
+                };
+                int col = a | ((deg == 180 ? t.accent() : t.text()) & 0xFFFFFF);
+                Gui.text(g, mc.font, l, x - Gui.width(mc.font, l) / 2, cy + 4, col);
+            } else {
+                g.fill(x, cy + ch - 6, x + 1, cy + ch - 2, a | 0x005A5A6E);
+            }
+        }
+        g.disableScissor();
+        g.fill(cx - 1, cy + 3, cx + 1, cy + ch - 3, t.accent());   // facing needle
     }
 
     /** Armor row + totem counter above the hotbar — DonutSMP PvP staples. */

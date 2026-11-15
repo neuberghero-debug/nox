@@ -22,6 +22,18 @@
   `state.skin == mc.player.getSkin()`.
 - Move packets in the first ~60 ticks after join/teleport →
   "Invalid move player packet" kick. Guard with `player.tickCount < 60`.
+- **NEVER inject extra move packets** (`mc.getConnection().send(new
+  ServerboundMovePlayerPacket.*)`): the vanilla server kicks on >1
+  position packet per `ServerboundClientTickEndPacket` window, and GrimAC
+  "Timer" kicks on ANY extra move packet (Rot included) — both report the
+  misleading "Invalid move player packet received". All module-driven
+  movement/rotation must ride ON vanilla packets via `util/MoveGuard`:
+  `requestHop(dy)` rewrites the next pos packet's Y, `requestRot(yaw,pitch)`
+  rewrites/upgrades the next packet's rotation (silent aura without a single
+  extra packet). `MovePacketMixin` on `ClientCommonPacketListenerImpl.send`
+  enforces the ≤1-pos-per-TickEnd invariant (excess → queued, released at
+  next TickEnd). `moveguard` debug cmd dumps counters
+  (wire/inj/rep/can; `NOX_MOVEGUARD_TRACE=1` for per-packet stdout).
 - `blurBeforeThisStratum` = ONE per frame total; vanilla screens already blur.
 - Current screen lives on `mc.gui.screen()` (public accessor; `Gui.setScreen` is the
   choke point, `setScreenAndShow` delegates). For input injection: vanilla widgets

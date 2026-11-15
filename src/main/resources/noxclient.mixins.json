@@ -11,6 +11,7 @@
     "BlinkMixin",
     "AttackMixin",
     "CapeMixin",
+    "MovePacketMixin",
     "PayloadSpoofMixin",
     "SkyMixin",
     "FullbrightMixin",
