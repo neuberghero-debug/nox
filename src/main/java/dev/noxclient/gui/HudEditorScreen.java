@@ -32,6 +32,7 @@ public class HudEditorScreen extends Screen {
         new El("totems",       "Totems",        "HudWidgets",   40, 16),
         new El("targethud",    "TargetHUD",     "TargetHUD",   148, 46),
         new El("sessionstats", "Session stats", "SessionStats",110, 50),
+        new El("stats",        "Stats panel",   "StatsHud",    120, 70),
         new El("spotify",      "Spotify",       "SpotifyHud",  160, 22),
         new El("lyrics",       "Lyrics",        "LyricsSky",   200, 12),
         new El("twitch",       "Twitch chat",   "TwitchChat",  200, 60),

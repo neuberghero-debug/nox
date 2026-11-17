@@ -536,14 +536,16 @@ public class NoxClickGui extends Screen {
         Nvg.text(c, st, "inter", 10, winX + winW / 2f, winY + 28, ver,
             DS.muted(), org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
 
-        // right cluster: [AC: x] [PANIC] — version moved to the subline so the
-        // right side never collides with the centered brand on narrow windows
+        // right cluster: [SHOP] [AC: x] [PANIC] — version moved to the subline
+        // so the right side never collides with the centered brand
+        titleBtns.clear();
         float rx = winX + winW - 14;
         float pw = Nvg.textW(c, "inter_b", 10.5f, "PANIC") + 18;
         Nvg.round(c, st, rx - pw, winY + 10, pw, 20, 10, DS.danger());
         Nvg.insetHi(c, st, rx - pw + 2, winY + 10, pw - 4, 8, 0x2EFFFFFF);
         Nvg.text(c, st, "inter_b", 10.5f, rx - pw / 2, winY + 15, "PANIC", 0xFFFFFFFF,
             org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+        titleBtns.add(new float[]{rx - pw, pw, 0});
         rx -= pw + 10;
         String ac = "AC: " + AntiCheats.display();
         float aw = Nvg.textW(c, "inter_b", 10.5f, ac) + 14;
@@ -551,6 +553,15 @@ public class NoxClickGui extends Screen {
         Nvg.insetHi(c, st, rx - aw + 2, winY + 10, aw - 4, 8, 0x40FFFFFF);
         Nvg.text(c, st, "inter_b", 10.5f, rx - aw / 2, winY + 15, ac, 0xFF1A1A1F,
             org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+        rx -= aw + 8;
+        // shop entry — accent outline pill (quieter than PANIC, same row)
+        float shw = Nvg.textW(c, "inter_b", 10.5f, "SHOP") + 18;
+        Nvg.roundB(c, st, rx - shw, winY + 10, shw, 20, 10,
+            Nvg.fade(DS.accent(), .25f), Nvg.fade(DS.accent(), .8f));
+        Nvg.text(c, st, "inter_b", 10.5f, rx - shw / 2, winY + 15, "SHOP",
+            DS.accent(), org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER
+                | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+        titleBtns.add(new float[]{rx - shw, shw, 1});
 
         Nvg.rect(c, st, winX + 1, winY + TITLE - 1, winW - 2, 1, DS.line());
     }
@@ -559,6 +570,8 @@ public class NoxClickGui extends Screen {
     /** Pill hitboxes captured during the draw pass — [x, w, catIndex(-1=All,-2=Design)].
      *  Drawn with Nvg.textW, so clicks must use THESE rects, not font.width. */
     private final List<float[]> tabRects = new ArrayList<>();
+    /** Titlebar buttons — [x, w, action(0=panic, 1=shop)] captured at draw. */
+    private final List<float[]> titleBtns = new ArrayList<>();
 
     private void tabs(long c, MemoryStack st, int mx, int my) {
         tabRects.clear();
@@ -1109,11 +1122,19 @@ public class NoxClickGui extends Screen {
             palette = false; pinPick = false; return true;
         }
         if (Math.hypot(mx - (winX + 20), my - (winY + 16)) <= 8) { onClose(); return true; }
-        int prx = winX + winW - 14 - 60;
-        if (mx >= prx - 8 && mx < winX + winW - 8 && my >= winY + 8 && my < winY + 32) {
-            Module p = NoxClient.INSTANCE.modules.get("Panic");
-            if (p != null) p.setEnabled(!p.isEnabled());
-            return true;
+        // titlebar buttons — rects recorded at draw (PANIC / SHOP / AC zone)
+        if (my >= winY + 8 && my < winY + 32) {
+            for (float[] b : titleBtns) {
+                if (mx >= b[0] && mx < b[0] + b[1]) {
+                    if (b[2] == 0) {
+                        Module p = NoxClient.INSTANCE.modules.get("Panic");
+                        if (p != null) p.setEnabled(!p.isEnabled());
+                    } else if (b[2] == 1) {
+                        minecraft.setScreenAndShow(new dev.noxclient.gui.ShopScreen(this));
+                    }
+                    return true;
+                }
+            }
         }
         if (my >= winY && my < winY + TITLE && mx >= winX && mx < winX + winW) {
             dragging = true; dragDX = (int) mx - winX; dragDY = (int) my - winY; return true;

@@ -108,7 +108,7 @@ public class NoxClient implements ClientModInitializer {
             || dev.noxclient.module.ModuleManager.FAKE_KEYS.contains(InputConstants.KEY_RSHIFT);
         if (down && !guiKeyWasDown) {
             if (NoxWindowScreen.open) mc.setScreenAndShow(null);
-            else if (mc.gui.screen() == null) mc.setScreenAndShow(new dev.noxclient.gui.NoxClickGui());
+            else if (mc.gui.screen() == null) mc.setScreenAndShow(openClickGui());
             // screen != null (pause/inventory/chat): don't rip the user out
         }
         guiKeyWasDown = down;
@@ -132,6 +132,17 @@ public class NoxClient implements ClientModInitializer {
         if (!dev.noxclient.telemetry.Telemetry.asked()
             && mc.gui.screen() instanceof net.minecraft.client.gui.screens.TitleScreen)
             mc.setScreenAndShow(new dev.noxclient.gui.PrivacyScreen());
+    }
+
+    /**
+     * clickStyle → which GUI opens. "Studio" is the NVG flagship; every other
+     * style maps to a NoxWindowScreen layout (Cards/Compact rows/Sidebar/
+     * Panels/Hub) so the style picker actually changes what you get.
+     */
+    private static net.minecraft.client.gui.screens.Screen openClickGui() {
+        return "Studio".equals(dev.noxclient.gui.UICustom.clickStyle)
+            ? new dev.noxclient.gui.NoxClickGui()
+            : new dev.noxclient.gui.NoxWindowScreen();
     }
 
     public Theme theme() { return Theme.current(); }

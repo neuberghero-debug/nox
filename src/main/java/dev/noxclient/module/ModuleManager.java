@@ -75,6 +75,7 @@ public class ModuleManager {
         reg(new Fullbright());
         reg(new Cosmetics());
         reg(new HudWidgets());
+        reg(new StatsHud());
         reg(new Scoreboard());
         reg(new SelfTag());
         reg(new SpotifyHud());

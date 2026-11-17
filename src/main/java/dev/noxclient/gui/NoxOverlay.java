@@ -64,6 +64,7 @@ public class NoxOverlay implements HudElement {
         drawWidgets(g, mc, sw, sh);
         drawTargetHud(g, mc, sw, sh);
         drawSessionStats(g, mc, sw, sh);
+        drawStats(g, mc, sw, sh);
         drawScoreboard(g, mc, sw, sh);
         drawAuction(g, mc, sw, sh);
         drawStreamChat(g, mc, sw, sh);
@@ -147,22 +148,57 @@ public class NoxOverlay implements HudElement {
         int infoTop = fp != null ? (int) (fp[1] * h) : (bottom ? h - 4 - lines.size() * 11 : 4);
         int infoX = fp != null ? (int) (fp[0] * w) : (rightSide ? w - 6 - rightPad - maxW : 6);
         int y = infoTop;
-        for (var l : lines) {
-            int col = switch (l[1]) {
-                case "nether" -> 0xFFB44DFF; case "effect" -> 0xFF8AE0FF;
-                case "text" -> t.text();
-                default -> (int) Long.parseLong(l[1], 16);
-            };
-            int lx = fp != null ? infoX : (rightSide ? w - 6 - rightPad - Gui.width(mc.font, l[0]) : 6);
-            Gui.text(g, mc.font, l[0], lx, y, col); y += 11;
+        String iStyle = hw.infoStyle.get();
+        if (!lines.isEmpty() && !"Lines".equals(iStyle)) {
+            // modern grouped card: subtle bg + accent edge (+ per-line pills)
+            int cw = maxW + ("Card".equals(iStyle) ? 16 : 10);
+            int ch = lines.size() * 11 + ("Card".equals(iStyle) ? 7 : 0);
+            int cx = fp != null ? infoX - 6 : (rightSide ? w - 6 - rightPad - cw : 4);
+            int cy = fp != null ? infoTop - 4 : infoTop;
+            if ("Card".equals(iStyle)) {
+                Gui.shadow(g, cx, cy, cw, ch, 7);
+                Gui.round(g, cx, cy, cw, ch, 7, 0xA810141C);
+                Gui.round(g, cx, cy, 2, ch, 4, t.accent() | 0xFF000000);
+                y = cy + 4;
+            }
+            int ly = y;
+            for (var l : lines) {
+                int col = switch (l[1]) {
+                    case "nether" -> 0xFFB44DFF; case "effect" -> 0xFF8AE0FF;
+                    case "text" -> t.text();
+                    default -> (int) Long.parseLong(l[1], 16);
+                };
+                int lw = Gui.width(mc.font, l[0]);
+                int lx = fp != null ? infoX + 2
+                    : (rightSide ? cx + cw - 8 - lw : cx + 8);
+                if ("Pills".equals(iStyle)) {
+                    Gui.round(g, lx - 4, ly - 1, lw + 8, 10, 5, 0x9010141C);
+                    Gui.round(g, lx - 4, ly - 1, 2, 10, 3,
+                        (l[1].equals("nether") ? 0xFFB44DFF : t.accent()) | 0xFF000000);
+                }
+                Gui.text(g, mc.font, l[0], lx, ly, col);
+                ly += 11;
+            }
+            rep("info", cx, cy, cw, ch);
+        } else {
+            for (var l : lines) {
+                int col = switch (l[1]) {
+                    case "nether" -> 0xFFB44DFF; case "effect" -> 0xFF8AE0FF;
+                    case "text" -> t.text();
+                    default -> (int) Long.parseLong(l[1], 16);
+                };
+                int lx = fp != null ? infoX : (rightSide ? w - 6 - rightPad - Gui.width(mc.font, l[0]) : 6);
+                Gui.text(g, mc.font, l[0], lx, y, col); y += 11;
+            }
+            if (!lines.isEmpty()) rep("info", infoX, infoTop, maxW, y - infoTop);
         }
-        if (!lines.isEmpty()) rep("info", infoX, infoTop, maxW, y - infoTop);
+        y = Math.max(y, infoTop + (lines.isEmpty() ? 0 : lines.size() * 11) + ("Card".equals(iStyle) ? 11 : 0));
         int infoBottom = y;   // first free row below the info block
 
         // arraylist — glass pills w/ accent edge + slide-in animation
         if (hw.arraylist.on()) {
             var mods = NoxClient.INSTANCE.modules.all().stream()
-                .filter(mo -> mo.isEnabled() || hw.showDisabled.get())
+                .filter(mo -> !mo.hideList() && (mo.isEnabled() || hw.showDisabled.get()))
                 .sorted((a, b2) -> Integer.compare(
                     Gui.width(mc.font, b2.name), Gui.width(mc.font, a.name))).toList();
             boolean lRight = hw.listSide.get().contains("Right");
@@ -527,6 +563,105 @@ public class NoxOverlay implements HudElement {
             Gui.text(g, mc.font, right, x + pw - 8 - Gui.width(mc.font, right), ry,
                 d > 0 ? 0xFF55DD66 : d < 0 ? 0xFFFF5544 : 0xFFF0E8FF);
             ry += 11;
+        }
+    }
+
+    /**
+     * StatsHud — the ClickGUI live-stats widgets as a draggable HUD panel.
+     * Per-widget toggles (kills/min sparkline, K/D gauge, money/h bars),
+     * compact one-line mode, opacity + accent edge — position via HUD editor.
+     */
+    private void drawStats(GuiGraphicsExtractor g, Minecraft mc, int w, int h) {
+        var m = NoxClient.INSTANCE.modules.get("StatsHud");
+        if (!(m instanceof dev.noxclient.module.render.StatsHud sh2) || !sh2.isEnabled()) return;
+        dev.noxclient.gui.comp.Charts.tickSample();   // keep rings fed while HUD is up
+        var t = dev.noxclient.gui.theme.Theme.current();
+        var sv = dev.noxclient.stats.Stats.sessionView();
+        int gap = (int) (double) sh2.spacing.get();
+        int pad = 7;
+
+        if (sh2.compact.on()) {
+            // one-line: "2.4/m · kd 1.80 · 3.2m/h"
+            var parts = new java.util.ArrayList<String>();
+            float[] kpm = dev.noxclient.gui.comp.Charts.kpmSeries();
+            if (sh2.kpm.on()) parts.add(String.format("%.1f/m", kpm.length > 0 ? kpm[kpm.length - 1] : 0));
+            if (sh2.kd.on()) parts.add(String.format("kd %.2f", dev.noxclient.gui.comp.Charts.kd()));
+            float[] mph = dev.noxclient.gui.comp.Charts.mphSeries();
+            if (sh2.mph.on()) parts.add(dev.noxclient.gui.comp.Charts.kfmt(
+                mph.length > 0 ? mph[mph.length - 1] : 0) + "/h");
+            if (parts.isEmpty()) return;
+            String line = String.join("  ·  ", parts);
+            int pw = Gui.width(mc.font, line) + pad * 2 + 8, ph = 16;
+            float[] tp = HudLayout.get("stats");
+            int x = tp != null ? Math.clamp((int) (tp[0] * w), 2, Math.max(2, w - pw - 2)) : 6;
+            int y = tp != null ? Math.clamp((int) (tp[1] * h), 2, Math.max(2, h - ph - 2))
+                : (int) (h * 0.45);
+            rep("stats", x, y, pw, ph);
+            int bg = ((int) (sh2.opacity.get().doubleValue() * 2.55) << 24) | 0x10141C;
+            Gui.round(g, x, y, pw, ph, 7, bg);
+            if (sh2.edge.on()) Gui.round(g, x, y, 2, ph, 3, t.accent() | 0xFF000000);
+            Gui.text(g, mc.font, line, x + pad + 4, y + 4, t.text());
+            return;
+        }
+
+        // expanded: header + per-widget sections
+        int pw = 118;
+        int ph = pad * 2;
+        if (sh2.header.on()) ph += 13;
+        if (sh2.kpm.on()) ph += 9 + 24 + gap;
+        if (sh2.kd.on()) ph += 9 + 38 + gap;
+        if (sh2.mph.on()) ph += 9 + 20 + gap;
+        if (!sh2.kpm.on() && !sh2.kd.on() && !sh2.mph.on()) return;
+        ph -= gap;
+        float[] tp = HudLayout.get("stats");
+        int x = tp != null ? Math.clamp((int) (tp[0] * w), 2, Math.max(2, w - pw - 2)) : 6;
+        int y = tp != null ? Math.clamp((int) (tp[1] * h), 2, Math.max(2, h - ph - 2))
+            : (int) (h * 0.40);
+        rep("stats", x, y, pw, ph);
+
+        int a8 = (int) (sh2.opacity.get().doubleValue() * 2.55);
+        Gui.shadow(g, x, y, pw, ph, 8);
+        Gui.round(g, x, y, pw, ph, 8, (a8 << 24) | 0x10141C);
+        if (sh2.edge.on()) Gui.round(g, x, y, 2, ph, 4, t.accent() | 0xFF000000);
+        Gui.roundBorder(g, x, y, pw, ph, 8, t.accent() & 0x33FFFFFF, 0);
+
+        int ry = y + pad;
+        if (sh2.header.on()) {
+            Gui.textBold(g, mc.font, "STATS", x + pad + 2, ry, t.accent() | 0xFF000000);
+            String tm = String.format("%d:%02d",
+                (System.currentTimeMillis() - sessionStart) / 60000,
+                ((System.currentTimeMillis() - sessionStart) / 1000) % 60);
+            Gui.text(g, mc.font, tm, x + pw - pad - Gui.width(mc.font, tm), ry, 0xFF8A8A9E);
+            ry += 13;
+        }
+        if (sh2.kpm.on()) {
+            Gui.text(g, mc.font, "kills/min", x + pad + 2, ry, 0xFF8A8A9E); ry += 10;
+            dev.noxclient.gui.comp.Charts.sparkline(g, mc.font, x + pad, ry,
+                pw - pad * 2 - 22, 20, dev.noxclient.gui.comp.Charts.kpmSeries(),
+                t.accent() | 0xFF000000);
+            ry += 24 + gap;
+        }
+        if (sh2.kd.on()) {
+            Gui.text(g, mc.font, "k/d", x + pad + 2, ry, 0xFF8A8A9E); ry += 10;
+            double kd = dev.noxclient.gui.comp.Charts.kd();
+            float pct = (float) Math.min(1, kd / 4.0);
+            int gcx = x + 26, gcy = ry + 14, gr = 13;
+            dev.noxclient.gui.comp.Charts.gauge(g, gcx, gcy, gr, pct,
+                0xFF4ADE80, 0xFF1A1E28);
+            Gui.mono(g, mc.font, String.format(java.util.Locale.US, "%.2f", kd),
+                gcx - 9, gcy - 3, 0xFFF0F0FF);
+            Gui.text(g, mc.font, "kills  " + sv.getOrDefault("Kills", "0"),
+                x + 50, ry + 4, 0xFFB8B8CC);
+            Gui.text(g, mc.font, "deaths " + sv.getOrDefault("Deaths", "0"),
+                x + 50, ry + 15, 0xFFB8B8CC);
+            Gui.text(g, mc.font, "of 4.0 max", x + 50, ry + 26, 0xFF5A5A6E);
+            ry += 38 + gap;
+        }
+        if (sh2.mph.on()) {
+            Gui.text(g, mc.font, "money/hour", x + pad + 2, ry, 0xFF8A8A9E); ry += 10;
+            dev.noxclient.gui.comp.Charts.bars(g, mc.font, x + pad, ry,
+                pw - pad * 2, 16, dev.noxclient.gui.comp.Charts.mphSeries(),
+                t.accent() | 0xFF000000);
         }
     }
 

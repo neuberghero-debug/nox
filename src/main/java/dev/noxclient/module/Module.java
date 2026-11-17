@@ -16,11 +16,17 @@ public abstract class Module {
 
     private final Setting.Mode activation;
     private final Setting.Bind bind;
+    private final Setting.Bool hideInList;
+    private final Setting.Bool notifyToggle;
 
     protected Module(String name, String description, Category category) {
         this.name = name; this.description = description; this.category = category;
         activation = add(new Setting.Mode("Activation", "Toggle", "Toggle", "Hold"));
         bind = add(new Setting.Bind("Keybind", -1));
+        hideInList = add(new Setting.Bool("Hide in list", false,
+            "Don't show this module in the HUD arraylist"));
+        notifyToggle = add(new Setting.Bool("Toggle notify", true,
+            "Toast notification when this module toggles"));
     }
 
     protected <T extends Setting<?>> T add(T s) { settings.add(s); return s; }
@@ -38,8 +44,9 @@ public abstract class Module {
         if (v == enabled) return;
         enabled = v;
         dev.noxclient.gui.UiSounds.toggle(v);
-        dev.noxclient.gui.Toasts.push(
-            name + (v ? " enabled" : " disabled"), v ? 0xFF66FF99 : 0xFFFF6666);
+        if (notifyToggle.on())
+            dev.noxclient.gui.Toasts.push(
+                name + (v ? " enabled" : " disabled"), v ? 0xFF66FF99 : 0xFFFF6666);
         if (v) onEnable(); else onDisable();
     }
     /** Config restore — applies state without popping the premium gate screen. */
@@ -59,6 +66,8 @@ public abstract class Module {
     public void setKeybind(int key) { bind.set(key); }
     /** Hold mode: module stays enabled only while the bound key is held. */
     public boolean holdMode() { return "Hold".equals(activation.get()); }
+    /** Hidden from the HUD arraylist (still fully functional). */
+    public boolean hideList() { return hideInList.on(); }
 
     protected void onEnable() {}
     protected void onDisable() {}

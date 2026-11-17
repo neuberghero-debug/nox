@@ -26,6 +26,8 @@ public class HudWidgets extends Module {
     /** 16.2 — show disabled modules dimmed in the arraylist. */
     public final Setting.Bool showDisabled = add(new Setting.Bool("Show disabled", false,
         "Module list also shows disabled entries, dimmed"));
+    public final Setting.Mode infoStyle = add(Setting.Mode.of("Info style", "Card",
+        "How the info column renders", "Card", "Lines", "Pills"));
     public final Setting.Mode anchor = add(Setting.Mode.of("Info anchor", "TopLeft", "Corner for the info column",
         "TopLeft", "TopRight", "BottomLeft", "BottomRight"));
     public final Setting.Mode listSide = add(Setting.Mode.of("List anchor", "TopRight", "Corner for the module list",
