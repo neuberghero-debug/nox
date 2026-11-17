@@ -22,6 +22,7 @@ public final class UICustom {
     public static int textMute     = 0xFF5A5A6E;
     public static int radius = 12;
     public static int cardH  = 80;            // density → card height
+    public static String density = "Normal";  // Compact | Normal | Spacious → row height
     public static float hudScale = 1f;        // reserved for HUD scaling
     public static String clickStyle = "Studio"; // Studio | Cards | Compact rows | Sidebar | Panels | Hub
     public static String cardStyle = "Glass";  // Flat | Glass | Neon
@@ -56,6 +57,8 @@ public final class UICustom {
     public static String backdrop = "Dim";     // Dim | Frost | Prism
     public static String backdropLevel = "Medium"; // Light | Medium | Strong
     public static boolean seasonFx = true;         // ambient particles in windows
+    public static boolean snowPile = true;         // snow accumulates on window top
+    public static float fxDensity = 1f;            // seasonal particle density 0.25–2.5
 
     /* ---- ClickGUI (NVG) full customization — read every frame ---- */
     public static int guiBg      = 0xFF0F0F12;   // window body color
@@ -79,6 +82,7 @@ public final class UICustom {
         cardStyle = "Glass"; cardAccent = 0xFF7A2BE2; reducedMotion = false;
         largeText = false; colorBlind = "Off"; refreshA11y();
         season = "Auto"; backdrop = "Dim"; backdropLevel = "Medium"; seasonFx = true;
+        snowPile = true; fxDensity = 1f;
         guiBg = 0xFF0F0F12; accent2 = 0xFFFF8AD5; winOpacity = 0.97f;
         glow = 1f; animSpeed = 1f; fontScale = 1f;
         showStats = true; showPinned = true; borderMode = "Subtle";

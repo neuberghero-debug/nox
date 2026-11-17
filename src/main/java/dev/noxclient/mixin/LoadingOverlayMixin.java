@@ -34,17 +34,16 @@ public abstract class LoadingOverlayMixin {
     @Shadow @Final private net.minecraft.server.packs.resources.ReloadInstance reload;
     @Shadow @Final private java.util.function.Consumer<java.util.Optional<java.lang.Throwable>> onFinish;
 
-    private static boolean iconReady;
+    private static int iconKey = -1;
 
     @Inject(method = "registerTextures", at = @At("TAIL"))
     private static void nox$register(TextureManager tm, CallbackInfo ci) {
-        // DynamicTexture uploads on construction — safe to blit from frame one,
-        // unlike SimpleTexture whose contents load during the reload itself.
+        // Icon rides the NVG pass — crisp at any size and independent of the
+        // renderpearl texture manager (DynamicTexture uploads raced reloads).
+        if (iconKey >= 0) return;
         try (var in = LoadingOverlayMixin.class.getResourceAsStream("/assets/noxclient/textures/icon.png")) {
-            if (in != null) {
-                tm.register(NOX_ICON, new DynamicTexture(() -> "nox_icon", NativeImage.read(in)));
-                iconReady = true;
-            }
+            if (in != null)
+                iconKey = dev.noxclient.gui.nvg.NvgOverlay.imageKey(in.readAllBytes());
         } catch (Throwable ignored) {}
     }
 
@@ -79,65 +78,121 @@ public abstract class LoadingOverlayMixin {
             a = Math.min(1f, (now - fadeInStart) / (float) LoadingOverlay.FADE_IN_TIME);
         if (fadeOutStart != -1)
             a *= 1f - Math.min(1f, (now - fadeOutStart) / (float) LoadingOverlay.FADE_OUT_TIME);
-        int A = (int) (a * 255) << 24;
+        final float A = a;
 
-        g.fillGradient(0, 0, w, h, A | 0x0B0716, A | 0x030309);
-
-        // aurora glows — soft concentric discs, top-left accent + bottom-right
-        // cool blue (deterministic, no textures, no per-frame allocations)
-        int aurA = (A >>> 24) / 7 << 24;
-        for (int i = 5; i >= 1; i--) {
-            int r = i * Math.min(w, h) / 10;
-            dev.noxclient.gui.Gui.circle(g, w / 5 - r / 2, h / 6, r, (aurA / (i + 1)) | 0x7A2BE2);
-            dev.noxclient.gui.Gui.circle(g, w * 4 / 5 + r / 3, h * 5 / 6, r, (aurA / (i + 2)) | 0x3A5AFF);
-        }
-
-        // drifting bokeh dust — deterministic positions + slow twinkle,
-        // rounded dots only (no pixel stars)
-        int dustA = (A >>> 24) / 3 << 24;
-        for (int i = 0; i < 70; i++) {
-            int hx = (int) (i * 2654435761L), hz = i * 40503;
-            int sx = (hx & 0x7FFFFFFF) % w, sy = (hz & 0x7FFFFFFF) % h;
-            int drift = (int) (now / (40 + i % 30)) % (w + 40) - 20;
-            sx = (sx + drift) % (w + 20); if (sx < 0) sx += w + 20; sx -= 10;
-            boolean lit = (i * 31 + (int) (now / 14)) % 100 < 55;
-            int alpha = lit ? dustA : dustA / 2;
-            int r = 1 + (i % 5 == 0 ? 1 : 0);
-            dev.noxclient.gui.Gui.circle(g, sx, sy, r,
-                alpha | (i % 7 == 0 ? 0x9B7BFF : 0xB8C4FF));
-        }
-
-        // radial accent glow behind the icon (concentric fading discs)
-        int is = Math.min(96, h / 5);
-        int glow = ((A >>> 24) / 5) << 24;
-        for (int i = 4; i >= 1; i--)
-            dev.noxclient.gui.Gui.round(g, cx - is / 2 - 6 * i, cy - is / 2 - 24 - 6 * i,
-                is + 12 * i, is + 12 * i, 18 + i * 6, (glow / (i + 1)) | 0x7A2BE2);
-        dev.noxclient.gui.Gui.round(g, cx - is / 2 - 6, cy - is / 2 - 24,
-            is + 12, is + 12, 18, glow | 0x7A2BE2);
-        if (iconReady)
-            g.blit(RenderPipelines.GUI_TEXTURED, NOX_ICON,
-                cx - is / 2, cy - is / 2 - 20, 0, 0, is, is, is, is);
-
-        // progress bar — drive smoothing ourselves (vanilla does it in the cancelled body)
+        // progress — drive smoothing ourselves (vanilla does it in the cancelled body)
         currentProgress += (Math.min(1f, reload.getActualProgress()) - currentProgress) * 0.2f;
-        float p = Math.min(1f, currentProgress);
-        int bw = Math.min(240, w - 80), bx = cx - bw / 2, by = cy + is / 2;
-        dev.noxclient.gui.Gui.pill(g, bx - 1, by - 1, bw + 2, 6, A | 0x15151C);
-        dev.noxclient.gui.Gui.pill(g, bx, by, Math.max(6, (int) (bw * p)), 4, A | 0x7A2BE2);
-        if (p > 0.01f) {
-            // rounded head + traveling shine inside the fill
-            dev.noxclient.gui.Gui.circle(g, bx + (int) (bw * p) - 1, by + 2, 3, A | 0xE8D8FF);
-            int sw = 26, sweep = (int) ((now / 6) % (bw + sw * 2)) - sw;
-            int fillW = (int) (bw * p);
-            if (sweep < fillW && sweep + sw > 0)
-                dev.noxclient.gui.Gui.pill(g, bx + Math.max(0, sweep), by + 1,
-                    Math.min(sw, fillW - Math.max(0, sweep)), 2, (A / 3) | 0xE8D8FF);
-        }
+        final float p = Math.min(1f, currentProgress);
 
-        // bottom brand hairline
-        int lineA = (A >>> 24) / 2 << 24;
-        dev.noxclient.gui.Gui.hgrad(g, 0, h - 2, w / 2, 1, 0, lineA | 0x7A2BE2);
-        dev.noxclient.gui.Gui.hgrad(g, w / 2, h - 2, w - w / 2, 1, lineA | 0x7A2BE2, 0);
+        final int kk = iconKey;
+        final long t = now;
+        dev.noxclient.gui.nvg.NvgOverlay.op((c, st) -> {
+            int ACC = 0xFF7A2BE2, ACC2 = 0xFF9B7BFF;
+
+            /* backdrop — obsidian + soft accent nebula top-left / blue bottom-right */
+            dev.noxclient.gui.nvg.Nvg.vgrad(c, st, 0, 0, w, h, 0,
+                dev.noxclient.gui.nvg.Nvg.fade(0xFF0A0B14, A), dev.noxclient.gui.nvg.Nvg.fade(0xFF040407, A));
+            org.lwjgl.nanovg.NVGPaint r1 = org.lwjgl.nanovg.NanoVG.nvgRadialGradient(c,
+                w * .22f, h * .2f, 10, Math.min(w, h) * .55f,
+                dev.noxclient.gui.nvg.Nvg.col(st, ACC, .10f * A), dev.noxclient.gui.nvg.Nvg.col(st, ACC, 0),
+                org.lwjgl.nanovg.NVGPaint.malloc(st));
+            org.lwjgl.nanovg.NanoVG.nvgBeginPath(c);
+            org.lwjgl.nanovg.NanoVG.nvgRect(c, 0, 0, w, h);
+            org.lwjgl.nanovg.NanoVG.nvgFillPaint(c, r1); org.lwjgl.nanovg.NanoVG.nvgFill(c);
+            org.lwjgl.nanovg.NVGPaint r2 = org.lwjgl.nanovg.NanoVG.nvgRadialGradient(c,
+                w * .82f, h * .85f, 10, Math.min(w, h) * .5f,
+                dev.noxclient.gui.nvg.Nvg.col(st, 0xFF3A5AFF, .08f * A), dev.noxclient.gui.nvg.Nvg.col(st, 0xFF3A5AFF, 0),
+                org.lwjgl.nanovg.NVGPaint.malloc(st));
+            org.lwjgl.nanovg.NanoVG.nvgBeginPath(c);
+            org.lwjgl.nanovg.NanoVG.nvgRect(c, 0, 0, w, h);
+            org.lwjgl.nanovg.NanoVG.nvgFillPaint(c, r2); org.lwjgl.nanovg.NanoVG.nvgFill(c);
+
+            /* twinkling dust — deterministic, drifts slowly right */
+            for (int i = 0; i < 90; i++) {
+                int sx = (int) ((i * 2654435761L & 0x7FFFFFFF) % (w + 40)) - 20;
+                int sy = (i * 40503 & 0x7FFFFFFF) % h;
+                sx = (sx + (int) (t / (70 + i % 40))) % (w + 30) - 15;
+                float tw = .35f + .65f * (float) Math.abs(Math.sin(i * 1.7 + t / 900.0));
+                dev.noxclient.gui.nvg.Nvg.circle(c, st, sx, sy, .8f + (i % 4) * .3f,
+                    dev.noxclient.gui.nvg.Nvg.fade(i % 6 == 0 ? ACC2 : 0xFFB8C4FF, tw * .5f * A));
+            }
+
+            /* accretion ring — tilted ellipse arc rotating around the icon */
+            float is = Math.min(110, h / 4.6f);
+            float icy = cy - is * .62f;
+            org.lwjgl.nanovg.NanoVG.nvgSave(c);
+            org.lwjgl.nanovg.NanoVG.nvgTranslate(c, cx, icy);
+            org.lwjgl.nanovg.NanoVG.nvgScale(c, 1f, .32f);
+            org.lwjgl.nanovg.NanoVG.nvgRotate(c, (float) (t / 2600.0 * Math.PI * 2));
+            org.lwjgl.nanovg.NanoVG.nvgBeginPath(c);
+            org.lwjgl.nanovg.NanoVG.nvgArc(c, 0, 0, is * .85f, 0, (float) Math.PI * 1.35f,
+                org.lwjgl.nanovg.NanoVG.NVG_CW);
+            org.lwjgl.nanovg.NanoVG.nvgStrokeColor(c, dev.noxclient.gui.nvg.Nvg.col(st, ACC2, .55f * A));
+            org.lwjgl.nanovg.NanoVG.nvgStrokeWidth(c, 3.2f); org.lwjgl.nanovg.NanoVG.nvgStroke(c);
+            org.lwjgl.nanovg.NanoVG.nvgBeginPath(c);
+            org.lwjgl.nanovg.NanoVG.nvgArc(c, 0, 0, is * .85f, (float) Math.PI * 1.5f,
+                (float) Math.PI * 1.95f, org.lwjgl.nanovg.NanoVG.NVG_CW);
+            org.lwjgl.nanovg.NanoVG.nvgStrokeColor(c, dev.noxclient.gui.nvg.Nvg.col(st, ACC, .9f * A));
+            org.lwjgl.nanovg.NanoVG.nvgStrokeWidth(c, 4.6f); org.lwjgl.nanovg.NanoVG.nvgStroke(c);
+            org.lwjgl.nanovg.NanoVG.nvgRestore(c);
+            // inner counter-arc
+            org.lwjgl.nanovg.NanoVG.nvgSave(c);
+            org.lwjgl.nanovg.NanoVG.nvgTranslate(c, cx, icy);
+            org.lwjgl.nanovg.NanoVG.nvgScale(c, 1f, .32f);
+            org.lwjgl.nanovg.NanoVG.nvgRotate(c, -(float) (t / 3900.0 * Math.PI * 2));
+            org.lwjgl.nanovg.NanoVG.nvgBeginPath(c);
+            org.lwjgl.nanovg.NanoVG.nvgArc(c, 0, 0, is * .62f, 0, (float) Math.PI * .8f,
+                org.lwjgl.nanovg.NanoVG.NVG_CW);
+            org.lwjgl.nanovg.NanoVG.nvgStrokeColor(c, dev.noxclient.gui.nvg.Nvg.col(st, 0xFFE8D8FF, .5f * A));
+            org.lwjgl.nanovg.NanoVG.nvgStrokeWidth(c, 2.2f); org.lwjgl.nanovg.NanoVG.nvgStroke(c);
+            org.lwjgl.nanovg.NanoVG.nvgRestore(c);
+
+            /* icon — soft accent glow + image */
+            dev.noxclient.gui.nvg.Nvg.shadow(c, st, cx - is * .34f, icy - is * .34f,
+                is * .68f, is * .68f, is * .3f, 26,
+                dev.noxclient.gui.nvg.Nvg.fade(ACC, .30f * A));
+            if (kk >= 0) {
+                int imgH = dev.noxclient.gui.nvg.NvgOverlay.imageHandle(kk);
+                if (imgH != 0)
+                    dev.noxclient.gui.nvg.Nvg.img(c, st, imgH, cx - is * .32f, icy - is * .32f,
+                        is * .64f, is * .64f, is * .14f, A);
+            }
+
+            /* wordmark + subtitle */
+            dev.noxclient.gui.nvg.Nvg.textL(c, st, "inter_b", 26, cx, icy + is * .58f,
+                "N O X", dev.noxclient.gui.nvg.Nvg.fade(0xFFFFFFFF, A), 4f,
+                org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+            dev.noxclient.gui.nvg.Nvg.textL(c, st, "inter", 11.5f, cx, icy + is * .58f + 22,
+                "DonutSMP client", dev.noxclient.gui.nvg.Nvg.fade(0xFF8A8A9E, A), .4f,
+                org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+
+            /* progress — well track + gradient fill + glowing head + sheen */
+            float bw = Math.min(250, w - 90), bx = cx - bw / 2, by = cy + is * .72f;
+            dev.noxclient.gui.nvg.Nvg.well(c, st, bx, by, bw, 5, 2.5f,
+                dev.noxclient.gui.nvg.Nvg.fade(0xFF14151E, A));
+            float fw = Math.max(6, bw * p);
+            dev.noxclient.gui.nvg.Nvg.hgrad(c, st, bx, by, fw, 5, 2.5f,
+                dev.noxclient.gui.nvg.Nvg.fade(ACC, A), dev.noxclient.gui.nvg.Nvg.fade(0xFFFF8AD5, A));
+            if (p > 0.01f) {
+                dev.noxclient.gui.nvg.Nvg.shadow(c, st, bx + fw - 6, by - 3, 12, 11, 5, 10,
+                    dev.noxclient.gui.nvg.Nvg.fade(0xFFFF8AD5, .7f * A));
+                dev.noxclient.gui.nvg.Nvg.circle(c, st, bx + fw - 1, by + 2.5f, 2.4f,
+                    dev.noxclient.gui.nvg.Nvg.fade(0xFFFFFFFF, .9f * A));
+                int swp = (int) ((t / 5) % (bw + 60)) - 30;
+                if (swp < fw && swp + 26 > 0)
+                    dev.noxclient.gui.nvg.Nvg.hgrad(c, st,
+                        bx + Math.max(0, swp), by + 1, Math.min(26, fw - Math.max(0, swp)), 3, 1.5f,
+                        0x00FFFFFF, dev.noxclient.gui.nvg.Nvg.fade(0xFFE8D8FF, .35f * A));
+            }
+            dev.noxclient.gui.nvg.Nvg.text(c, st, "mono", 9.5f, cx, by + 18,
+                (int) (p * 100) + " %", dev.noxclient.gui.nvg.Nvg.fade(0xFF8A8A9E, A * .8f),
+                org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+
+            /* bottom brand hairline */
+            dev.noxclient.gui.nvg.Nvg.hgrad(c, st, 0, h - 1.5f, w * .5f, 1.5f, 0,
+                0x00FFFFFF, dev.noxclient.gui.nvg.Nvg.fade(ACC, .5f * A));
+            dev.noxclient.gui.nvg.Nvg.hgrad(c, st, w * .5f, h - 1.5f, w * .5f, 1.5f, 0,
+                dev.noxclient.gui.nvg.Nvg.fade(ACC, .5f * A), 0x00FFFFFF);
+        });
     }
 }

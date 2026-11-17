@@ -35,27 +35,54 @@ public final class AntiCheats {
         return c;
     }
 
+    private static final String[] ACS = {
+        "grim", "vulcan", "verus", "matrix", "spartan", "negativity",
+        "intave", "polar", "karhu", "aac", "nocheat", "ncp", "themis",
+        "hawk", "horizon", "kauri", "reflex", "wither", "zentra"
+    };
+    private static final java.util.Map<String, String> HOST_AC = java.util.Map.of(
+        "donutsmp", "Grim", "crazymc", "Polar", "minemen", "Minemen");
+
     private static String detect() {
         String b = brand == null ? "" : brand;
-        if (b.contains("grim")) return "Grim";
-        if (b.contains("vulcan")) return "Vulcan";
-        if (b.contains("verus")) return "Verus";
-        if (b.contains("matrix")) return "Matrix";
-        if (b.contains("spartan")) return "Spartan";
-        if (b.contains("negativity")) return "Negativity";
-        if (b.contains("intave")) return "Intave";
-        if (b.contains("polar")) return "Polar";
-        if (b.contains("karhu")) return "Karhu";
-        if (b.contains("aac")) return "AAC";
-        if (b.contains("nocheat")) return "NCP";
+        String ac = matchAc(b);
+        if (ac != null) return ac;
+
+        // scoreboard teams/objectives — several ACs register named teams
+        try {
+            var lvl = Minecraft.getInstance().level;
+            if (lvl != null) {
+                var sb = lvl.getScoreboard();
+                for (var t : sb.getPlayerTeams()) {
+                    ac = matchAc(t.getName().toLowerCase());
+                    if (ac != null) return ac;
+                }
+                for (String o : sb.getObjectiveNames()) {
+                    ac = matchAc(o.toLowerCase());
+                    if (ac != null) return ac;
+                }
+            }
+        } catch (Throwable ignored) {}
 
         var sd = Minecraft.getInstance().getCurrentServer();
         if (sd != null && sd.ip != null) {
             String ip = sd.ip.toLowerCase();
-            if (ip.contains("donutsmp")) return "Grim";   // DonutSMP runs GrimAC
+            for (var e : HOST_AC.entrySet())
+                if (ip.contains(e.getKey())) return e.getValue();
+            ac = matchAc(ip);
+            if (ac != null) return ac;
         }
-        if (!b.isEmpty() && !b.equals("vanilla")) return b.contains("fabric") ? "Unknown" : cap(b);
+        if (!b.isEmpty() && !b.equals("vanilla"))
+            return b.contains("fabric") || b.contains("paper") || b.contains("purpur")
+                || b.contains("spigot") ? "Unknown" : cap(b);
         return Minecraft.getInstance().getCurrentServer() == null ? "None" : "Vanilla";
+    }
+
+    /** First AC keyword inside the haystack, pretty-printed — null if none. */
+    private static String matchAc(String hay) {
+        if (hay == null || hay.isEmpty()) return null;
+        for (String k : ACS) if (hay.contains(k)) return cap(k);
+        return null;
     }
 
     private static String cap(String s) {

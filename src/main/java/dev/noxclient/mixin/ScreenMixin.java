@@ -29,7 +29,8 @@ public abstract class ScreenMixin {
     @Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At("TAIL"))
     private void nox$chrome(GuiGraphicsExtractor g, int mx, int my, float dt, CallbackInfo ci) {
         Screen self = (Screen) (Object) this;
-        if (self instanceof NoxWindowScreen || self instanceof dev.noxclient.gui.NoxInviteScreen) return;
+        if (self instanceof NoxWindowScreen || self instanceof dev.noxclient.gui.NoxInviteScreen
+            || self instanceof dev.noxclient.gui.NoxClickGui) return;
         Theme t = Theme.current();
 
         boolean loading = self instanceof ProgressScreen

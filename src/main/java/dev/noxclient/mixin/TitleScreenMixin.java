@@ -23,8 +23,9 @@ public abstract class TitleScreenMixin {
     private void nox$sky(GuiGraphicsExtractor g, int mx, int my, float dt, CallbackInfo ci) {
         ci.cancel();
         Screen s = (Screen) (Object) this;
-        // real video frames win when present; procedural Gargantua otherwise
-        if (!dev.noxclient.gui.AnimatedSky.render(g, s.width, s.height))
+        // real raymarched shader sky first; video frames then procedural fallback
+        if (!dev.noxclient.render.MenuSky.render(g, s.width, s.height)
+            && !dev.noxclient.gui.AnimatedSky.render(g, s.width, s.height))
             Gargantua.render(g, s.width, s.height);
         g.fill(0, 0, s.width, s.height, 0x50000000);
         var lm = NoxClient.INSTANCE.modules.get("LyricsSky");

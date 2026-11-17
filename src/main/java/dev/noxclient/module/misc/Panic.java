@@ -47,8 +47,14 @@ public class Panic extends Module {
             if (m != this && m.isEnabled() && !keepSet.contains(m.name.toLowerCase())) kill.add(m);
         for (var m : kill) m.setEnabled(false);
         snapshot = kill.stream().map(m -> m.name).toList();
-        if (closeGui.on() && dev.noxclient.gui.NoxWindowScreen.open)
-            net.minecraft.client.Minecraft.getInstance().setScreenAndShow(null);
+        if (closeGui.on()) {
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            // any NOX screen counts — the card GUI flag misses the NVG ClickGUI
+            if (dev.noxclient.gui.NoxWindowScreen.open
+                || mc.gui.screen() instanceof dev.noxclient.gui.NoxClickGui
+                || mc.gui.screen() instanceof dev.noxclient.gui.NoxWindowScreen)
+                mc.setScreenAndShow(null);
+        }
         if (toast.on()) dev.noxclient.gui.Toasts.push("PANIC — " + kill.size() + " modules off", 0xFFFF6666);
         setEnabled(false);
     }

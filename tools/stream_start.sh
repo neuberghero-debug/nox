@@ -50,16 +50,7 @@ python3 tools/stream/apply_preset.py --profile "$PROFILE" --user "$STREAM_USER" 
 # python3 tools/stream/make_scene.py "$STREAM_USER" >/dev/null \
 #   && echo "== obs scene NOX-TikTok + profile regenerated"
 
-# ---- 7. kwin dock rules: MC + dev terminal auto-dock into capture rects ---
-python3 tools/stream/apply_kwin_rules.py 2>/dev/null \
-  && echo "== kwin dock rules active (MC → bottom rect, noxdev → top rect)"
-
-# ---- 8. dedicated dev terminal (class noxdev → docks into DEV rect) -------
-if ! pgrep -f "alacritty.*noxdev" >/dev/null 2>&1; then
-  nohup alacritty --class noxdev --title "NOX DEV" \
-    -e tmux new-session -A -s noxdev -c "$ROOT" > "$RUN/noxdev.log" 2>&1 &
-  echo "== dev terminal 'noxdev' spawned (tmux session: noxdev)"
-fi
+# ---- 7. (optional) window docking off — see tools/stream/apply_kwin_rules.py
 
 cat <<EOF
 

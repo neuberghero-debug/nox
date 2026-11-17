@@ -157,6 +157,41 @@ public final class NvgOverlay {
     private static volatile java.nio.file.Path pendingGrab;
     public static void grabFrame(java.nio.file.Path out) { pendingGrab = out; }
 
+    /* ---------- embedded images (icon, logos) ---------- */
+    /** Queued PNG decodes — must run on the GL thread inside render(). */
+    private static final java.util.Map<Integer, byte[]> pendingImgs = new java.util.HashMap<>();
+    private static final java.util.Map<Integer, Integer> imgHandles = new java.util.HashMap<>();
+    private static final java.util.List<java.nio.ByteBuffer> IMG_BUFS = new ArrayList<>();
+
+    /** Register PNG bytes once -> stable key; resolves to an NVG image handle
+     * via {@link #imageHandle(int)} after the next render pass. */
+    public static int imageKey(byte[] png) {
+        int k = java.util.Arrays.hashCode(png);
+        if (!imgHandles.containsKey(k) && !pendingImgs.containsKey(k))
+            pendingImgs.put(k, png.clone());
+        return k;
+    }
+    /** NVG image handle for a key — 0 until the create ran inside a frame. */
+    public static int imageHandle(int key) { return imgHandles.getOrDefault(key, 0); }
+
+    private static void drainPendingImages() {
+        if (pendingImgs.isEmpty()) return;
+        for (var e : pendingImgs.entrySet()) {
+            try {
+                var buf = org.lwjgl.BufferUtils.createByteBuffer(e.getValue().length);
+                buf.put(e.getValue()).flip();
+                IMG_BUFS.add(buf);   // keep alive — NVG may reference lazily
+                int h = nvgCreateImageMem(ctx, 0, buf);
+                imgHandles.put(e.getKey(), h);
+                System.err.println("[nox] nvg img key=" + e.getKey() + " handle=" + h);
+            } catch (Throwable th) {
+                System.err.println("[nox] nvg img create failed: " + th);
+                imgHandles.put(e.getKey(), 0);
+            }
+        }
+        pendingImgs.clear();
+    }
+
     /** Called by PresentMixin right before GpuSurface.present().
      *
      * We draw STRAIGHT ONTO THE WINDOW BACKBUFFER (FBO 0) as the last GL work
@@ -218,6 +253,7 @@ public final class NvgOverlay {
         try {
             for (int u = 0; u < 8; u++) org.lwjgl.opengl.GL33.glBindSampler(u, 0);
         } catch (Throwable ignored) {}
+        drainPendingImages();
         nvgBeginFrame(ctx, guiW, guiH, ratio);
         try (MemoryStack st = MemoryStack.stackPush()) {
             for (var op : generic) op.accept(ctx, st);

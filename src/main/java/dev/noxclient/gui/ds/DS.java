@@ -25,13 +25,24 @@ public final class DS {
             default -> border();
         };
     }
-    public static int surface()    { return 0xFF1A1A1F; }
-    public static int surfaceAlt() { return 0xFF232329; }
-    public static int border()     { return 0xFF2E2E36; }
-    public static int text()       { return 0xFFE8E8EC; }
-    public static int secondary()  { return 0xFF9B9BA3; }
-    public static int muted()      { return 0xFF5C5C66; }
+    /** Recessed / darkest card surface (settings child, wells, off-track). */
+    public static int surface()    { return UICustom.cardFillBottom; }
+    /** Card surface — lighter step above surface(). */
+    public static int surfaceAlt() { return UICustom.cardFillTop; }
+    public static int border()     {
+        return switch (UICustom.borderMode) {
+            case "Off" -> 0x00000000;
+            case "Strong" -> 0x59FFFFFF;
+            default -> UICustom.border;
+        };
+    }
+    public static int header()     { return UICustom.header; }
+    public static int winFill()    { return UICustom.winFill; }
+    public static int text()       { return UICustom.text; }
+    public static int secondary()  { return UICustom.textDim; }
+    public static int muted()      { return UICustom.textMute; }
     public static int accent()     { return UICustom.accent; }        // themeable
+    public static int cardAccent() { return UICustom.cardAccent; }    // tile accent
     public static int hover()      { return lighten(UICustom.accent, 0.12f); }
     // status colors route through UICustom so the color-blind remap (M17.5)
     // applies everywhere — not just to components reading UICustom directly.

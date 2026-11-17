@@ -44,6 +44,10 @@ public class Interface extends Module {
         "Strength of the backdrop effect", "Light", "Medium", "Strong"));
     public final Setting.Bool seasonFx = add(new Setting.Bool("Seasonal FX", true,
         "Ambient particles in the GUI — snow, petals, fireflies, leaves"));
+    public final Setting.Bool snowPile = add(new Setting.Bool("Snow piling", true,
+        "Winter snow accumulates on the window's top edge and slowly melts"));
+    public final Setting.Num fxDensity = add(new Setting.Num("FX density", 1.0, 0.25, 2.5,
+        "Seasonal particle amount"));
 
     /* ---- ClickGUI deep customization (Design tab edits these live) ---- */
     public final Setting.Col guiBg = add(new Setting.Col("GUI background", 0xFF0F0F12,
@@ -88,6 +92,7 @@ public class Interface extends Module {
         UICustom.text    = text.get()    | 0xFF000000;
         UICustom.radius  = radius.intVal();
         UICustom.cardH   = switch (density.get()) { case "Compact" -> 64; case "Spacious" -> 96; default -> 80; };
+        UICustom.density = density.get();
         UICustom.clickStyle = clickStyle.get();
         UICustom.hudScale = (float) (double) hudScale.get();
         UICustom.reducedMotion = reducedMotion.on();
@@ -98,6 +103,8 @@ public class Interface extends Module {
         UICustom.backdrop = backdrop.get();
         UICustom.backdropLevel = backdropLevel.get();
         UICustom.seasonFx = seasonFx.on();
+        UICustom.snowPile = snowPile.on();
+        UICustom.fxDensity = (float) (double) fxDensity.get();
         UICustom.guiBg = guiBg.get() | 0xFF000000;
         UICustom.accent2 = accent2.get() | 0xFF000000;
         UICustom.winOpacity = (float) (double) winOpacity.get();
@@ -119,5 +126,23 @@ public class Interface extends Module {
             for (int i = 0; i < Theme.ALL.length; i++)
                 if (Theme.ALL[i].name().equals(lastTheme)) { Theme.set(i); break; }
         }
+        applyThemePalette();
+    }
+
+    /** Theme presets own the palette — explicit color settings apply under "Custom". */
+    private void applyThemePalette() {
+        Theme th = Theme.current();
+        if ("Custom".equals(th.name())) return;
+        int tbg = th.background() & 0xFFFFFF;
+        UICustom.bg        = tbg | 0xEE000000;
+        UICustom.guiBg     = tbg | 0xFF000000;
+        UICustom.accent    = th.accent() | 0xFF000000;
+        UICustom.cardAccent= th.moduleEnabled() | 0xFF000000;
+        UICustom.accent2   = dev.noxclient.gui.ds.DS.lighten(th.accent(), .35f);
+        UICustom.text      = th.text() | 0xFF000000;
+        UICustom.header    = th.header() | 0xFF000000;
+        UICustom.winFill   = dev.noxclient.gui.ds.DS.lighten(tbg | 0xFF000000, .08f);
+        UICustom.cardFillTop    = dev.noxclient.gui.ds.DS.lighten(tbg | 0xFF000000, .16f) & 0xFBFFFFFF;
+        UICustom.cardFillBottom = dev.noxclient.gui.ds.DS.lighten(tbg | 0xFF000000, .09f) & 0xFBFFFFFF;
     }
 }
