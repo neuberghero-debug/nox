@@ -21,15 +21,15 @@ public class Cosmetics extends Module {
         "Off", "Halo", "Orbit", "Wings", "FlameRing", "Storm",
         "Tornado", "Fountain", "Galaxy Halo", "Helix", "BlackHole",
         "EmberCrown", "Aurora", "Petals", "Spark"));
-    public final Setting.Bool noxCape = add(new Setting.Bool("NOX cape", true));
+    public final Setting.Bool noxCape = add(new Setting.Bool("NOX cape", true, "Your cape — shop styles or custom PNG"));
     public final Setting.Mode capeStyle = add(new Setting.Mode("Cape style", "NOX",
         "NOX", "Inferno", "Void", "Animated", "Custom"));
-    public final Setting.Bool capePhysics = add(new Setting.Bool("Cape physics", true));
+    public final Setting.Bool capePhysics = add(new Setting.Bool("Cape physics", true, "Cloth sim; off = static pre-bent cape"));
     public final Setting.Num capeWind = add(new Setting.Num("Cape wind", 0.6, 0.0, 2.0));
     public final Setting.Num capeFlex = add(new Setting.Num("Cape flex", 1.0, 0.3, 2.0));
     public final Setting.Str capeFile = add(new Setting.Str("Cape file", ""));
-    public final Setting.Str capeUrl = add(new Setting.Str("Cape URL", ""));
-    public final Setting.Num capeDistance = add(new Setting.Num("Cape distance", 32, 8, 64));
+    public final Setting.Str capeUrl = add(new Setting.Str("Cape URL", "", "Remote PNG — async load, disk-cached"));
+    public final Setting.Num capeDistance = add(new Setting.Num("Cape distance", 32, 8, 64, "Max render/sim distance for capes"));
     public final Setting.Mode pet = add(new Setting.Mode("Pet", "Off",
         "Off", "Dragon", "Parrot", "Blob", "Wisp"));
     public final Setting.Mode petSide = add(new Setting.Mode("Pet side", "Right",
@@ -53,7 +53,30 @@ public class Cosmetics extends Module {
             "EmberCrown", "Aurora", "Petals", "Spark");
     private boolean wasAir;
 
-    public Cosmetics() { super("Cosmetics", "Trails & capes (client-side)", Category.RENDER); INSTANCE = this; }
+    public Cosmetics() {
+        super("Cosmetics", "Trails & capes (client-side)", Category.RENDER);
+        INSTANCE = this;
+        var M = dev.noxclient.cosmetics.CosmeticsMarket.class;
+        dev.noxclient.api.AddonContext.COMMANDS.put("cosmetic", a -> {
+            if (a.length == 0) { M.getClass(); dev.noxclient.cosmetics.CosmeticsMarket.browse(""); return; }
+            switch (a[0].toLowerCase()) {
+                case "browse" -> dev.noxclient.cosmetics.CosmeticsMarket.browse(a.length > 1 ? a[1] : "");
+                case "get" -> { if (a.length > 1) dev.noxclient.cosmetics.CosmeticsMarket.get(a[1]); }
+                case "export" -> { if (a.length > 1) dev.noxclient.cosmetics.CosmeticsMarket.export(a[1]); }
+                case "publish" -> { if (a.length > 1) dev.noxclient.cosmetics.CosmeticsMarket.publish(a[1]); }
+                case "import" -> { if (a.length > 1) dev.noxclient.cosmetics.CosmeticsMarket.importFile(a[1]); }
+                default -> dev.noxclient.cosmetics.CosmeticsMarket.browse("");
+            }
+        });
+    }
+
+    /** FailSafe level-2 hook — force all premium visual slots off. */
+    public static void degrade() {
+        Cosmetics c = INSTANCE;
+        if (c == null) return;
+        c.trail.set("Off"); c.aura.set("Off"); c.meshAura.set("Off");
+        c.pet.set("Off"); c.hat.set("Off");
+    }
 
     /** CapeLayer mixin hook — "Custom" (self-upload) needs the one-time cape
      *  entitlement or premium; bundled styles need premium. */
@@ -61,7 +84,7 @@ public class Cosmetics extends Module {
         if (INSTANCE == null || !INSTANCE.isEnabled() || !INSTANCE.noxCape.on()) return false;
         return "Custom".equals(INSTANCE.capeStyle.get())
             ? LicenseManager.capeUnlocked()
-            : LicenseManager.premium();
+            : LicenseManager.assertPremium();
     }
 
     /** Physics cloth cape: replaces the vanilla rigid cape for the local player. */
@@ -87,7 +110,7 @@ public class Cosmetics extends Module {
 
     private boolean locked() {
         return (PREMIUM.contains(trail.get()) || PREMIUM.contains(aura.get()))
-            && !LicenseManager.premium();
+            && !LicenseManager.assertPremium();
     }
 
     @Override

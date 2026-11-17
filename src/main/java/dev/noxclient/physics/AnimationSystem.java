@@ -25,6 +25,14 @@ public final class AnimationSystem {
         "right_front_leg", "left_hind_leg", "left_middle_hind_leg", "left_middle_front_leg", "left_front_leg"};
     private AnimationSystem() {}
     public static boolean deferPlayer() { return DEFER_PLAYER; }
+    /** Monotonic UI clock in seconds — drives all screen animation phases. */
+    public static float seconds() { return System.nanoTime() * 1e-9f; }
+    /** Frame-rate independent exponential approach; snaps when reducedMotion. */
+    public static float approach(float cur, float tgt, float rate, float dt) {
+        if (dev.noxclient.gui.UICustom.reducedMotion) return tgt;
+        float f = 1f - (float) Math.exp(-rate * Math.min(dt, 0.1));
+        return cur + (tgt - cur) * f;
+    }
     public static void clear() { ANIMATORS.clear(); world.clear(); }
     public static String diagnostics() { return ANIMATORS.size() + " animators; tick " + lastTickNs / 1000 + " us" + (DEFER_PLAYER ? "; player layer deferred" : ""); }
     public static void tick(Minecraft mc) {

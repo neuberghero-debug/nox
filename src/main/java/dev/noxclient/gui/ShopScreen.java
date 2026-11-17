@@ -14,9 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * NOX cosmetics shop — free + premium cosmetics with one-click equip.
- * Premium items need a valid license; the buy button drops into the
- * Discord /buy flow where keys are issued for crypto.
+ * NOX cosmetics shop — card grid with filter tabs, one-click equip for
+ * owned items and the Discord /buy handoff for premium keys (crypto).
  */
 public class ShopScreen extends Screen {
     private record Item(String name, String desc, String kind, String value,
@@ -65,69 +64,180 @@ public class ShopScreen extends Screen {
         new Item("Custom Cape",   "Upload your own PNG (nox/capes/)", "cape", "Custom", 20, true, 0xFFFFD870)
     );
 
+    private static final String[] TABS = {"All", "Trails", "Auras", "Kill FX", "Capes"};
+    private static final String[] KIND = {null, "trail", "aura", "kill", "cape"};
+
     private final Screen parent;
-    private final List<int[]> rects = new ArrayList<>();
-    private int scroll;
+    private final List<int[]> rects = new ArrayList<>();   // item buttons {x,y,w,h,itemIdx}
+    private final List<int[]> tabRects = new ArrayList<>();
+    private int tab, scroll;
+    private int[] activateRect;
+    private final java.util.Map<String, Float> hoverT = new java.util.HashMap<>();
+
+    private static int lerp(int a, int b, float t) {
+        return (((a >>> 24 & 0xFF) + (int) (((b >>> 24 & 0xFF) - (a >>> 24 & 0xFF)) * t)) << 24)
+            | (((a >>> 16 & 0xFF) + (int) (((b >>> 16 & 0xFF) - (a >>> 16 & 0xFF)) * t)) << 16)
+            | (((a >>> 8 & 0xFF) + (int) (((b >>> 8 & 0xFF) - (a >>> 8 & 0xFF)) * t)) << 8)
+            | ((a & 0xFF) + (int) (((b & 0xFF) - (a & 0xFF)) * t));
+    }
 
     public ShopScreen(Screen parent) { super(Component.literal("NOX Shop")); this.parent = parent; }
+
+    private List<Item> visible() {
+        List<Item> out = new ArrayList<>();
+        for (Item it : ITEMS) if (tab == 0 || it.kind.equals(KIND[tab])) out.add(it);
+        return out;
+    }
 
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float dt) {
         Theme t = Theme.current();
         var font = Minecraft.getInstance().font;
-        int w = Math.min(460, width - 40), x0 = (width - w) / 2, y0 = Math.max(24, height / 2 - 200);
-        Gui.shadow(g, x0, y0, w, 400, UICustom.radius);
-        Gui.round(g, x0, y0, w, 400, UICustom.radius, UICustom.winFill);
-        Gui.textBold(g, font, "N O X   S H O P", x0 + 16, y0 + 12, t.accent());
-        boolean prem = LicenseManager.premium();
-        String tier = prem ? "§lPREMIUM" : "free tier";
-        Gui.text(g, font, tier, x0 + w - 16 - Gui.width(font, tier), y0 + 12,
-            prem ? 0xFFFFD870 : 0xFF6A6A80);
-        g.fill(x0 + 16, y0 + 30, x0 + w - 16, y0 + 31, UICustom.border);
+        Gui.backdrop(g, width, height, 1f);
+        int w = Math.min(700, width - 40), h = Math.min(430, height - 40);
+        int x0 = (width - w) / 2, y0 = (height - h) / 2;
+        Gui.shadow(g, x0, y0, w, h, UICustom.radius);
+        Gui.round(g, x0, y0, w, h, UICustom.radius, UICustom.winFill);
+        Gui.windowFx(x0, y0, w, h, UICustom.radius);
+        Gui.windowFrost(x0, y0, w, h, UICustom.radius);
 
-        rects.clear();
-        int iy = y0 + 38 - scroll, cardH = 46;
-        g.enableScissor(x0 + 8, y0 + 34, x0 + w - 8, y0 + 400 - 46);
-        String lastGroup = "";
-        for (Item it : ITEMS) {
-            String grp = it.kind;
-            if (!grp.equals(lastGroup)) {
-                lastGroup = grp;
-                String lbl = switch (grp) {
-                    case "trail" -> "— TRAILS —";
-                    case "aura" -> "— AURAS —";
-                    case "kill" -> "— KILL EFFECTS —";
-                    default -> "— MISC —";
-                };
-                if (iy + 18 > y0 + 34 && iy < y0 + 400 - 46)
-                    Gui.textCenter(g, font, lbl, x0 + w / 2, iy + 4, 0xFF5A5A6E);
-                iy += 18;
-            }
-            if (iy + cardH > y0 + 34 && iy < y0 + 400 - 46) {
-                boolean owned = !it.premiumOnly || prem;
-                Gui.roundBorder(g, x0 + 14, iy, w - 28, cardH - 6, 8,
-                    UICustom.border, UICustom.cardFillBottom);
-                Gui.circle(g, x0 + 30, iy + 20, 8, it.color);
-                Gui.textBold(g, font, it.name, x0 + 48, iy + 8, t.text());
-                Gui.text(g, font, it.desc, x0 + 48, iy + 21, 0xFF7C7C90);
-                String btn = owned ? (isEquipped(it) ? "EQUIPPED" : "EQUIP")
-                                   : "$" + it.priceUsd + "  —  BUY";
-                int bw = Gui.width(font, btn) + 16;
-                boolean hov = ModuleCard.inside(mx, my, x0 + w - 14 - bw - 10, iy + 8, bw + 10, 24);
-                Gui.round(g, x0 + w - 14 - bw - 10, iy + 8, bw + 10, 24, 6,
-                    isEquipped(it) ? t.accent() : owned ? (hov ? t.accent() : 0xFF32324A)
-                                   : (hov ? 0xFFB44DFF : 0xFF3A2A52));
-                Gui.textCenter(g, font, btn, x0 + w - 14 - bw - 10 + (bw + 10) / 2, iy + 15,
-                    owned || hov ? 0xFFFFFFFF : 0xFFC9A0FF);
-                rects.add(new int[]{x0 + w - 14 - bw - 10, iy + 8, bw + 10, 24, ITEMS.indexOf(it)});
-            }
-            iy += cardH;
+        // header
+        Gui.textBold(g, font, "N O X   S H O P", x0 + 16, y0 + 12, t.accent());
+        Gui.text(g, font, ITEMS.size() + " cosmetics", x0 + 16, y0 + 24, UICustom.textMute);
+        boolean prem = LicenseManager.premium();
+        String tier = prem ? "★ PREMIUM · " + LicenseManager.daysLeft() + "d left" : "free tier";
+        int tw = Gui.width(font, tier) + 16;
+        Gui.pill(g, x0 + w - 16 - tw, y0 + 10, tw, 16, prem ? 0x33FFD870 : 0xFF1B1B28);
+        Gui.text(g, font, tier, x0 + w - 16 - tw + 8, y0 + 14, prem ? 0xFFFFD870 : UICustom.textDim);
+        boolean xHov = ModuleCard.inside(mx, my, x0 + w - 24, y0 + h - 28, 16, 16);
+        Gui.textCenter(g, font, "✕", x0 + w - 16, y0 + h - 24, xHov ? 0xFFFF8888 : UICustom.textDim);
+
+        if (!prem) {
+            boolean ahov = ModuleCard.inside(mx, my, x0 + 16, y0 + h - 30, 150, 16);
+            Gui.text(g, font, "Activate license key →",
+                x0 + 16, y0 + h - 26, ahov ? t.text() : t.accent());
+            activateRect = new int[]{x0 + 16, y0 + h - 30, 150, 16};
+        } else activateRect = null;
+
+        // filter tabs
+        tabRects.clear();
+        int tx = x0 + 16, ty = y0 + 36;
+        for (int i = 0; i < TABS.length; i++) {
+            int pw = Gui.width(font, TABS[i]) + 16;
+            boolean on = tab == i;
+            boolean hov = ModuleCard.inside(mx, my, tx, ty, pw, 17);
+            Gui.pill(g, tx, ty, pw, 17, on ? t.accent() : hov ? UICustom.cardFillTop : UICustom.cardFillBottom);
+            if (!on && hov) Gui.pill(g, tx, ty, pw, 17, 0x14FFFFFF);
+            Gui.text(g, font, TABS[i], tx + 8, ty + 5, on ? 0xFFFFFFFF : UICustom.textDim);
+            tabRects.add(new int[]{tx, ty, pw, 17});
+            tx += pw + 6;
         }
-        g.disableScissor();
+        Gui.fill(g, x0 + UICustom.radius, ty + 23, x0 + w - UICustom.radius, ty + 24, UICustom.border);
+
+        // 2-col card grid — animated hover lift, kind-colored edge, big preview tile
+        rects.clear();
+        List<Item> vis = visible();
+        int cw = (w - 32 - 9) / 2, ch = 58;
+        int gridY = ty + 30, gridH = y0 + h - 56 - gridY;
+        Gui.clipOn(x0 + 8, gridY, x0 + w - 8, gridY + gridH);
+        int iy = gridY - scroll;
+        for (int vi = 0; vi < vis.size(); vi++) {
+            Item it = vis.get(vi);
+            int cx = x0 + 16 + (vi % 2) * (cw + 9), cy = iy + (vi / 2) * (ch + 7);
+            if (cy + ch < gridY || cy > gridY + gridH) continue;
+            boolean owned = !it.premiumOnly || prem;
+            boolean eq = isEquipped(it);
+            boolean hov = ModuleCard.inside(mx, my, cx, cy, cw, ch);
+            // eased hover lift (120ms)
+            float hvt = hoverT.computeIfAbsent(it.name, k -> 0f);
+            hvt += ((hov ? 1f : 0f) - hvt) * (UICustom.reducedMotion ? 1f : 0.28f);
+            hoverT.put(it.name, hvt);
+            int lift = UICustom.reducedMotion ? 0 : (int) (-3 * hvt);
+            int borderC = eq ? t.accent()
+                : hov ? lerp(UICustom.border, it.color, 0.6f) : UICustom.border;
+            Gui.roundBorder(g, cx, cy + lift, cw, ch, 9, borderC,
+                lerp(UICustom.cardFillBottom, UICustom.cardFillTop, hvt));
+            // kind-colored left edge
+            if (eq || hvt > 0.05f)
+                Gui.pill(g, cx + 2, cy + lift + 8, 2, ch - 16,
+                    (eq ? t.accent() : it.color) & 0x00FFFFFF
+                        | ((int) (0x30 + 0xCD * Math.max(hvt, eq ? 1 : 0))) << 24);
+            // preview tile — rounded chip in item color, live animation inside
+            int px = cx + 24, py = cy + lift + ch / 2;
+            Gui.circle(g, px, py, 12, it.color & 0x33FFFFFF);
+            Gui.circle(g, px, py, 9, 0xFF141821);
+            Gui.roundBorder(g, px - 10, py - 10, 20, 20, 10, it.color & 0x66FFFFFF, 0);
+            preview(g, it, px, py);
+            Gui.textBold(g, font, it.name, cx + 42, cy + lift + 8, t.text());
+            Gui.text(g, font, it.desc, cx + 42, cy + lift + 21, UICustom.textDim);
+            // price / state pill — right edge
+            String tag = eq ? "EQUIPPED" : owned ? (it.priceUsd == 0 ? "FREE" : "OWNED")
+                        : "$" + it.priceUsd;
+            int pw = Gui.width(font, tag) + 12;
+            Gui.pill(g, cx + cw - 8 - pw, cy + lift + 8, pw, 14,
+                eq ? t.accent() : owned ? 0xFF1B1B28 : 0xFF3A2A52);
+            Gui.text(g, font, tag, cx + cw - 8 - pw + 6, cy + lift + 12,
+                eq ? 0xFFFFFFFF : owned ? UICustom.textDim : 0xFFC9A0FF);
+            // action button
+            String btn = eq ? "Unequip" : owned ? "Equip" : "Buy $" + it.priceUsd;
+            int bw = Gui.width(font, btn) + 14;
+            boolean bHov = ModuleCard.inside(mx, my, cx + cw - 8 - bw, cy + lift + 33, bw, 16);
+            Gui.pill(g, cx + cw - 8 - bw, cy + lift + 33, bw, 16,
+                eq ? UICustom.cardFillTop : owned ? (bHov ? t.accent() : t.accent() & 0xBBFFFFFF)
+                       : (bHov ? 0xFFB44DFF : 0xFF3A2A52));
+            Gui.text(g, font, btn, cx + cw - 8 - bw + 7, cy + lift + 37,
+                eq && !bHov ? UICustom.textDim : 0xFFFFFFFF);
+            rects.add(new int[]{cx + cw - 8 - bw, cy + lift + 33, bw, 16, ITEMS.indexOf(it)});
+        }
+        Gui.clipOff();
+        // scrollbar
+        int rows = (vis.size() + 1) / 2, total = rows * (ch + 6);
+        if (total > gridH) {
+            int barH = Math.max(24, gridH * gridH / total);
+            int barY = gridY + (gridH - barH) * scroll / Math.max(1, total - gridH);
+            Gui.pill(g, x0 + w - 8, gridY, 3, gridH, 0xFF2A2A38);
+            Gui.pill(g, x0 + w - 8, barY, 3, barH, t.accent());
+        }
         Gui.textCenter(g, font, "Premium keys via /buy in the NOX Discord — crypto accepted",
-            width / 2, y0 + 400 - 30, 0xFF5A5A6E);
-        Gui.textCenter(g, font, dev.noxclient.discord.DiscordLink.get(),
-            width / 2, y0 + 400 - 17, t.accent());
+            width / 2, y0 + h - 14, UICustom.textMute);
         super.extractRenderState(g, mx, my, dt);
+    }
+
+    /** Tiny live preview per kind: rising trail dots, orbiting aura ring,
+     *  pulsing kill burst, waving cape stripe. */
+    private static void preview(GuiGraphicsExtractor g, Item it, int cx, int cy) {
+        if (UICustom.reducedMotion) return;
+        double t = System.currentTimeMillis() / 1000.0 + it.name.length() * 0.7;
+        int col = it.color;
+        switch (it.kind) {
+            case "trail" -> {
+                for (int i = 0; i < 3; i++) {
+                    double p = (t * 0.9 + i * 0.33) % 1.0;
+                    int a = (int) (200 * (1 - p));
+                    Gui.circle(g, cx + (int) (Math.sin(t * 3 + i * 2) * 6),
+                        cy + 8 - (int) (p * 16), 1, (a << 24) | (col & 0xFFFFFF));
+                }
+            }
+            case "aura" -> {
+                for (int i = 0; i < 5; i++) {
+                    double a = t * 1.6 + i * (Math.PI * 2 / 5);
+                    Gui.circle(g, cx + (int) (Math.cos(a) * 13),
+                        cy + (int) (Math.sin(a) * 13), 1, 0xCC000000 | (col & 0xFFFFFF));
+                }
+            }
+            case "kill" -> {
+                double p = (t * 0.8) % 1.0;
+                int a = (int) (160 * (1 - p));
+                Gui.circle(g, cx, cy, 6 + (int) (p * 9), (a << 24) | (col & 0xFFFFFF));
+                Gui.circle(g, cx, cy, 4, col);
+            }
+            case "cape" -> {
+                for (int i = -4; i <= 4; i++) {
+                    int dy = (int) (Math.sin(t * 3 + i * 0.8) * 2);
+                    Gui.pill(g, cx + i * 3 - 1, cy - 9 + dy, 3, 18,
+                        (0xB0 << 24) | (col & 0xFFFFFF));
+                }
+            }
+        }
     }
 
     private boolean isEquipped(Item it) {
@@ -151,30 +261,47 @@ public class ShopScreen extends Screen {
         switch (it.kind) {
             case "trail" -> {
                 if (mm.get("Cosmetics") instanceof Cosmetics c) {
-                    c.trail.set(it.value); c.setEnabled(true);
+                    if (isEquipped(it)) { c.trail.set("None"); c.setEnabled(false); }
+                    else { c.trail.set(it.value); c.setEnabled(true); }
                 }
             }
             case "aura" -> {
                 if (mm.get("Cosmetics") instanceof Cosmetics c) {
-                    c.aura.set(it.value); c.setEnabled(true);
+                    if (isEquipped(it)) { c.aura.set("None"); c.setEnabled(false); }
+                    else { c.aura.set(it.value); c.setEnabled(true); }
                 }
             }
             case "kill" -> {
                 if (mm.get("KillEffects") instanceof
                         dev.noxclient.module.render.KillEffects k) {
-                    k.effect.set(it.value); k.setEnabled(true);
+                    if (isEquipped(it)) k.setEnabled(false);
+                    else { k.effect.set(it.value); k.setEnabled(true); }
                 }
             }
             case "cape" -> {
                 if (mm.get("Cosmetics") instanceof Cosmetics c) {
-                    c.capeStyle.set(it.value); c.noxCape.set(true); c.setEnabled(true);
+                    if (isEquipped(it)) { c.noxCape.set(false); }
+                    else { c.capeStyle.set(it.value); c.noxCape.set(true); c.setEnabled(true); }
                 }
             }
         }
-        Toasts.push("Equipped " + it.name, 0xFF66FF99);
+        Toasts.push((isEquipped(it) ? "Equipped " : "Unequipped ") + it.name, 0xFF66FF99);
     }
 
     @Override public boolean mouseClicked(MouseButtonEvent e, boolean dbl) {
+        int w = Math.min(700, width - 40), h = Math.min(430, height - 40);
+        int x0 = (width - w) / 2, y0 = (height - h) / 2;
+        if (ModuleCard.inside(e.x(), e.y(), x0 + w - 24, y0 + h - 28, 16, 16)) { onClose(); return true; }
+        if (activateRect != null && ModuleCard.inside(e.x(), e.y(),
+                activateRect[0], activateRect[1], activateRect[2], activateRect[3])) {
+            minecraft.setScreenAndShow(new PremiumScreen(this)); return true;
+        }
+        for (int i = 0; i < tabRects.size(); i++) {
+            int[] r = tabRects.get(i);
+            if (ModuleCard.inside(e.x(), e.y(), r[0], r[1], r[2], r[3])) {
+                tab = i; scroll = 0; ModuleCard.click(); return true;
+            }
+        }
         for (int[] r : rects) {
             if (!ModuleCard.inside(e.x(), e.y(), r[0], r[1], r[2], r[3])) continue;
             Item it = ITEMS.get(r[4]);
@@ -193,7 +320,9 @@ public class ShopScreen extends Screen {
     }
 
     @Override public boolean mouseScrolled(double mx, double my, double h, double v) {
-        scroll = Math.max(0, Math.min(ITEMS.size() * 46 + 80 - 320, scroll - (int) v * 24));
+        int rows = (visible().size() + 1) / 2;
+        int max = Math.max(0, rows * 60 - (Math.min(430, height - 40) - 122));
+        scroll = Math.max(0, Math.min(max, scroll - (int) v * 24));
         return true;
     }
 

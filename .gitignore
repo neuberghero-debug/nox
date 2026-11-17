@@ -36,3 +36,17 @@ nox-community-bot/data/state.json
 # ---- node ----
 node_modules/
 .changelog_state
+native/target/
+native/Cargo.lock
+tools/stream/.venv/
+
+# ---- runtime state / secrets (never commit) ----
+nox/
+data/
+downloads/
+*.pyc
+__pycache__/
+nox-license-server/.venv/
+nox-license-server/__pycache__/
+native/target/
+run/

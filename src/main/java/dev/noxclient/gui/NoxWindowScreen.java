@@ -28,7 +28,12 @@ import java.util.Map;
  *   tabs → category       search → filter all categories
  *   card LMB toggle / RMB+gear settings / MMB keybind
  *   T → theme   ESC/RShift → close
+ *
+ * @deprecated superseded by {@link NoxClickGui} (Modul 15 rebuild). Kept for
+ *   the DebugConsole "guilegacy" path and shared static config fields
+ *   (winX/winY/activeTab, open-flag). Removal target: next major cleanup.
  */
+@Deprecated
 public class NoxWindowScreen extends Screen {
     public static volatile boolean open;
     /** Live handle for the debug console (input injection via static handle). */
@@ -40,13 +45,19 @@ public class NoxWindowScreen extends Screen {
     private static final int TITLE_H = 40, TAB_H = 28, SEARCH_H = 28, FOOT_H = 34;
     private static final int MIN_W = 480, MIN_H = 240;
     private static final int GAP = 9;
-    private static final String[] FOOT = {"Discord", "Report", "Suggest", "Share", "Import", "Shop", "PANIC"};
+    private static final String[] FOOT = {"Discord", "Style", "Alts", "Report", "Suggest", "Share", "Import", "Shop", "PANIC"};
 
     private final Map<Category, List<ModuleCard>> cards = new EnumMap<>(Category.class);
+    private final Map<String, ModuleCard> byName = new java.util.HashMap<>();
     private final List<int[]> footRects = new ArrayList<>();
     private final long openedAt = System.currentTimeMillis();
+    private float sidebarIndY = -1, frameDt = 1 / 60f;
+    private long lastFrameMs, styleSwapAt;
+    private String lastStyle = "";
     private static final long OPEN_MS = 180;
     public Category tab;
+    private String topic;   // null = a category tab; one of TOPICS otherwise
+    private static final String[] TOPICS = {"All", "Enabled", "Favorites", "Recent"};
     private String search = "";
     private boolean searchFocused, dragging, resizing;
     private int dragOX, dragOY;
@@ -61,10 +72,21 @@ public class NoxWindowScreen extends Screen {
             for (Module m : NoxClient.INSTANCE.modules.by(c)) list.add(new ModuleCard(m));
             cards.put(c, list);
         }
+        for (var list : cards.values()) for (ModuleCard mc : list) byName.put(mc.module.name, mc);
         tab = Category.values()[Math.min(activeTab, Category.values().length - 1)];
         open = true;
         current = this;
     }
+
+    // 26.3 gates SDL text input behind TextInputManager — a GuiEventListener
+    // must claim it or char events never reach the screen (EditBox does this
+    // in setFocused; our fields are custom-drawn so the screen claims it for
+    // its whole lifetime — type-to-search wants chars always anyway)
+    @Override
+    public void added() { super.added(); minecraft.onTextInputFocusChange(this, true); }
+
+    @Override
+    public void removed() { minecraft.onTextInputFocusChange(this, false); super.removed(); }
 
     @Override
     protected void init() {
@@ -168,11 +190,41 @@ public class NoxWindowScreen extends Screen {
     private List<ModuleCard> visible() {
         String f = search.toLowerCase();
         List<ModuleCard> out = new ArrayList<>();
-        for (Category c : Category.values()) {
-            if (!f.isEmpty() || c == tab)
+        if (!f.isEmpty()) {
+            for (Category c : Category.values())
                 for (ModuleCard mc : cards.get(c)) if (mc.matches(f)) out.add(mc);
+            return out;
+        }
+        if (topic == null) return new ArrayList<>(cards.get(tab));
+        switch (topic) {
+            case "All" -> {
+                for (Category c : Category.values()) out.addAll(cards.get(c));
+            }
+            case "Enabled" -> {
+                for (Category c : Category.values())
+                    for (ModuleCard mc : cards.get(c))
+                        if (mc.module.isEnabled()) out.add(mc);
+            }
+            case "Favorites" -> {
+                for (String n : Favorites.favNames())
+                    { ModuleCard mc = byName.get(n); if (mc != null) out.add(mc); }
+            }
+            case "Recent" -> {
+                for (String n : Favorites.recentNames())
+                    { ModuleCard mc = byName.get(n); if (mc != null) out.add(mc); }
+            }
         }
         return out;
+    }
+
+    private int topicCount(String tp) {
+        return switch (tp) {
+            case "All" -> NoxClient.INSTANCE.modules.all().size();
+            case "Enabled" -> (int) NoxClient.INSTANCE.modules.all().stream().filter(Module::isEnabled).count();
+            case "Favorites" -> Favorites.favNames().size();
+            case "Recent" -> Favorites.recentNames().size();
+            default -> 0;
+        };
     }
 
     private int totalH() {
@@ -194,15 +246,20 @@ public class NoxWindowScreen extends Screen {
         if (!library()) scrollTarget = Math.max(0, Math.min(scrollTarget, Math.max(0, totalH() - contentH())));
         scroll += (scrollTarget - scroll) * (UICustom.reducedMotion ? 1 : 1 - Math.exp(-14 * seconds));
 
+        // clickStyle switch → 160ms veil cross-fade instead of a hard rebuild
+        if (!UICustom.clickStyle.equals(lastStyle)) { lastStyle = UICustom.clickStyle; styleSwapAt = System.currentTimeMillis(); }
         // open animation: cubic ease-out scale on the window, backdrop fades in
-        float openP = UICustom.reducedMotion ? 1 : Math.min(1f, (System.currentTimeMillis() - openedAt) / (float) OPEN_MS);
+        long nowMs = System.currentTimeMillis();
+        frameDt = lastFrameMs == 0 ? 1 / 60f : Math.min(0.1f, (nowMs - lastFrameMs) / 1000f);
+        lastFrameMs = nowMs;
+        float openP = UICustom.reducedMotion ? 1 : Math.min(1f, (nowMs - openedAt) / (float) OPEN_MS);
         float ease = 1f - (1f - openP) * (1f - openP) * (1f - openP);
         boolean anim = openP < 1f;
 
         // dim behind the window (vanilla blurs screen backgrounds already —
         // calling blurBeforeThisStratum here would be the 2nd blur → crash)
-        g.fill(0, 0, width, height, ((int) (0x66 * ease)) << 24 | 0x00050810);
         NvgOverlay.clear();
+        Gui.backdrop(g, width, height, ease);
 
         if (panels()) {
             renderPanels(g, mx, my, t);
@@ -224,27 +281,54 @@ public class NoxWindowScreen extends Screen {
         }
 
         Gui.shadow(g, winX, winY, winW, winH, UICustom.radius);
-        Gui.round(g, winX, winY, winW, winH, UICustom.radius, UICustom.winFill);
+        boolean glass = "Glass".equals(UICustom.winStyle);
+        // glass: translucent base — vanilla's per-frame screen blur does the
+        // frosting, the world shines through the pane (the ONE allowed
+        // blurBeforeThisStratum call is already spent by extractBackground,
+        // a second one here would crash — translucency is the only legal path)
+        Gui.round(g, winX, winY, winW, winH, UICustom.radius,
+            glass ? (UICustom.winFill & 0xFFFFFF) | 0x5A000000 : UICustom.winFill);
+        Gui.windowFx(winX, winY, winW, winH, UICustom.radius);
+        Gui.windowFrost(winX, winY, winW, winH, UICustom.radius);
+        Gui.clipOn(winX + 1, winY + 1, winX + winW - 1, winY + winH - 1);
+        SeasonFx.render(g, winX, winY, winW, winH);
+        Gui.clipOff();
         int accentRgb = t.accent() & 0xFFFFFF;
         int accent2 = (Math.min(255, ((accentRgb >> 16) & 0xFF) + 70) << 16)
             | (Math.min(255, ((accentRgb >> 8) & 0xFF) + 70) << 8)
             | Math.min(255, (accentRgb & 0xFF) + 70);
         // Keep decorative post-passes away from text and modal dialogs.
         // window style: Solid = flat fill, Sky = gargantua + dark tint, Glass = gargantua barely tinted
+        // Window style: Solid = flat brand fill | Sky = gargantua animation |
+        // Glass = translucent pane (no sky — sky only belongs to Sky mode)
         boolean solid = "Solid".equals(UICustom.winStyle);
-        g.enableScissor(winX + 1, winY + 1, winX + winW - 1, winY + winH - 1);
-        if (solid || !AnimatedSky.render(g, winX + 1, winY + 1, winW - 2, winH - 2)) {
+        boolean sky = "Sky".equals(UICustom.winStyle);
+        Gui.clipOn(winX + 1, winY + 1, winX + winW - 1, winY + winH - 1);
+        if (!sky || !AnimatedSky.render(g, winX + 1, winY + 1, winW - 2, winH - 2)) {
             if (solid)
                 Gui.vgrad(g, winX + 1, winY + 1, winW - 2, winH - 2, UICustom.radius - 1,
                     UICustom.winFill, (UICustom.winFill & 0xFFFFFF) | 0xE6000000);
+            else if (glass)
+                Gui.vgrad(g, winX + 1, winY + 1, winW - 2, winH - 2, UICustom.radius - 1,
+                    0x38242838, 0x28141824);
             else
                 Gui.vgrad(g, winX + 1, winY + 1, winW - 2, winH - 2, UICustom.radius - 1,
                     0xFA181824, 0xFA101018);
         }
-        g.disableScissor();
-        if (!solid)
-            g.fill(winX + 1, winY + 1, winX + winW - 1, winY + winH - 1,
-                "Glass".equals(UICustom.winStyle) ? 0x3C101018 : 0x9C101018);
+        Gui.clipOff();
+        if (sky)
+            Gui.fill(g, winX + 1, winY + 1, winX + winW - 1, winY + winH - 1, 0x9C101018);
+        else if (glass) {
+            // liquid-glass stack over the blurred world: top sheen + inner
+            // highlight + specular edge + faint cool wash (all subtle — the
+            // pane must stay readable, cards carry the content)
+            NvgOverlay.sheen(winX + 1, winY + 1, winW - 2, 52, UICustom.radius - 1, 0xFFFFFF, 0.10f);
+            NvgOverlay.innerTop(winX + 1, winY + 1, winW - 2, UICustom.radius - 1, 0xFFFFFF, 0.22f);
+            NvgOverlay.wash(winX + 1, winY + 1, winW - 2, winH - 2, UICustom.radius - 1,
+                0xBFD8FF, 0x7A2BE2, 0.05f);
+            NvgOverlay.gradientStroke(winX, winY, winW, winH, UICustom.radius,
+                0xCFE6FF, UICustom.accent & 0xFFFFFF, 0.28f, 0f);
+        }
 
         // title bar
         Gui.textBold(g, font, "N O X", winX + 16, winY + 15, t.text());
@@ -252,7 +336,7 @@ public class NoxWindowScreen extends Screen {
         Gui.text(g, font, "v" + NoxClient.VERSION, winX + 64, winY + 15, UICustom.textDim);
         Gui.text(g, font, NoxClient.INSTANCE.modules.all().size() + " modules · "
             + Theme.currentName(), winX + 76 + vw, winY + 15, UICustom.textDim);
-        g.fill(winX + 12, winY + TITLE_H - 1, winX + winW - 12, winY + TITLE_H,
+        Gui.fill(g, winX + 12, winY + TITLE_H - 1, winX + winW - 12, winY + TITLE_H,
             t.accent() & 0x40FFFFFF);
         boolean closeHover = ModuleCard.inside(mx, my, winX + winW - 26, winY + 5, 20, 20);
         if (closeHover) Gui.circle(g, winX + winW - 16, winY + 15, 9, 0x40FF5555);
@@ -264,13 +348,47 @@ public class NoxWindowScreen extends Screen {
         // tabs — horizontal pills, or a left sidebar in "Sidebar" click style
         if (sidebar()) {
             int sby = contentY();
-            for (Category c : Category.values()) {
-                boolean active = c == tab && search.isEmpty();
+            int selRow = topic != null ? java.util.Arrays.asList(TOPICS).indexOf(topic)
+                : TOPICS.length + tab.ordinal();
+            int targetY = contentY() + selRow * 22 + (topic == null ? 6 : 0);
+            if (sidebarIndY < 0) sidebarIndY = targetY;
+            sidebarIndY = dev.noxclient.physics.AnimationSystem.approach(sidebarIndY, targetY, 22f, frameDt);
+            if (search.isEmpty())
+                Gui.round(g, winX + 8, (int) sidebarIndY, SIDEBAR_W - 4, 20, 5, t.accent() & 0x33FFFFFF);
+            float secs = System.currentTimeMillis() / 1000f;
+            for (int i = 0; i < TOPICS.length; i++) {
+                String tp = TOPICS[i];
+                boolean active = tp.equals(topic) && search.isEmpty();
                 boolean hover = ModuleCard.inside(mx, my, winX + 8, sby, SIDEBAR_W - 4, 20);
-                if (active) Gui.round(g, winX + 8, sby, SIDEBAR_W - 4, 20, 5, t.accent() & 0x33FFFFFF);
-                else if (hover) Gui.round(g, winX + 8, sby, SIDEBAR_W - 4, 20, 5, 0x14FFFFFF);
-                if (active) Gui.textBold(g, font, c.label, winX + 16, sby + 6, 0xFFE8D8FF);
-                else Gui.text(g, font, c.label, winX + 16, sby + 6, hover ? t.text() : 0xFF7C7C90);
+                if (!active && hover) Gui.round(g, winX + 8, sby, SIDEBAR_W - 4, 20, 5, 0x14FFFFFF);
+                int labelCol = active ? 0xFFE8D8FF : hover ? t.text() : 0xFF7C7C90;
+                ModuleIcons.draw(g, ModuleIcons.forTopic(tp), winX + 18, sby + 10, 9,
+                    (active ? t.accent() : UICustom.textMute) & 0xFFFFFF, secs, active, hover);
+                if (active) Gui.textBold(g, font, tp, winX + 30, sby + 6, labelCol);
+                else Gui.text(g, font, tp, winX + 30, sby + 6, labelCol);
+                String cnt = String.valueOf(topicCount(tp));
+                Gui.text(g, font, cnt, winX + SIDEBAR_W - 8 - Gui.width(font, cnt),
+                    sby + 6, active ? t.accent() : UICustom.textMute);
+                sby += 22;
+            }
+            Gui.fill(g, winX + 12, sby + 2, winX + SIDEBAR_W - 8, sby + 3, UICustom.border);
+            sby += 6;
+            for (Category c : Category.values()) {
+                boolean active = c == tab && topic == null && search.isEmpty();
+                boolean hover = ModuleCard.inside(mx, my, winX + 8, sby, SIDEBAR_W - 4, 20);
+                if (!active && hover) Gui.round(g, winX + 8, sby, SIDEBAR_W - 4, 20, 5, 0x14FFFFFF);
+                int labelCol = active ? 0xFFE8D8FF : hover ? t.text() : 0xFF7C7C90;
+                ModuleIcons.draw(g, ModuleIcons.forCategory(c), winX + 18, sby + 10, 9,
+                    (active ? t.accent() : UICustom.textMute) & 0xFFFFFF, secs, active, hover);
+                if (active) Gui.textBold(g, font, c.label, winX + 30, sby + 6, labelCol);
+                else Gui.text(g, font, c.label, winX + 30, sby + 6, labelCol);
+                long onCount = 0;
+                for (var m : NoxClient.INSTANCE.modules.all())
+                    if (m.category == c && m.isEnabled()) onCount++;
+                if (onCount > 0)
+                    Gui.text(g, font, String.valueOf(onCount),
+                        winX + SIDEBAR_W - 8 - Gui.width(font, String.valueOf(onCount)),
+                        sby + 6, active ? t.accent() : UICustom.textMute);
                 sby += 22;
             }
         } else {
@@ -308,7 +426,7 @@ public class NoxWindowScreen extends Screen {
         int cy = contentY(), ch = contentH();
         int cols = cols();
         int cw = (contentW() - (cols - 1) * GAP) / cols;
-        g.enableScissor(winX + 4, cy, winX + winW - 4, cy + ch);
+        Gui.clipOn(winX + 4, cy, winX + winW - 4, cy + ch);
         List<ModuleCard> vis = visible();
         if (vis.isEmpty()) {
             Gui.textCenterBold(g, font, "No modules found", contentX() + contentW() / 2, cy + 36, t.text());
@@ -320,10 +438,12 @@ public class NoxWindowScreen extends Screen {
             b.x = contentX() + col * (cw + GAP);
             b.y = cy + row * (UICustom.cardH + GAP) - (int) scroll;
             b.width = cw;
+            b.appearAt = openedAt + Math.min(i, 12) * 20L;
             b.hoverNow = false;
+            b.showCategory = !search.isEmpty();
             if (b.y + b.height > cy - 6 && b.y < cy + ch) b.render(g, mx, my);
         }
-        g.disableScissor();
+        Gui.clipOff();
 
         // hover tooltip: full module description after the scissor closes
         if (popup == null)
@@ -359,39 +479,47 @@ public class NoxWindowScreen extends Screen {
         if (total > sch) {
             int barH = Math.max(24, sch * sch / total);
             int barY = scy + (int) ((sch - barH) * (scroll / Math.max(1, total - sch)));
-            Gui.pill(g, winX + winW - 6, scy, 3, sch, 0xFF2A2A38);
-            Gui.pill(g, winX + winW - 6, barY, 3, barH, t.accent());
+            boolean barHot = ModuleCard.inside(mx, my, winX + winW - 12, scy, 10, sch);
+            Gui.pill(g, winX + winW - 6, scy, 4, sch, 0xFF22222E);
+            Gui.pill(g, winX + winW - 6, barY, 4, barH,
+                barHot ? t.accent() : t.accent() & 0x66FFFFFF);
         }
 
-        // resize grip — diagonal drag lines, brighter when hovered/dragging
+        // resize grip — three rounded dots in the corner triangle (no pixel
+        // staircase), brighter when hovered/dragging
         {
             boolean gripHot = resizing
                 || ModuleCard.inside(mx, my, winX + winW - 24, winY + winH - 24, 24, 24);
             int gc = gripHot ? (0xFF000000 | Theme.current().accent()) : 0xFF6A6A80;
-            for (int i = 0; i < 3; i++) {
-                int o = 6 + i * 5;
-                for (int d = 0; d < o; d++)
-                    g.fill(winX + winW - 4 - d, winY + winH - 4 - o + d,
-                        winX + winW - 3 - d, winY + winH - 3 - o + d, gc);
-            }
+            for (int i = 0; i < 3; i++)
+                for (int j = 0; j <= i; j++)
+                    Gui.circle(g, winX + winW - 8 - j * 6, winY + winH - 8 - i * 6, 1, gc);
         }
 
-        // footer
+        // footer — solid band so clipped cards don't bleed under the pills
         footRects.clear();
         int fy = winY + winH - FOOT_H - 4;
-        g.fill(winX + UICustom.radius, fy - 2, winX + winW - UICustom.radius, fy - 1, 0xFF1E1E2A);
+        int bandCol = glass ? (UICustom.header & 0xFFFFFF) | 0xD0000000 : UICustom.header;
+        Gui.fill(g, winX + 1, fy - 2, winX + winW - 1, winY + winH - UICustom.radius, bandCol);
+        Gui.fill(g, winX + UICustom.radius, winY + winH - UICustom.radius,
+            winX + winW - UICustom.radius, winY + winH - 1, bandCol);
+        Gui.fill(g, winX + UICustom.radius, fy - 2, winX + winW - UICustom.radius, fy - 1, UICustom.border);
         int fx = winX + 12;
         for (String label : FOOT) {
-            int pw = Gui.width(font, label) + 16;
+            int pw = Gui.width(font, label) + 20;
             if (fx + pw > winX + winW - 12) break;
-            boolean hov = ModuleCard.inside(mx, my, fx, fy + 5, pw, 17);
+            boolean hov = ModuleCard.inside(mx, my, fx, fy + 2, pw, 20);
             boolean panic = label.equals("PANIC");
-            Gui.pill(g, fx, fy + 5, pw, 17,
-                panic ? (hov ? 0x55FF5555 : 0x28FF5555)
-                      : (hov ? t.accent() & 0x55FFFFFF : 0xFF1B1B28));
-            Gui.text(g, font, label, fx + 8, fy + 9,
-                panic ? 0xFFFF8888 : (hov ? 0xFFE8D8FF : 0xFF9A9AAE));
-            footRects.add(new int[]{fx, fy + 5, pw, 17});
+            boolean accent = label.equals("Style");
+            int bg = panic ? (hov ? 0x55FF5555 : 0x28FF5555)
+                : accent ? (hov ? t.accent() & 0x55FFFFFF : t.accent() & 0x33FFFFFF)
+                : hov ? UICustom.cardFillTop : 0xFF1B1B28;
+            Gui.pill(g, fx, fy + 2, pw, 20, bg);
+            int textCol = panic ? 0xFFFF8888
+                : accent ? (hov ? 0xFFE8D8FF : t.accent())
+                : hov ? 0xFFE8D8FF : 0xFF9A9AAE;
+            Gui.textCenter(g, font, label, fx + pw / 2, fy + 8, textCol);
+            footRects.add(new int[]{fx, fy + 2, pw, 20});
             fx += pw + 6;
         }
 
@@ -440,12 +568,12 @@ public class NoxWindowScreen extends Screen {
                 lb = lb.substring(0, lb.length() - 1);
             Gui.textBold(g, font, lb, px + 17, py + 6, UICustom.cardAccent);
             Gui.text(g, font, cnt + " ⌄", px + panelW() - 8 - cntW, py + 6, 0xFF6A6A80);
-            g.fill(px + 6, py + PANEL_HEAD - 1, px + panelW() - 6, py + PANEL_HEAD,
+            Gui.fill(g, px + 6, py + PANEL_HEAD - 1, px + panelW() - 6, py + PANEL_HEAD,
                 UICustom.cardAccent & 0x44FFFFFF);
 
             // module rows — enabled rows render as a filled accent pill
             int bodyY = py + PANEL_HEAD + 2;
-            g.enableScissor(px, bodyY, px + panelW(), bodyY + bodyH - 4);
+            Gui.clipOn(px, bodyY, px + panelW(), bodyY + bodyH - 4);
             int ry = bodyY - (int) scrollOf(c);
             for (Module m : mods) {
                 if (ry + ROW_H > bodyY && ry < bodyY + bodyH) {
@@ -469,7 +597,7 @@ public class NoxWindowScreen extends Screen {
                 }
                 ry += ROW_H;
             }
-            g.disableScissor();
+            Gui.clipOff();
         }
         // hint strip at the bottom
         Gui.textCenter(g, font,
@@ -543,7 +671,7 @@ public class NoxWindowScreen extends Screen {
             sby += 22;
         }
         int dvx = winX + LIB_SB_W + 14;
-        g.fill(dvx, winY + TITLE_H + 4, dvx + 1, winY + winH - FOOT_H - 6, 0xFF26263A);
+        Gui.fill(g, dvx, winY + TITLE_H + 4, dvx + 1, winY + winH - FOOT_H - 6, 0xFF26263A);
 
         // search row + "HUD" shortcut button
         int cx = dvx + 10;
@@ -567,7 +695,7 @@ public class NoxWindowScreen extends Screen {
         // sectioned tile grid
         int gy = libSearchY + SEARCH_H + 12;
         int gh = winY + winH - FOOT_H - 8 - gy;
-        g.enableScissor(dvx + 2, gy - 2, winX + winW - 6, gy + gh);
+        Gui.clipOn(dvx + 2, gy - 2, winX + winW - 6, gy + gh);
         libTiles.clear();
         libTileMods.clear();
         int cols = Math.max(2, (cw + LIB_GAP) / (LIB_TILE_W + LIB_GAP));
@@ -584,7 +712,7 @@ public class NoxWindowScreen extends Screen {
                 Gui.textBold(g, font, c.label, cx + 14, ry + 3, 0xFFE8E8F4);
                 Gui.text(g, font, String.valueOf(mods.size()),
                     cx + 20 + Gui.width(font, c.label), ry + 3, 0xFF8A8A9E);
-                g.fill(cx, ry + 14, cx + 72, ry + 15, UICustom.cardAccent);
+                Gui.pill(g, cx, ry + 14, 72, 2, UICustom.cardAccent);
             }
             ry += 18;
             for (int i = 0; i < mods.size(); i++) {
@@ -598,7 +726,7 @@ public class NoxWindowScreen extends Screen {
             }
             ry += ((mods.size() + cols - 1) / cols) * (LIB_TILE_H + LIB_GAP) + 8;
         }
-        g.disableScissor();
+        Gui.clipOff();
     }
 
     /** Square module tile: icon chip + name + ON/OFF strip (LABY-style). */
@@ -726,18 +854,14 @@ public class NoxWindowScreen extends Screen {
                         openUri(dev.noxclient.discord.DiscordLink.get());
                         dev.noxclient.gui.Toasts.push("Discord invite opened", 0xFF8B5CF6);
                     }
-                    case 1 -> dev.noxclient.discord.Webhook.reportBug();
-                    case 2 -> dev.noxclient.discord.Webhook.suggest();
-                    case 3 -> {
-                        NoxClient.INSTANCE.config.share();
-                        dev.noxclient.gui.Toasts.push("Config copied to clipboard", 0xFF66D9A0);
-                    }
-                    case 4 -> {
-                        NoxClient.INSTANCE.config.importConfig(minecraft.keyboardHandler.getClipboard());
-                        dev.noxclient.gui.Toasts.push("Config imported", 0xFF66D9A0);
-                    }
-                    case 5 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ShopScreen(this));
-                    case 6 -> {
+                    case 1 -> minecraft.setScreenAndShow(new dev.noxclient.gui.CustomizeScreen(this));
+                    case 2 -> minecraft.setScreenAndShow(new dev.noxclient.gui.AltManagerScreen(this));
+                    case 3 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ReportScreen(this, true));
+                    case 4 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ReportScreen(this, false));
+                    case 5 -> minecraft.setScreenAndShow(new dev.noxclient.gui.PresetScreen(this));
+                    case 6 -> minecraft.setScreenAndShow(new dev.noxclient.gui.PresetScreen(this));
+                    case 7 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ShopScreen(this));
+                    case 8 -> {
                         NoxClient.INSTANCE.modules.get("GhostMode").setEnabled(true);
                         dev.noxclient.gui.Toasts.push("PANIC — all modules off", 0xFFFF5C7A);
                     }
@@ -755,8 +879,7 @@ public class NoxWindowScreen extends Screen {
                 sby += 22;
             }
             if (ModuleCard.inside(mx, my, libHudBtnX, libHudBtnY, libHudBtnW, SEARCH_H)) {
-                Module hw = NoxClient.INSTANCE.modules.get("HudWidgets");
-                if (hw != null) popup = new SettingsPopup(hw, (int) mx, (int) my, width, height);
+                net.minecraft.client.Minecraft.getInstance().setScreenAndShow(new HudEditorScreen(this));
                 return true;
             }
             if (ModuleCard.inside(mx, my, libSearchX, libSearchY, libSearchW, SEARCH_H)) {
@@ -790,9 +913,16 @@ public class NoxWindowScreen extends Screen {
         }
         if (sidebar()) {
             int sby = contentY();
+            for (String tp : TOPICS) {
+                if (ModuleCard.inside(mx, my, winX + 8, sby, SIDEBAR_W - 4, 20)) {
+                    topic = tp; scrollTarget = 0; return true;
+                }
+                sby += 22;
+            }
+            sby += 6;
             for (Category c : Category.values()) {
                 if (ModuleCard.inside(mx, my, winX + 8, sby, SIDEBAR_W - 4, 20)) {
-                    tab = c; activeTab = c.ordinal(); scrollTarget = 0; return true;
+                    topic = null; tab = c; activeTab = c.ordinal(); scrollTarget = 0; return true;
                 }
                 sby += 22;
             }
@@ -800,13 +930,12 @@ public class NoxWindowScreen extends Screen {
             int tx = winX + 12, ty = winY + TITLE_H + 6;
             for (Category c : Category.values()) {
                 int w = Gui.width(font, c.label) + 18;
-                if (ModuleCard.inside(mx, my, tx, ty, w, TAB_H - 4)) { tab = c; activeTab = c.ordinal(); scrollTarget = 0; return true; }
+                if (ModuleCard.inside(mx, my, tx, ty, w, TAB_H - 4)) { topic = null; tab = c; activeTab = c.ordinal(); scrollTarget = 0; return true; }
                 tx += w + 4;
             }
         }
         if (ModuleCard.inside(mx, my, hudBtnX, hudBtnY, 44, SEARCH_H)) {
-            Module hw = NoxClient.INSTANCE.modules.get("HudWidgets");
-            if (hw != null) popup = new SettingsPopup(hw, (int) mx, (int) my, width, height);
+            net.minecraft.client.Minecraft.getInstance().setScreenAndShow(new HudEditorScreen(this));
             return true;
         }
         if (ModuleCard.inside(mx, my, contentX(), winY + TITLE_H + (sidebar() ? 6 : TAB_H + 10),
@@ -910,7 +1039,6 @@ public class NoxWindowScreen extends Screen {
             if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_ESCAPE) searchFocused = false;
             return true;
         }
-        if (key == InputConstants.KEY_T) { Theme.cycle(); return true; }
         if (key == InputConstants.KEY_RSHIFT || key == InputConstants.KEY_ESCAPE) { onClose(); return true; }
         return super.keyPressed(e);
     }
@@ -918,7 +1046,12 @@ public class NoxWindowScreen extends Screen {
     @Override
     public boolean charTyped(CharacterEvent e) {
         if (popup != null && popup.charTyped((char) e.codepoint())) return true;
-        if (searchFocused && e.isAllowedChatCharacter()) { search += e.codepointAsString(); return true; }
+        // type-to-search: any printable char autofocuses the field (Meteor-style)
+        if (popup == null && e.isAllowedChatCharacter()) {
+            searchFocused = true;
+            search += e.codepointAsString();
+            return true;
+        }
         return super.charTyped(e);
     }
 

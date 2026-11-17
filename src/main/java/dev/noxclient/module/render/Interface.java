@@ -32,10 +32,47 @@ public class Interface extends Module {
         "Studio", "Cards", "Compact rows", "Sidebar", "Panels", "Hub"));
     public final Setting.Num hudScale = add(new Setting.Num("HUD scale", 1.0, 0.5, 2.0));
     public final Setting.Bool reducedMotion = add(new Setting.Bool("Reduced motion", false));
+    public final Setting.Bool largeText = add(new Setting.Bool("Large text", false));
+    public final Setting.Mode colorBlind = add(Setting.Mode.of("Color blind", "Off",
+        "Off", "Deuteranopia", "Protanopia", "Tritanopia"));
 
+    public final Setting.Mode season = add(Setting.Mode.of("Season", "Auto",
+        "Seasonal palette — Auto follows the real-world calendar", "Auto", "Winter", "Spring", "Summer", "Autumn"));
+    public final Setting.Mode backdrop = add(Setting.Mode.of("Screen backdrop", "Dim",
+        "Window backdrop style — Prism adds an animated specular edge", "Dim", "Frost", "Prism"));
+    public final Setting.Mode backdropLevel = add(Setting.Mode.of("Backdrop level", "Medium",
+        "Strength of the backdrop effect", "Light", "Medium", "Strong"));
+    public final Setting.Bool seasonFx = add(new Setting.Bool("Seasonal FX", true,
+        "Ambient particles in the GUI — snow, petals, fireflies, leaves"));
+
+    /* ---- ClickGUI deep customization (Design tab edits these live) ---- */
+    public final Setting.Col guiBg = add(new Setting.Col("GUI background", 0xFF0F0F12,
+        "ClickGUI window body color"));
+    public final Setting.Col accent2 = add(new Setting.Col("Accent gradient", 0xFFFF8AD5,
+        "Gradient end color — active tabs, sparkline, glows"));
+    public final Setting.Num winOpacity = add(new Setting.Num("Window opacity", 0.97, 0.5, 1.0,
+        "ClickGUI window transparency"));
+    public final Setting.Num glow = add(new Setting.Num("Glow intensity", 1.0, 0.0, 2.0,
+        "Shadow/glow strength on windows and focus rings"));
+    public final Setting.Num animSpeed = add(new Setting.Num("Animation speed", 1.0, 0.25, 3.0,
+        "Multiplier on every GUI animation duration"));
+    public final Setting.Num fontScale = add(new Setting.Num("Font scale", 1.0, 0.8, 1.4,
+        "ClickGUI text size — layout adapts automatically"));
+    public final Setting.Bool showStats = add(new Setting.Bool("Live stats", true,
+        "Right-side stats column in the ClickGUI"));
+    public final Setting.Bool showPinned = add(new Setting.Bool("Pinned bar", true,
+        "Pinned-modules strip at the bottom of the ClickGUI"));
+    public final Setting.Mode borderMode = add(Setting.Mode.of("Borders", "Subtle",
+        "Window/panel border visibility", "Off", "Subtle", "Strong"));
     private String lastTheme = "";
+    private String lastSeason = "";
 
     public Interface() { super("Interface", "Customize the whole NOX GUI", Category.RENDER); }
+
+    /** Infrastructure module — owns all GUI state; switching it off kills every
+     * customization, so it can never be disabled (card click, config, PANIC). */
+    @Override public void setEnabled(boolean v) { super.setEnabled(true); }
+    @Override public void restore(boolean v) { super.restore(true); }
 
     @Override
     public void onTick() {
@@ -54,6 +91,29 @@ public class Interface extends Module {
         UICustom.clickStyle = clickStyle.get();
         UICustom.hudScale = (float) (double) hudScale.get();
         UICustom.reducedMotion = reducedMotion.on();
+        UICustom.largeText = largeText.on();
+        UICustom.colorBlind = colorBlind.get();
+        UICustom.refreshA11y();
+        UICustom.season = season.get();
+        UICustom.backdrop = backdrop.get();
+        UICustom.backdropLevel = backdropLevel.get();
+        UICustom.seasonFx = seasonFx.on();
+        UICustom.guiBg = guiBg.get() | 0xFF000000;
+        UICustom.accent2 = accent2.get() | 0xFF000000;
+        UICustom.winOpacity = (float) (double) winOpacity.get();
+        UICustom.glow = (float) (double) glow.get();
+        UICustom.animSpeed = (float) (double) animSpeed.get();
+        UICustom.fontScale = (float) (double) fontScale.get();
+        UICustom.showStats = showStats.on();
+        UICustom.showPinned = showPinned.on();
+        UICustom.borderMode = borderMode.get();
+        if (!season.get().equals(lastSeason)) {
+            lastSeason = season.get();
+            Theme.set("Auto".equals(lastSeason) ? Theme.seasonIndex() : Theme.indexOf(lastSeason));
+        } else if ("Auto".equals(season.get()) && Theme.index() != Theme.seasonIndex()
+                && !Theme.seasonName().isEmpty()) {
+            Theme.set(Theme.seasonIndex());   // calendar rolled over while Auto is on
+        }
         if (!theme.get().equals(lastTheme)) {
             lastTheme = theme.get();
             for (int i = 0; i < Theme.ALL.length; i++)

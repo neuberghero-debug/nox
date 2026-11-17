@@ -1,0 +1,64 @@
+# NOX backend stack — one `docker compose up -d` brings up everything.
+# Secrets live in .env (see .env.example) — never commit real values.
+services:
+  license:
+    build: ../nox-license-server
+    restart: unless-stopped
+    environment:
+      NOX_DB: /data/licenses.db
+      NOX_ADMIN_KEY: ${NOX_ADMIN_KEY}
+    volumes: [ "license-data:/data" ]
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8787/health')" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  friend-sync:
+    build: ./friend-sync
+    restart: unless-stopped
+    environment:
+      NOX_DB: /data/friends.db
+      NOX_JWT_SECRET: ${NOX_JWT_SECRET}
+    volumes: [ "friends-data:/data" ]
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8788/health')" ]
+      interval: 30s
+      retries: 3
+
+  chat-relay:
+    build: ./chat-relay
+    restart: unless-stopped
+    environment:
+      NOX_JWT_SECRET: ${NOX_JWT_SECRET}
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8789/health')" ]
+      interval: 30s
+      retries: 3
+
+  analytics:
+    build: ./analytics
+    restart: unless-stopped
+    environment:
+      NOX_DB: /data/analytics.db
+      NOX_ANALYTICS_KEY: ${NOX_ANALYTICS_KEY}
+      NOX_INGEST_HMAC: ${NOX_INGEST_HMAC}
+    volumes: [ "analytics-data:/data" ]
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8790/health')" ]
+      interval: 30s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports: [ "80:80", "443:443" ]
+    volumes:
+      - ./nginx/nox.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on: [ license, friend-sync, chat-relay, analytics ]
+
+volumes:
+  license-data:
+  friends-data:
+  analytics-data:

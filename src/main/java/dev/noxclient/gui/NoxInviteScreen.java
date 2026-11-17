@@ -36,7 +36,7 @@ public class NoxInviteScreen extends Screen {
         int cx = width / 2, by = height / 2 - 70;
         Gui.shadow(g, cx - 124, by - 4, 248, 118, 14);
         Gui.roundBorder(g, cx - 124, by - 4, 248, 118, 14, t.accent() & 0x55FFFFFF, t.background());
-        g.fill(cx - 100, by + 2, cx + 100, by + 3, t.accent());
+        Gui.fill(g, cx - 100, by + 2, cx + 100, by + 3, t.accent());
         Gui.textCenter(g, font, "N O X", cx, by + 12, t.accent());
         Gui.textCenter(g, font, "Thanks for installing NOX.", cx, by + 30, t.text());
         Gui.textCenter(g, font, "Configs, updates and support live on our Discord:", cx, by + 42, t.text());

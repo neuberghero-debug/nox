@@ -17,10 +17,20 @@ public abstract class ChatMixin {
     private void nox$playerMsg(Component msg, MessageSignature sig,
                                GuiMessageTag tag, CallbackInfo ci) {
         try { AutoTPAccept.onChat(msg.getString()); } catch (Throwable ignored) {}
+        // Auction bids are ONLY fed from system messages — a signed player
+        // message ("I sent you $5") must never count as a real /pay.
     }
 
     @Inject(method = "addServerSystemMessage", at = @At("HEAD"))
     private void nox$systemMsg(Component msg, CallbackInfo ci) {
         try { AutoTPAccept.onChat(msg.getString()); } catch (Throwable ignored) {}
+        try { feed(msg.getString()); } catch (Throwable ignored) {}
+    }
+
+    private static void feed(String raw) {
+        if (dev.noxclient.NoxClient.INSTANCE == null) return;
+        if (dev.noxclient.NoxClient.INSTANCE.modules.get("Auction")
+                instanceof dev.noxclient.module.donutsmp.Auction a
+            && a.isEnabled() && a.running()) a.onChat(raw);
     }
 }

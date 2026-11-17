@@ -25,6 +25,9 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.11.0'
     // NanoVG (LWJGL module) — vector overlay pass for GUI glow/gradients
     implementation 'org.lwjgl:lwjgl-nanovg:3.4.3'
+    // Netty proxy handlers — alt-manager SOCKS5/SOCKS4/HTTP connect proxy
+    implementation "io.netty:netty-handler-proxy:4.2.16.Final"
+    include "io.netty:netty-handler-proxy:4.2.16.Final"
     ['natives-linux', 'natives-linux-arm64', 'natives-windows', 'natives-windows-arm64', 'natives-macos', 'natives-macos-arm64'].each { c ->
         runtimeOnly "org.lwjgl:lwjgl-nanovg:3.4.3:${c}"
         include "org.lwjgl:lwjgl-nanovg:3.4.3:${c}@jar"
@@ -88,6 +91,12 @@ def noxJarSig = tasks.register('noxJarSig') {
                 zos.putNextEntry(new java.util.zip.ZipEntry('assets/noxclient/sig.txt'))
                 zos.write(sig.getBytes('UTF-8'))
                 zos.closeEntry()
+                // build watermark (Modul 30.4): per-build fingerprint — NOT
+                // secret, identifies which build a leaked/cracked jar is from
+                def wm = "${System.currentTimeMillis()}-${sig[0..11]}-${project.version}"
+                zos.putNextEntry(new java.util.zip.ZipEntry('assets/noxclient/watermark.txt'))
+                zos.write(wm.getBytes('UTF-8'))
+                zos.closeEntry()
             }
         }
         if (!tmp.renameTo(jarPath)) throw new GradleException("sig rewrite failed")
@@ -95,3 +104,17 @@ def noxJarSig = tasks.register('noxJarSig') {
     }
 }
 tasks.named('jar') { finalizedBy noxJarSig }
+
+// Native core (Rust JNI, Modul 30.1) — release-stripped, build-salted.
+// Runs before processResources so the .so lands inside the jar.
+def noxNative = tasks.register('noxNative', Exec) {
+    def out = file("${layout.projectDirectory}/native/target/release/libnoxcore.so")
+    def dest = file("${layout.projectDirectory}/src/main/resources/natives/linux-amd64/libnoxcore.so")
+    outputs.file(out)
+    onlyIf { !dest.exists() || dest.lastModified() < file("${layout.projectDirectory}/native/src/lib.rs").lastModified() }
+    environment 'NOX_BUILD_SALT', providers.environmentVariable('NOX_BUILD_SALT').orElse('nox-dev')
+    workingDir "${layout.projectDirectory}/native"
+    commandLine 'cargo', 'build', '--release'
+    doLast { dest.bytes = out.bytes }
+}
+tasks.named('processResources') { dependsOn noxNative }

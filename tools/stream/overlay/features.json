@@ -1,0 +1,14 @@
+{
+  "title": "VOTE — naechste Fixes/Features",
+  "hint": "Nummer in den Chat → stimmt ab was gebaut wird",
+  "features": [
+    { "name": "E2E-Chat Relay",        "desc": "M21 — verschluesselter client-to-client chat" },
+    { "name": "Friend Sync Backend",   "desc": "M8 — cross-client friends" },
+    { "name": "Highlight-Reel Export", "desc": "M2 — ffmpeg MP4 + discord upload" },
+    { "name": "Stash Organizer",       "desc": "M7 — kategorisieren + logger" },
+    { "name": "Twitch IRC Votes",      "desc": "M3 — twitch-pfad der viewer votes" },
+    { "name": "NoxClickGui final",     "desc": "GUI A — palette + keybind migration" },
+    { "name": "Update-CDN",            "desc": "M19 — manifest + auto-update hosting" },
+    { "name": "SessionStats polish",   "desc": "P2 — session stats panel feinschliff" }
+  ]
+}

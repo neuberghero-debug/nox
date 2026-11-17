@@ -13,7 +13,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class AttackMixin {
     @Inject(method = "attack", at = @At("TAIL"))
     private void nox$onHit(Player player, Entity target, CallbackInfo ci) {
-        if (player == net.minecraft.client.Minecraft.getInstance().player
-            && player.isSprinting()) { SprintReset.onHit(); dev.noxclient.module.combat.WTap.onHit(); }
+        if (player == net.minecraft.client.Minecraft.getInstance().player) {
+            dev.noxclient.stats.Stats.onHit(target);
+            dev.noxclient.module.misc.PvpCoach.onHitEntity(target);
+            if (player.isSprinting()) { SprintReset.onHit(); dev.noxclient.module.combat.WTap.onHit(); }
+        }
     }
 }

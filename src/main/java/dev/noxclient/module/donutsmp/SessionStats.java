@@ -41,8 +41,16 @@ public class SessionStats extends Module {
         if (obj == null) { lines.clear(); return; }
 
         lines.clear();
-        // DonutSMP-style sidebars put the full line text in each team's prefix
-        for (var t : mc.level.getScoreboard().getPlayerTeams()) {
+        // Parse ONLY the member teams of entries visible in the sidebar —
+        // iterating all player teams pulled in unrelated prefixes (P1 fix),
+        // and a layout swap poisons the baseline: reset it when the label
+        // set changes.
+        var sb = mc.level.getScoreboard();
+        java.util.Set<String> found = new java.util.LinkedHashSet<>();
+        for (var e : sb.listPlayerScores(obj)) {
+            if (e.isHidden()) continue;
+            var t = sb.getPlayersTeam(e.owner());
+            if (t == null) continue;
             String line = t.getPlayerPrefix().getString().replaceAll("§.", "").trim();
             if (line.isEmpty()) continue;
             var m = NUM.matcher(line);
@@ -54,9 +62,13 @@ public class SessionStats extends Module {
             // only real stats — skip timers/pings (Keyall countdown, Playtime, NA East ms)
             if (!label.matches("(?i).*(money|shard|kill|death|gem|soul|token).*")) continue;
             lines.put(label, last);
-            baseline.putIfAbsent(label, toLong(last));
+            found.add(label);
         }
+        if (!found.equals(lastLabels)) { baseline.clear(); lastLabels = found; }
+        for (String l : found) baseline.putIfAbsent(l, toLong(lines.get(l)));
     }
+
+    private java.util.Set<String> lastLabels = java.util.Set.of();
 
     /** Session delta for a label, e.g. +2400; 0 when unknown. */
     public long delta(String label) {
@@ -67,6 +79,11 @@ public class SessionStats extends Module {
     public String sessionTime() {
         long s = (System.currentTimeMillis() - sessionStart) / 1000;
         return s >= 3600 ? (s / 3600) + "h" + (s / 60 % 60) + "m" : (s / 60) + "m" + (s % 60) + "s";
+    }
+
+    /** Seconds since the module was enabled (money/hour extrapolation). */
+    public double elapsedSeconds() {
+        return (System.currentTimeMillis() - sessionStart) / 1000.0;
     }
 
     private static Long toLong(String s) {

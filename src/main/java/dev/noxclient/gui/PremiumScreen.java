@@ -17,11 +17,13 @@ import java.net.URI;
  * offline activation.
  */
 public class PremiumScreen extends Screen {
+    private final Screen parent;
     private EditBox keyBox;
     private String status = "";
     private int statusColor = 0xFFFF6666;
 
-    public PremiumScreen() { super(Component.literal("NOX Premium")); }
+    public PremiumScreen() { this(null); }
+    public PremiumScreen(Screen parent) { super(Component.literal("NOX Premium")); this.parent = parent; }
 
     @Override
     protected void init() {
@@ -33,7 +35,16 @@ public class PremiumScreen extends Screen {
         addRenderableWidget(new NoxButton(cx + 2, top + 142, 118, 18, "Discord", () -> {
             try { Desktop.getDesktop().browse(new URI(dev.noxclient.discord.DiscordLink.get())); } catch (Exception ignored) {}
         }));
-        addRenderableWidget(new NoxButton(cx - 120, top + 166, 240, 16, "Close", this::onClose));
+        if (LicenseManager.premium())
+            addRenderableWidget(new NoxButton(cx - 120, top + 166, 118, 16, "Deactivate",
+                () -> { LicenseManager.deactivate(); status = "License deactivated"; statusColor = 0xFFFFCC55; }));
+        addRenderableWidget(new NoxButton(cx - 120, top + 166, LicenseManager.premium() ? 118 : 240, 16,
+            LicenseManager.premium() ? "Deactivate" : "Close",
+            LicenseManager.premium()
+                ? () -> { LicenseManager.deactivate(); status = "License deactivated"; statusColor = 0xFFFFCC55; }
+                : this::onClose));
+        if (LicenseManager.premium())
+            addRenderableWidget(new NoxButton(cx + 2, top + 166, 118, 16, "Close", this::onClose));
     }
 
     private void activate() {
@@ -48,11 +59,13 @@ public class PremiumScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float dt) {
         Theme t = Theme.current();
-        g.fill(0, 0, width, height, 0xA0040408);
+        Gui.backdrop(g, width, height, 1f);
         int cx = width / 2, top = height / 2 - 96, w = 272, h = 200;
         int x0 = cx - w / 2;
         Gui.shadow(g, x0, top, w, h, 12);
         Gui.roundBorder(g, x0, top, w, h, 12, t.accent(), 0xF2101018);
+        Gui.windowFx(x0, top, w, h, 12);
+        Gui.windowFrost(x0, top, w, h, 12);
 
         Gui.textCenterBold(g, font, "★  NOX PREMIUM", cx, top + 12, t.accent());
         Gui.textCenter(g, font, "This module requires a Premium license.", cx, top + 30, t.text());
@@ -60,14 +73,19 @@ public class PremiumScreen extends Screen {
         Gui.textCenterBold(g, font, "BTC · LTC · ETH · SOL", cx, top + 58, t.accent());
         Gui.textCenter(g, font, "You get a NOX1 key instantly after payment.", cx, top + 72, 0xFF9C9CB8);
         Gui.textCenter(g, font, dev.noxclient.discord.DiscordLink.get(), cx, top + 86, 0xFF6677AA);
-        g.fill(x0 + 16, top + 100, x0 + w - 16, top + 101, 0xFF2A2A3C);
+        Gui.fill(g, x0 + 16, top + 100, x0 + w - 16, top + 101, 0xFF2A2A3C);
         Gui.text(g, font, "License key", x0 + 16, top + 106, t.text());
+        if (LicenseManager.premium()) {
+            long days = LicenseManager.daysLeft();
+            Gui.text(g, font, "Status: §aactive §7(" + LicenseManager.licenseId() + ", "
+                + days + (days == 1 ? " day" : " days") + " left)", x0 + 16, top + 90, 0xFF66FF99);
+        }
         if (!status.isEmpty()) Gui.textCenter(g, font, status, cx, top + 190, statusColor);
         super.extractRenderState(g, mx, my, dt);
     }
 
     @Override
-    public void onClose() { minecraft.setScreenAndShow(null); }
+    public void onClose() { minecraft.setScreenAndShow(parent); }
     @Override
     public boolean isPauseScreen() { return false; }
 }

@@ -65,11 +65,27 @@ public final class DebugConsole {
     private static String run(Minecraft mc, String[] p, String raw) throws Exception {
         Screen s = screenOf(mc);
         switch (p[0]) {
-            case "shot" -> Screenshot.grab(mc, false);
-            case "gui" -> mc.setScreenAndShow(new NoxWindowScreen());
+            case "shot" -> {   // backbuffer incl. NVG overlay → /tmp/nox_shot.png (real pixels)
+                dev.noxclient.gui.nvg.NvgOverlay.grabFrame(
+                        java.nio.file.Path.of("/tmp/nox_shot.png"));
+                return "shot queued -> /tmp/nox_shot.png";
+            }
+            case "shotmc" -> Screenshot.grab(mc, false);   // offscreen RT only (no NVG layer)
+            case "framegrab" -> {   // backbuffer incl. NVG overlay → run/framegrab.png
+                dev.noxclient.gui.nvg.NvgOverlay.grabFrame(
+                        FabricLoader.getInstance().getGameDir().resolve("framegrab.png"));
+                return "framegrab queued";
+            }
+            case "gui" -> mc.setScreenAndShow(new dev.noxclient.gui.NoxClickGui());
+            case "guilegacy" -> mc.setScreenAndShow(new NoxWindowScreen());
             case "screen" -> {   // screen -> dump current; screen <cls> -> open NOX screen ("inv" = vanilla inventory)
                 if (p.length < 2)
                     return "screen=" + (s == null ? "null" : s.getClass().getSimpleName());
+                if (p[1].equalsIgnoreCase("mp")) {
+                    mc.setScreenAndShow(new net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen(
+                        new net.minecraft.client.gui.screens.TitleScreen()));
+                    return "screen mp -> JoinMultiplayerScreen";
+                }
                 if (p[1].equalsIgnoreCase("inv") && mc.player != null) {
                     mc.setScreenAndShow(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
                     return "screen inv -> InventoryScreen";
@@ -130,10 +146,11 @@ public final class DebugConsole {
             }
             case "key" -> {
                 int code = Integer.parseInt(p[1]);
+                int mod = p.length > 2 ? Integer.parseInt(p[2]) : 0;   // SDL KMOD (ctrl=0xC0)
                 if (s != null) {
                     int sdl = toSdl(code);
-                    boolean r = s.keyPressed(new KeyEvent(sdl, 0, 0));
-                    s.keyReleased(new KeyEvent(sdl, 0, 0));   // tap = press+release
+                    boolean r = s.keyPressed(new KeyEvent(sdl, 0, mod));
+                    s.keyReleased(new KeyEvent(sdl, 0, mod));   // tap = press+release
                     return "key " + code + " (sdl " + sdl + ") -> " + r
                         + " screen=" + s.getClass().getSimpleName();
                 }
@@ -141,9 +158,21 @@ public final class DebugConsole {
             case "char" -> {
                 if (s != null) s.charTyped(new CharacterEvent(p[1].codePointAt(0)));
             }
+            case "replay" -> {   // replay [file] → open playback screen
+                dev.noxclient.module.misc.ReplayMod.openPlayback(
+                    p.length > 1 ? java.nio.file.Path.of(p[1]) : null);
+            }
+            case "audit" -> {   // run the M29 self-check now, return findings
+                dev.noxclient.module.misc.SecurityAudit.run();
+                return "audit: " + (dev.noxclient.module.misc.SecurityAudit.lastFindings.isEmpty()
+                    ? "all checks pass"
+                    : String.join(" | ", dev.noxclient.module.misc.SecurityAudit.lastFindings));
+            }
             case "tab" -> {
                 int i = Integer.parseInt(p[1]);
                 NoxWindowScreen.activeTab = i;
+                if (dev.noxclient.gui.NoxClickGui.current != null)
+                    dev.noxclient.gui.NoxClickGui.current.setTabIndex(i);
                 if (NoxWindowScreen.current != null)
                     NoxWindowScreen.current.tab =
                         dev.noxclient.module.Category.values()[Math.min(i,
@@ -154,7 +183,7 @@ public final class DebugConsole {
                 var data = new net.minecraft.client.multiplayer.ServerData("debug", p[1],
                     net.minecraft.client.multiplayer.ServerData.Type.OTHER);
                 net.minecraft.client.gui.screens.ConnectScreen.startConnecting(
-                    NoxWindowScreen.current, mc, addr, data, false, null);
+                    mc.gui.screen(), mc, addr, data, false, null);
             }
             case "slot" -> {   // real container click packet — hover-independent
                 if (mc.player != null && mc.gameMode != null) {
@@ -192,7 +221,7 @@ public final class DebugConsole {
                 if (obj == null) return "scoreboard: no sidebar objective";
                 var sb = new StringBuilder("scoreboard[" + obj.getDisplayName().getString() + "]:");
                 for (var e : mc.level.getScoreboard().listPlayerScores(obj)) {
-                    var team = mc.level.getScoreboard().getPlayerTeam(e.owner());
+                    var team = mc.level.getScoreboard().getPlayersTeam(e.owner());
                     String pre = team == null ? "" : team.getPlayerPrefix().getString();
                     String suf = team == null ? "" : team.getPlayerSuffix().getString();
                     sb.append(" [").append(e.display() == null ? "null" : e.display().getString())
@@ -389,6 +418,99 @@ public final class DebugConsole {
                 return info;
             }
             case "moveguard" -> { return MoveGuard.dump(); }
+            case "look" -> {   // look <yaw> <pitch> — aim camera for shot tests
+                if (mc.player != null && p.length > 2) {
+                    mc.player.setYRot(Float.parseFloat(p[1]));
+                    mc.player.setXRot(Float.parseFloat(p[2]));
+                    return "look " + p[1] + " " + p[2];
+                }
+                return "usage: look <yaw> <pitch>";
+            }
+            case "gizmo" -> {   // gizmo [r] — test cuboid at player feet (render pipe check)
+                if (mc.player != null) {
+                    double r = p.length > 1 ? Double.parseDouble(p[1]) : 4;
+                    var c = mc.player.blockPosition();
+                    dev.noxclient.render.NoxRender.once(() ->
+                        net.minecraft.gizmos.Gizmos.cuboid(
+                            new net.minecraft.world.phys.AABB(c).inflate(r),
+                            net.minecraft.gizmos.GizmoStyle.strokeAndFill(0xFFFF2020, 2f, 0x44FF2020))
+                            .setAlwaysOnTop().persistForMillis(5000));
+                    return "gizmo queued";
+                }
+                return "no player";
+            }
+            case "orepos" -> {   // orepos — dump nearest simulated ore positions
+                var om = NoxClient.INSTANCE.modules.get("OreSim");
+                if (om instanceof dev.noxclient.module.donutsmp.OreSim o && mc.player != null)
+                    return o.nearest(mc.player.position(), 8);
+                return "oresim off";
+            }
+            case "world" -> {   // world <folder> — load a singleplayer save
+                if (p.length > 1)
+                    mc.createWorldOpenFlows().openWorld(raw.substring(6).trim(), () -> {});
+                return "loading";
+            }
+            case "worldnew" -> {   // worldnew [seed] — fresh 26.3 world for OreSim verification
+                var srv = mc.getSingleplayerServer();
+                var cfg = srv != null ? srv.getWorldData().getDataConfiguration()
+                    : net.minecraft.world.level.WorldDataConfiguration.DEFAULT;
+                long wseed = p.length > 1 ? (long) d(p[1]) : 42L;
+                var settings = new net.minecraft.world.level.LevelSettings("NOX-Verify",
+                    net.minecraft.world.level.GameType.SPECTATOR,
+                    net.minecraft.world.level.LevelSettings.DifficultySettings.DEFAULT, true, cfg);
+                mc.createWorldOpenFlows().createFreshLevel("NOX-Verify", settings,
+                    new net.minecraft.world.level.levelgen.WorldOptions(wseed, true, false),
+                    prov -> prov.lookupOrThrow(net.minecraft.core.registries.Registries.WORLD_PRESET)
+                        .getOrThrow(net.minecraft.world.level.levelgen.presets.WorldPresets.NORMAL)
+                        .value().createWorldDimensions(), null);
+                return "creating seed=" + wseed;
+            }
+            case "findore" -> {   // findore <substr> — nearest REAL ore blocks in loaded chunks
+                if (mc.level == null || mc.player == null || p.length < 2) return "usage: findore gold_ore";
+                String want = p[1];
+                var hits = new java.util.ArrayList<net.minecraft.core.BlockPos>();
+                var pc = mc.player.chunkPosition();
+                for (int dx = -10; dx <= 10; dx++) for (int dz = -10; dz <= 10; dz++) {
+                    if (!mc.level.hasChunk(pc.x() + dx, pc.z() + dz)) continue;
+                    var ch = mc.level.getChunk(pc.x() + dx, pc.z() + dz);
+                    var secs = ch.getSections();
+                    int minY = ch.getMinY();
+                    for (int si = 0; si < secs.length; si++) {
+                        var sec = secs[si];
+                        if (sec == null) continue;
+                        var states = sec.getStates();
+                        if (states == null) continue;
+                        for (int sy = 0; sy < 16; sy++) for (int sx = 0; sx < 16; sx++) for (int sz = 0; sz < 16; sz++) {
+                            var st = states.get(sx, sy, sz);
+                            if (st.isAir()) continue;
+                            var id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(st.getBlock()).getPath();
+                            if (id.contains(want))
+                                hits.add(new net.minecraft.core.BlockPos(
+                                    ch.getPos().getMinBlockX() + sx, minY + si * 16 + sy, ch.getPos().getMinBlockZ() + sz));
+                        }
+                    }
+                }
+                if (hits.isEmpty()) return "none loaded";
+                hits.sort(java.util.Comparator.comparingDouble(b -> b.distSqr(mc.player.blockPosition())));
+                var sb2 = new StringBuilder();
+                for (int i = 0; i < Math.min(8, hits.size()); i++)
+                    sb2.append(hits.get(i).toShortString()).append("  ");
+                return hits.size() + " real: " + sb2;
+            }
+            case "blockat" -> {   // blockat <x> <y> <z> — real block id at pos
+                if (mc.level != null && p.length > 3)
+                    return net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                        .getKey(mc.level.getBlockState(
+                            new net.minecraft.core.BlockPos((int) d(p[1]), (int) d(p[2]), (int) d(p[3]))).getBlock())
+                        .toString();
+                return "no level";
+            }
+            case "oresim" -> {   // oresim <cx> <cz> — dump module predictions inside chunk
+                if (mc.level == null || p.length < 3) return "usage: oresim -9 0";
+                var m = dev.noxclient.NoxClient.INSTANCE.modules.get("OreSim");
+                if (!(m instanceof dev.noxclient.module.donutsmp.OreSim os)) return "no OreSim";
+                return os.dumpChunk((int) d(p[1]), (int) d(p[2]));
+            }
         }
         return null;
     }

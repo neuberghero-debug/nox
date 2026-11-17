@@ -9,11 +9,11 @@ import dev.noxclient.setting.Setting;
  * so the renderer can query which entity types and style to draw.
  */
 public class ESP extends Module {
-    public final Setting.Bool players = add(new Setting.Bool("Players", true));
+    public final Setting.Bool players = add(new Setting.Bool("Players", true, "Draw boxes around other players"));
     public final Setting.Bool mobs = add(new Setting.Bool("Mobs", false));
-    public final Setting.Bool hostileOnly = add(new Setting.Bool("HostileOnly", true));
+    public final Setting.Bool hostileOnly = add(new Setting.Bool("HostileOnly", true, "Skip passive mobs — only hostiles marked"));
     public final Setting.Bool items = add(new Setting.Bool("Items", false));
-    public final Setting.Mode style = add(new Setting.Mode("Style", "Box", "Box", "Glow", "Outline"));
+    public final Setting.Mode style = add(Setting.Mode.of("Style", "Box", "Box = outline; Glow = filled; Outline = edges", "Box", "Glow", "Outline"));
     public final Setting.Col color = add(new Setting.Col("Color", 0x66FF4040));
 
     public ESP() { super("ESP", "See entities through walls", Category.RENDER); }

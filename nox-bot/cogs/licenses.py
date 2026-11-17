@@ -34,15 +34,36 @@ def _key() -> Ed25519PrivateKey:
 
 
 def issue_token(days: int, sub: str) -> str:
+    lid = secrets.token_hex(4)
+    exp = int(time.time() * 1000) + days * 86400_000
     payload = json.dumps({
         "tier": "premium",
-        "lid": secrets.token_hex(4),
-        "exp": int(time.time() * 1000) + days * 86400_000,
+        "lid": lid,
+        "exp": exp,
         "sub": sub,
     }, separators=(",", ":")).encode()
     sig = _key().sign(payload)
+    _register(lid, exp)
     return ("NOX1." + base64.urlsafe_b64encode(payload).decode()
             + "." + base64.urlsafe_b64encode(sig).decode())
+
+
+def _register(lid: str, exp: int) -> None:
+    """Register the lid with the license backend (revocation support).
+    Optional — set NOX_LICENSE_API + NOX_ADMIN_TOKEN; silently skipped offline."""
+    api = os.environ.get("NOX_LICENSE_API", "")
+    tok = os.environ.get("NOX_ADMIN_TOKEN", "")
+    if not api or not tok:
+        return
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            api + "/admin/register",
+            data=json.dumps({"lid": lid, "exp": exp}).encode(),
+            headers={"Content-Type": "application/json", "x-admin-token": tok})
+        urllib.request.urlopen(req, timeout=4).read()
+    except Exception:
+        pass
 
 
 def _embed(title: str, desc: str) -> tuple[discord.Embed, discord.File | None]:

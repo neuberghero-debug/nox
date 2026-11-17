@@ -23,12 +23,27 @@ public class StashLogger extends Module {
         StringBuilder out = new StringBuilder();
         for (var m : dev.noxclient.module.donutsmp.StorageESP.HITS.keySet()) {
             String k = m.getX() + "," + m.getY() + "," + m.getZ();
-            if (seen.add(k)) out.append(k).append("  @  ")
-                .append(java.time.LocalTime.now().withNano(0)).append("; ");
+            if (seen.add(k)) {
+                out.append(k).append("  @  ")
+                    .append(java.time.LocalTime.now().withNano(0)).append("; ");
+                dev.noxclient.util.StashIndex.add("storage", "chest", m);   // Modul 7
+            }
         }
         for (var m : dev.noxclient.module.donutsmp.AntiESPBypass.MARKS.keySet()) {
             String k = "mark:" + m.getX() + "," + m.getY() + "," + m.getZ();
-            if (seen.add(k)) out.append(k).append("; ");
+            if (seen.add(k)) {
+                out.append(k).append("; ");
+                dev.noxclient.util.StashIndex.add("anti-esp", "marked", m);
+            }
+        }
+        for (var m : dev.noxclient.module.donutsmp.SoundFind.MARKS.values()) {
+            String k = "sound:" + m.label + "@" + (int) m.x + "," + (int) m.y + "," + (int) m.z;
+            if (seen.add(k)) {
+                out.append(k)
+                    .append(m.deep ? "(deep)" : "").append(" ×").append(m.count).append("; ");
+                dev.noxclient.util.StashIndex.add("sound", "sound",
+                    new net.minecraft.core.BlockPos((int) m.x, (int) m.y, (int) m.z));
+            }
         }
         if (out.isEmpty()) return;
         try {

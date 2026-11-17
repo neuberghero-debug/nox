@@ -21,6 +21,7 @@ public class ModuleManager {
         reg(new AutoEat());
         reg(new AutoVoiceConfirm());
         reg(new SessionStats());
+        reg(new Auction());
         // DonutSMP premium
         reg(new AHSniper());
         reg(new TunnelBaseFinder());
@@ -37,6 +38,8 @@ public class ModuleManager {
         reg(new AmethystBaseFinder());
         reg(new ArtificialLightFinder());
         reg(new SusChunkFinder());
+        reg(new OreSim());
+        reg(new SoundFind());
         // Combat
         reg(new KillAura());
         reg(new AutoTotem());
@@ -72,14 +75,20 @@ public class ModuleManager {
         reg(new Fullbright());
         reg(new Cosmetics());
         reg(new HudWidgets());
+        reg(new Scoreboard());
+        reg(new SelfTag());
         reg(new SpotifyHud());
         reg(new LyricsSky());
+        reg(new TwitchChat());
         reg(new TargetHUD());
         // Client
         reg(new Panic());
+        reg(new StreamerMode());
         reg(new StaffNotifier());
+        reg(new TamperWarner());
+        reg(new FriendSync());
         reg(new AntiAFK());
-        reg(new CombatLog());
+        // CombatLog merged into AutoLog (was a strict duplicate)
         reg(new AutoReconnect());
         reg(new OpSec());
         reg(new ModSpoofer());
@@ -170,6 +179,8 @@ public class ModuleManager {
     }
 
     private void reg(Module m) { all.add(m); }
+    /** Late registration for ExtraModules — keeps cross-session edits out of registerAll(). */
+    public void register(Module m) { reg(m); }
     public List<Module> all() { return all; }
     public List<Module> by(Category c) { return all.stream().filter(m -> m.category == c).toList(); }
     public Module get(String name) {
@@ -194,7 +205,9 @@ public class ModuleManager {
                     if (!NoxWindowScreen.open && down && was != Boolean.TRUE) m.toggle();
                 }
             }
-            if (m.isEnabled()) {
+            // Interface owns all GUI state — it must sync even if its enabled
+            // flag somehow ended up false (e.g. direct field/config write).
+            if (m.isEnabled() || m instanceof dev.noxclient.module.render.Interface) {
                 try { m.onTick(); } catch (Throwable t) {
                     m.lastError = String.valueOf(t);
                     m.lastErrorAt = System.currentTimeMillis();

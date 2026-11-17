@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NOX — TikTok Dev Stream Overlay</title>
+<!--
+  NOX stream overlay — OBS browser source, fed by the sidecar broadcast
+  at ws://127.0.0.1:8890 (same feed the client consumes).
+
+  ?layout=split    1080x1920 dev-stream layout — DEV/GAME zones are
+                   transparent holes; put the window captures underneath
+                   this source in OBS (generator writes the scene for you).
+  ?layout=default  classic single-column overlay.
+
+  params: ?user= ?task= ?discord= ?github= ?accent= ?chat= ?ws= ?features=
+          ?board=5 (rows on the vote board)
+-->
+<style>
+  :root {
+    --acc: #FF6EC7; --cyan: #25F4EE; --blue: #5865F2;
+    --bg: rgba(11, 13, 18, .80); --bg2: rgba(16, 18, 26, .92);
+    --line: rgba(255,255,255,.08); --txt: #E8E8F5; --dim: #8A8A9E;
+    --pink: #FE2C55; --gold: #FFD870;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    font-family:"Inter","Segoe UI","Noto Sans",sans-serif;
+    background:transparent; color:var(--txt); overflow:hidden;
+    display:flex; flex-direction:column; padding:1.2vmin; gap:1.2vmin;
+  }
+  .card { background:var(--bg); border:1px solid var(--line);
+          border-radius:1.4vmin; backdrop-filter:blur(6px); padding:1.2vmin 1.6vmin; }
+  .msg { background:var(--bg2); border:1px solid var(--line); border-radius:1vmin;
+         padding:.85vmin 1.2vmin; font-size:2vmin; line-height:1.25;
+         animation:sl .22s ease-out; word-break:break-word; }
+  @keyframes sl { from{transform:translateY(.8vmin);opacity:0} }
+  .msg .u{font-weight:700;margin-right:.8vmin}
+  .msg.chat .u{color:var(--cyan)} .msg.gift{border-color:rgba(255,110,199,.55);background:rgba(255,110,199,.10)}
+  .msg.gift .u{color:var(--acc)} .msg.meta{color:var(--dim);font-size:1.8vmin}
+  .msg.meta .u{color:#9BE8E5} .msg.sub{border-color:rgba(255,216,112,.55);background:rgba(255,216,112,.08)}
+  .msg.sub .u{color:var(--gold)}
+
+  /* ============ default layout ============ */
+  #hdr{display:flex;align-items:center;gap:1.6vmin;border-left:.5vmin solid var(--acc)}
+  #logo{font-weight:800;font-size:3.4vmin;letter-spacing:.12em;color:var(--acc)}
+  #tag{font-size:1.9vmin;color:var(--dim);letter-spacing:.05em}
+  #tag b{color:var(--txt);font-weight:600}
+  #status{margin-left:auto;display:flex;align-items:center;gap:.8vmin;font-size:1.8vmin;color:var(--dim);white-space:nowrap}
+  #dot{width:1.2vmin;height:1.2vmin;border-radius:50%;background:#555566}
+  #dot.live{background:#EB3333;box-shadow:0 0 1.2vmin #EB3333;animation:pulse 1.6s infinite}
+  @keyframes pulse{50%{opacity:.45}}
+  #dc{display:flex;align-items:center;justify-content:center;gap:1.6vmin;
+      background:linear-gradient(90deg,rgba(88,101,242,.28),rgba(254,44,85,.22));
+      border:1px solid rgba(88,101,242,.5);font-size:2.6vmin;font-weight:600;
+      transition:transform .25s,box-shadow .25s}
+  #dc .ic{font-size:3vmin} #dc b{color:#BFC6FF;letter-spacing:.04em}
+  #dc.flash{transform:scale(1.04);box-shadow:0 0 3vmin rgba(88,101,242,.8)}
+  #dc small{color:var(--dim);font-weight:400;font-size:1.7vmin}
+  #task{border-left:.5vmin solid var(--cyan);font-size:2.1vmin}
+  #task span,#board h3,#poll span{color:var(--cyan);font-weight:700;letter-spacing:.08em;font-size:1.6vmin;display:block}
+  #task em{font-style:normal;color:var(--txt);font-weight:600}
+  #poll{display:none} #poll.on{display:block}
+  #poll .row{display:flex;align-items:center;gap:1vmin;font-size:1.8vmin;margin-top:.5vmin}
+  #poll .bar{flex:1;height:.7vmin;background:#2A2A38;border-radius:1vmin;overflow:hidden}
+  #poll .bar i{display:block;height:100%;background:var(--cyan);transition:width .4s}
+  #chat{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:.7vmin;overflow:hidden;min-height:0}
+  #foot{display:flex;gap:1.2vmin;font-size:1.8vmin;color:var(--dim)}
+  #foot .card{flex:1;text-align:center;padding:.9vmin}
+  #foot b{color:var(--txt);display:block;font-size:2.2vmin}
+
+  /* ============ split layout (1080x1920) ============ */
+  body.split{padding:0;display:block}
+  .zone{position:absolute;left:0;width:100%;padding:0 12px}
+  .zlabel{display:inline-block;background:var(--bg2);border:1px solid var(--line);
+          border-radius:1vmin;padding:.6vmin 1.4vmin;font-size:1.7vmin;
+          font-weight:700;letter-spacing:.1em;color:var(--cyan)}
+  .zlabel i{font-style:normal;color:var(--acc);margin-right:.6vmin}
+  .zone .frame{position:absolute;inset:0 12px;border:1px solid var(--line);
+               border-radius:1.4vmin;pointer-events:none}
+  /* zone geometry — MUST match the OBS scene rects (tools/stream/make_scene.py) */
+  #z-hdr   {top:0;height:110px}
+  #z-dev   {top:110px;height:592px}
+  #z-game  {top:702px;height:480px}
+  #z-board {top:1182px;height:290px}
+  #z-chat  {top:1472px;height:372px}
+  #z-links {top:1844px;height:76px}
+  #z-hdr,#z-board,#z-chat,#z-links{padding:0 12px}
+  #z-hdr .card,#z-board .card,#z-chat .card,#z-links .card{height:100%;border-radius:1.4vmin}
+  #z-board .card,#z-chat .card,#z-links .card{background:var(--bg)}
+  #z-board h3{margin-bottom:.8vmin}
+  .frow{display:flex;align-items:center;gap:1.2vmin;font-size:1.9vmin;padding:.55vmin 0;
+        border-bottom:1px solid rgba(255,255,255,.04)}
+  .frow .rank{width:3.2vmin;height:3.2vmin;border-radius:50%;background:#2A2A38;
+        display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--dim);flex:none}
+  .frow.top1 .rank{background:var(--acc);color:#0B0D12}
+  .frow .fname{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .frow .fname small{display:block;color:var(--dim);font-size:1.5vmin}
+  .frow .bar{width:22vmin;height:.8vmin;background:#2A2A38;border-radius:1vmin;overflow:hidden;flex:none}
+  .frow .bar i{display:block;height:100%;background:var(--cyan)}
+  .frow .n{width:5vmin;text-align:right;color:var(--dim);flex:none}
+  #z-chat .msgs{display:flex;flex-direction:column;justify-content:flex-end;gap:.6vmin;height:calc(100% - 3.4vmin);overflow:hidden}
+  #z-links .card{display:flex;align-items:center;justify-content:space-evenly;gap:1vmin;
+        background:linear-gradient(90deg,rgba(88,101,242,.22),rgba(254,44,85,.18))}
+  .lchip{display:flex;align-items:center;gap:1vmin;font-size:2.3vmin;font-weight:700;padding:.8vmin 2.4vmin;
+        border-radius:2vmin;background:var(--bg2);border:1px solid var(--line);transition:.25s}
+  .lchip .i{color:var(--blue)} .lchip.gh .i{color:var(--txt)}
+  .lchip b{color:#BFC6FF;font-weight:600;letter-spacing:.03em}
+  .lchip.flash{transform:scale(1.08);box-shadow:0 0 2.4vmin rgba(88,101,242,.8)}
+
+  /* ---------- gift alert ---------- */
+  #alert{position:fixed;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none;z-index:40}
+  #alert.show{display:flex}
+  #alert .box{text-align:center;padding:3vmin 5vmin;border-radius:2vmin;
+      background:rgba(11,13,18,.92);border:2px solid var(--acc);
+      box-shadow:0 0 6vmin rgba(255,110,199,.45);animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+  @keyframes pop{from{transform:scale(.4);opacity:0}}
+  #alert .g{font-size:5vmin;font-weight:800;color:var(--acc)}
+  #alert .u{font-size:2.6vmin;color:var(--txt);margin-top:.6vmin}
+  #alert .c{font-size:2vmin;color:var(--gold);margin-top:.4vmin}
+</style>
+</head>
+<body>
+
+<!-- ===== default layout ===== -->
+<div id="defwrap" style="display:contents">
+<div id="hdr" class="card">
+  <div id="logo">NOX</div>
+  <div id="tag"><b>DEV STREAM</b> · building the client live · <span id="who"></span></div>
+  <div id="status"><span id="dot"></span><span id="st">connecting…</span></div>
+</div>
+<div id="dc" class="card"><span class="ic">◆</span><span>join the build — <b id="dclink"></b></span><small>!discord im chat</small></div>
+<div id="task" class="card"><span>NOW BUILDING</span><em id="tasktxt"></em></div>
+<div id="poll" class="card"><span>LIVE POLL — 1..5 im chat</span><div id="pollrows"></div></div>
+<div id="chat"></div>
+<div id="foot">
+  <div class="card"><b id="f-ev">0</b>events</div>
+  <div class="card"><b id="f-gift">0</b>gifts</div>
+  <div class="card"><b id="f-top">—</b>top gifter</div>
+  <div class="card"><b id="f-chat">0</b>chatters</div>
+</div>
+</div>
+
+<!-- ===== split layout ===== -->
+<div id="splitwrap" style="display:none">
+  <div class="zone" id="z-hdr"><div class="card" style="display:flex;align-items:center;gap:14px;border-left:6px solid var(--acc)">
+    <div style="font-weight:800;font-size:34px;letter-spacing:.12em;color:var(--acc)">NOX</div>
+    <div style="font-size:17px;color:var(--dim)"><b style="color:var(--txt)">DEV STREAM</b> · building the client live · <span id="who2"></span></div>
+    <div id="status2" style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:16px;color:var(--dim)"><span id="dot2"></span><span id="st2">connecting…</span></div>
+  </div></div>
+  <div class="zone" id="z-dev"><div class="frame"></div><span class="zlabel"><i>◆</i>DEV — building the NOX client</span></div>
+  <div class="zone" id="z-game"><div class="frame"></div><span class="zlabel"><i>◆</i>GAME — live test</span></div>
+  <div class="zone" id="z-board"><div class="card">
+    <h3 id="boardtitle">VOTE — naechste Fixes/Features</h3>
+    <div id="boardrows"></div>
+    <div id="boardhint" style="font-size:13px;color:var(--dim);margin-top:6px"></div>
+  </div></div>
+  <div class="zone" id="z-chat"><div class="card"><div class="msgs" id="chat2"></div></div></div>
+  <div class="zone" id="z-links"><div class="card">
+    <span class="lchip" id="dcchip"><span class="i">◆</span><b id="dclink2"></b></span>
+    <span class="lchip gh" id="ghchip"><span class="i">◆</span><b id="ghlink"></b></span>
+    <span style="font-size:15px;color:var(--dim)">!discord · !github</span>
+  </div></div>
+</div>
+
+<div id="alert"><div class="box">
+  <div class="g" id="a-gift"></div><div class="u" id="a-user"></div><div class="c" id="a-coins"></div>
+</div></div>
+
+<script>
+const Q = new URLSearchParams(location.search);
+const CFG = {
+  layout:  (Q.get("layout") || "default"),
+  user:    Q.get("user")    || "jbbbbbrk",
+  task:    Q.get("task")    || localStorage.noxTask || "NOX client — stream tooling",
+  discord: Q.get("discord") || "discord.gg/tewtZTsZf5",
+  github:  Q.get("github")  || "github.com/neuberghero-debug/nox",
+  chat:    +(Q.get("chat")  || 7),
+  ws:      Q.get("ws")      || "127.0.0.1:8890",
+  board:   +(Q.get("board") || 5),
+  poll:    +(Q.get("poll")  ?? 60),
+};
+if (Q.get("task")) localStorage.noxTask = CFG.task;
+if (Q.get("accent")) document.documentElement.style.setProperty("--acc","#"+Q.get("accent"));
+
+const SPLIT = CFG.layout === "split";
+if (SPLIT) {
+  document.body.classList.add("split");
+  document.getElementById("defwrap").style.display = "none";
+  document.getElementById("splitwrap").style.display = "block";
+}
+const $ = id => document.getElementById(id);
+$("who") && ($("who").textContent = "@" + CFG.user.replace(/^@/, ""));
+$("who2") && ($("who2").textContent = "@" + CFG.user.replace(/^@/, ""));
+$("tasktxt") && ($("tasktxt").textContent = CFG.task);
+$("dclink") && ($("dclink").textContent = CFG.discord);
+$("dclink2") && ($("dclink2").textContent = CFG.discord);
+$("ghlink") && ($("ghlink").textContent = CFG.github);
+
+const chatEl = SPLIT ? $("chat2") : $("chat");
+let evCount = 0, giftCount = 0, chatters = new Set(), gifters = {};
+const esc = s => { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; };
+
+/* ---------- feature vote board ---------- */
+let FEATURES = [];          // [{name,desc}]
+let votes = {};             // idx -> Map(user->ts)
+const VKEY = "noxBoardVotes";
+try { votes = JSON.parse(localStorage[VKEY] || "{}"); for (const k in votes) votes[k] = new Map(Object.entries(votes[k])); } catch { votes = {}; }
+function saveVotes() {
+  const o = {}; for (const k in votes) o[k] = Object.fromEntries(votes[k]);
+  localStorage[VKEY] = JSON.stringify(o);
+}
+async function loadFeatures() {
+  try {
+    if (Q.get("features")) {
+      FEATURES = Q.get("features").split("|").map(s => { const [n,d] = s.split(":"); return {name:n, desc:d||""}; });
+    } else {
+      const r = await fetch("features.json"); const j = await r.json();
+      FEATURES = j.features || [];
+      if (j.title) $("boardtitle").textContent = j.title;
+      if (j.hint)  $("boardhint").textContent  = j.hint;
+    }
+  } catch { FEATURES = []; }
+  renderBoard();
+}
+function renderBoard() {
+  if (!SPLIT) return;
+  const rows = $("boardrows");
+  const counts = FEATURES.map((f, i) => ({ i, n: votes[i] ? votes[i].size : 0 }));
+  counts.sort((a, b) => b.n - a.n);
+  const top = counts.slice(0, CFG.board);
+  const max = Math.max(1, ...top.map(t => t.n));
+  rows.innerHTML = top.map((t, rk) => {
+    const f = FEATURES[t.i];
+    return `<div class="frow ${rk===0?'top1':''}">
+      <span class="rank">${t.i + 1}</span>
+      <span class="fname">${esc(f.name)}<small>${esc(f.desc || "")}</small></span>
+      <span class="bar"><i style="width:${t.n / max * 100}%"></i></span>
+      <span class="n">${t.n}</span></div>`;
+  }).join("") || `<div style="color:var(--dim);font-size:1.7vmin">keine features.json — ?features=A|B|C</div>`;
+}
+setInterval(renderBoard, 3000);
+
+/* ---------- chat / msgs ---------- */
+function addMsg(kind, user, text) {
+  const d = document.createElement("div");
+  d.className = "msg " + kind;
+  d.innerHTML = user ? `<span class="u">${esc(user)}</span>${esc(text)}` : esc(text);
+  chatEl.appendChild(d);
+  const cap = SPLIT ? 12 : CFG.chat;
+  while (chatEl.children.length > cap) chatEl.removeChild(chatEl.firstChild);
+}
+function giftAlert(user, gift, count, coins) {
+  const a = $("alert");
+  $("a-gift").textContent = gift + (count > 1 ? " ×" + count : "");
+  $("a-user").textContent = user;
+  $("a-coins").textContent = coins > 0 ? coins * Math.max(1, count) + " coins" : "";
+  a.classList.add("show");
+  clearTimeout(giftAlert.t); giftAlert.t = setTimeout(() => a.classList.remove("show"), 3200);
+}
+function flash(id) {
+  const el = $(id); if (!el) return;
+  el.classList.add("flash"); clearTimeout(flash[id]);
+  flash[id] = setTimeout(() => el.classList.remove("flash"), 4000);
+}
+function updateFoot() {
+  if (SPLIT) return;
+  $("f-ev").textContent = evCount; $("f-gift").textContent = giftCount;
+  $("f-chat").textContent = chatters.size;
+  const top = Object.entries(gifters).sort((a, b) => b[1] - a[1])[0];
+  $("f-top").textContent = top ? top[0] : "—";
+}
+
+/* ---------- events ---------- */
+function onEvent(e) {
+  evCount++;
+  switch (e.type) {
+    case "COMMENT": {
+      const txt = e.giftName || "";
+      chatters.add(e.user);
+      addMsg("chat", e.user, txt);
+      if (/^!(discord|dc)\b/i.test(txt)) flash(SPLIT ? "dcchip" : "dc");
+      if (/^!(github|gh|repo)\b/i.test(txt)) flash("ghchip");
+      const v = txt.trim().match(/^!vote\s*(\d+)$|^(\d+)$/);
+      if (v) {
+        const opt = +(v[1] || v[2]);
+        if (SPLIT) {
+          if (opt >= 1 && opt <= FEATURES.length) {
+            for (const set of Object.values(votes)) set.delete(e.user);   // one vote per user
+            (votes[opt - 1] ||= new Map()).set(e.user, Date.now());
+            saveVotes(); renderBoard();
+          }
+        } else if (opt <= 5) {
+          (pollVotes[opt] ||= new Map()).set(e.user, Date.now());
+        }
+      }
+      break;
+    }
+    case "GIFT": {
+      giftCount++;
+      const coins = (e.coinValue || 0) * Math.max(1, e.value || 1);
+      gifters[e.user] = (gifters[e.user] || 0) + coins;
+      addMsg("gift", e.user, `gifted ${e.giftName}${e.value > 1 ? " ×" + e.value : ""}${coins ? " · " + coins + "c" : ""}`);
+      giftAlert(e.user, e.giftName || "gift", e.value || 1, e.coinValue || 0);
+      break;
+    }
+    case "LIKE":      addMsg("meta", e.user, `liked ×${e.value}`); break;
+    case "FOLLOW":    addMsg("meta", e.user, "followed ♥"); break;
+    case "SHARE":     addMsg("meta", e.user, "shared the stream"); break;
+    case "JOIN":      break;   // too noisy — count only
+    case "SUBSCRIBE": addMsg("sub", e.user, "subscribed!"); break;
+    case "STATUS":
+      setStatus(e.giftName === "connected", e.giftName);
+      break;
+  }
+  updateFoot();
+}
+
+const pollVotes = {};
+function pollTick() {   // default-layout mini poll only
+  if (SPLIT || !CFG.poll) return;
+  const now = Date.now(), el = $("poll"), rows = $("pollrows");
+  for (const set of Object.values(pollVotes)) for (const [u, ts] of set) if (now - ts > CFG.poll * 1000) set.delete(u);
+  const counts = [1,2,3,4,5].map(o => pollVotes[o]?.size || 0);
+  const total = counts.reduce((a, b) => a + b, 0);
+  el.classList.toggle("on", total > 0);
+  if (!total) return;
+  const max = Math.max(...counts, 1);
+  rows.innerHTML = counts.map((c, i) => c ? `<div class="row"><b>${i+1}</b><div class="bar"><i style="width:${c/max*100}%"></i></div><span>${c}</span></div>` : "").join("");
+}
+setInterval(pollTick, 1000);
+
+function setStatus(live, label) {
+  const d = SPLIT ? $("dot2") : $("dot"), s = SPLIT ? $("st2") : $("st");
+  if (!d) return;
+  d.id && d.classList && (d.className = live ? "live" : "");
+  if (live) { d.style.background = "#EB3333"; d.style.boxShadow = "0 0 12px #EB3333"; }
+  else { d.style.background = "#555566"; d.style.boxShadow = "none"; }
+  s.textContent = live ? "live" : (label || "offline");
+}
+
+/* ---- ws reconnect ---- */
+let ws;
+function connect() {
+  try { ws = new WebSocket("ws://" + CFG.ws); } catch { return setTimeout(connect, 3000); }
+  ws.onopen = () => setStatus(false, "waiting for live…");
+  ws.onmessage = m => { try { onEvent(JSON.parse(m.data)); } catch {} };
+  ws.onclose = () => { setStatus(false, "sidecar offline — reconnecting…"); setTimeout(connect, 3000); };
+  ws.onerror = () => ws.close();
+}
+connect(); loadFeatures();
+</script>
+</body>
+</html>

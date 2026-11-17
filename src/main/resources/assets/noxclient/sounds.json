@@ -1,0 +1,7 @@
+{
+  "ui_toggle_on":  { "sounds": [ { "name": "noxclient:ui/blip",    "type": "file" } ] },
+  "ui_toggle_off": { "sounds": [ { "name": "noxclient:ui/thud",    "type": "file" } ] },
+  "ui_click":      { "sounds": [ { "name": "noxclient:ui/click",   "type": "file" } ] },
+  "ui_success":    { "sounds": [ { "name": "noxclient:ui/success", "type": "file" } ] },
+  "ui_error":      { "sounds": [ { "name": "noxclient:ui/error",   "type": "file" } ] }
+}

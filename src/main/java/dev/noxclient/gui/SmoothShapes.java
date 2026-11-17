@@ -137,6 +137,19 @@ public final class SmoothShapes {
         g.fill(x + w - cs, y + cs, x + w, y + h - cs, color);
     }
 
+    /** Single AA corner tile tinted `color` — quad: 0=TL 1=TR 2=BL 3=BR.
+     * Used by Gui.vgrad so gradient surfaces get smooth corners too. */
+    public static void corner(GuiGraphicsExtractor g, int x, int y, int cs, int quad, int color) {
+        if (cs <= 1 || ((color >>> 24) & 0xFF) == 0) return;
+        Identifier id = tex(color, false);
+        switch (quad) {
+            case 0 -> tinted(g, id, x, y, cs, cs, 0, 0, R, R, color);
+            case 1 -> tinted(g, id, x, y, cs, cs, T - R, 0, R, R, color);
+            case 2 -> tinted(g, id, x, y, cs, cs, 0, T - R, R, R, color);
+            default -> tinted(g, id, x, y, cs, cs, T - R, T - R, R, R, color);
+        }
+    }
+
     /** Rounded rect with a smooth 1px border + inner fill. */
     public static void roundBorder(GuiGraphicsExtractor g, int x, int y, int w, int h,
                                    int r, int borderColor, int fillColor) {

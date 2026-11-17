@@ -19,11 +19,11 @@ import net.minecraft.world.phys.Vec3;
 public class KillAura extends Module {
     /** Last entity the aura is tracking — read by TargetHUD. */
     public static LivingEntity currentTarget;
-    private final Setting.Num range = add(new Setting.Num("Range", 3.0, 1.0, 6.0));
-    private final Setting.Num cps = add(new Setting.Num("CPS", 11, 1, 20));
-    private final Setting.Num rotSpeed = add(new Setting.Num("Rotation speed", 12, 2, 40));
+    private final Setting.Num range = add(new Setting.Num("Range", 3.0, 1.0, 6.0, "Attack reach — stay <=3.0 to look legit"));
+    private final Setting.Num cps = add(new Setting.Num("CPS", 11, 1, 20, "Clicks per second — higher risks GrimAC flags"));
+    private final Setting.Num rotSpeed = add(new Setting.Num("Rotation speed", 12, 2, 40, "How fast your view turns to the target"));
     private final Setting.Bool playersOnly = add(new Setting.Bool("Players only", true));
-    private final Setting.Mode rotMode = add(new Setting.Mode("Rotations", "Legit", "Legit", "Silent"));
+    private final Setting.Mode rotMode = add(Setting.Mode.of("Rotations", "Legit", "Legit = visible turns; Silent = packet-side", "Legit", "Silent"));
 
     public KillAura() { super("KillAura", "Attacks nearby entities humanly", Category.COMBAT); }
 

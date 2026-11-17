@@ -1,5 +1,51 @@
 # Changelog
 
+## Unreleased — HUD editor, smooth corners, input fixes
+
+- **Account manager** (Alts pill): paste a Microsoft session token -> resolved
+  via api.minecraftservices.com and swapped into Minecraft.user (Unsafe field
+  write); offline-name alts for cracked/test servers; per-connection SOCKS5/
+  SOCKS4/HTTP proxy injected into the Netty pipeline (covers join + status
+  ping); accounts persist in nox/alts.json. Switch disconnects to menu.
+
+- **Shader sky (CustomSky)**: real renderpearl GLSL pipeline replaces the vanilla
+  sky — 4 raymarched/procedural modes (Gargantua black hole with lensed accretion
+  disk, DeepSpace nebula, Aurora, RingPlanet), palette presets (NOX/Ember/Frost/
+  Toxic/Blood), star density/nebula/band/exposure uniforms. Old fog palettes kept.
+- Accent color: full HSV picker (hue strip + SV square + hex field, draggable)
+  in the Style screen alongside presets.
+- Backdrop contrast: Frost/Prism noticeably stronger tint + bands vs Dim; Glass
+  window style no longer shows the gargantua sky (Solid=flat, Sky=gargantua,
+  Glass=translucent sheen pane).
+- Search: type-to-search — any printable char autofocuses the module search.
+- Added HudEditorScreen (HUD button): drag every HUD element with edge/center snapping + guide lines, right-click per-element reset, live preview over the world, "GUI layout" quick-cycle pill — persisted to run/nox/hud.json (resolution-independent)
+- HudLayout: normalized free positions for info/arraylist/compass/gear/totems/targethud/sessionstats/spotify/lyrics — NoxOverlay reads them live
+- Fixed "pixelated" corners: Gui.vgrad now renders AA corner tiles (SmoothShapes) instead of stair-stepped insets — affects window, compass, all gradient surfaces
+- HUD text: Inter everywhere, all drop shadows removed; ArrayList = flat edge-flush chips + inset accent pill, slide/fade kept
+- Fixed: Interface module could be toggled off → killed ALL customization sync; now always-on + ticked unconditionally
+
+## Unreleased — customization entry, card restyle, season FX, bug fixes
+- Added CustomizeScreen ("Style" footer pill): visual theme cards, Season/Backdrop/level pickers, ClickGUI layout styles, accent palette, density/radius/HUD-scale steppers, reduced-motion toggle — all live-applied via Interface settings
+- Added seasonal ambient FX (Winter snow / Spring petals / Summer fireflies / Autumn leaves) inside windows — Interface "Seasonal FX" toggle, reduced-motion aware
+- ShopScreen rebuilt: filter tabs, 2-col card grid, animated per-item previews (trail/aura/kill/cape), FREE/OWNED/EQUIPPED pills, equip/unequip toggle
+- ModuleCard restyle: 28×28 icon chip (accent-fill when on), Active/Idle status dot, keybind chip, ⚙ affordance, category label only in search results, accent border+glow on enabled
+- Sidebar: category glyphs + enabled counts; footer: 20px icon-pill toolbar; scrollbar: 4px rounded thumb w/ fade
+- SettingsPopup: module icon chip in title row
+- Fixed: Interface.onTick never synced season/backdrop/backdropLevel to UICustom — Dim/Frost/Prism + seasons had zero visual effect
+- Fixed: outside-click while editing now commits instead of silently dropping the edit; Num-field edit zone widened (slider no longer eats the field's lower edge)
+- New module: Wtap — sprint-reset W-tap on hits (client-input only, no packets)
+
+## Unreleased — look system, commerce, settings quality
+- Added 4 seasonal themes (Winter/Spring/Summer/Autumn) + Interface "Season" (Auto=calendar, applied on change)
+- Added "Screen backdrop" (Dim/Frost/Prism) + "Backdrop level" (Light/Medium/Strong); Prism = animated specular border + hue fringe via NvgOverlay, Frost = tint/sheen/vignette (no 2nd blur call)
+- Added card stagger entrance (20ms×≤12), clickStyle cross-fade veil, sidebar sliding indicator, ArrayList 180ms slide-out, toast slide-out; AnimationSystem.seconds/approach drive all UI easing
+- SettingsPopup: per-row reset ↺, slider min/max labels, str placeholder, Mode ←/→ cycle, DEL unbind, bind-collision warning, desc tooltips, in-popup search (>8 settings)
+- Added ReportScreen → bridge POST (nox/reporturl.txt override, default 127.0.0.1:7734), clipboard fallback; payload audited (no secrets)
+- Added PresetScreen: list/apply/rename/delete/save-as, export (NOXCFG2 gzip code ≤2k else JSON), import with diff preview + applySafe rollback
+- LicenseManager: deactivate/daysLeft/activatedAt; PremiumScreen status surface + parent return; ShopScreen activate link + hover lift
+- Fixed: NvgOverlay.clear() ordering wiped queued backdrop ops; "Backdrop" mode name collided with existing Col setting → renamed "Screen backdrop"; UICustom.reset() now covers all new fields; ModuleButton crash was a corrupt jar (atomic deploy already prevents)
+
+
 ## Unreleased — UI overhaul, animation system, cape system, bug hunt
 
 ### Added

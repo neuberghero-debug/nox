@@ -83,13 +83,28 @@ public abstract class LoadingOverlayMixin {
 
         g.fillGradient(0, 0, w, h, A | 0x0B0716, A | 0x030309);
 
-        // sparse deterministic starfield — same every frame, no allocations
-        int starA = (A >>> 24) / 3 << 24;
-        for (int i = 0; i < 90; i++) {
+        // aurora glows — soft concentric discs, top-left accent + bottom-right
+        // cool blue (deterministic, no textures, no per-frame allocations)
+        int aurA = (A >>> 24) / 7 << 24;
+        for (int i = 5; i >= 1; i--) {
+            int r = i * Math.min(w, h) / 10;
+            dev.noxclient.gui.Gui.circle(g, w / 5 - r / 2, h / 6, r, (aurA / (i + 1)) | 0x7A2BE2);
+            dev.noxclient.gui.Gui.circle(g, w * 4 / 5 + r / 3, h * 5 / 6, r, (aurA / (i + 2)) | 0x3A5AFF);
+        }
+
+        // drifting bokeh dust — deterministic positions + slow twinkle,
+        // rounded dots only (no pixel stars)
+        int dustA = (A >>> 24) / 3 << 24;
+        for (int i = 0; i < 70; i++) {
             int hx = (int) (i * 2654435761L), hz = i * 40503;
             int sx = (hx & 0x7FFFFFFF) % w, sy = (hz & 0x7FFFFFFF) % h;
-            int tw = (i * 31 + (int) (now / 9)) % 100 < 60 ? starA : starA / 2;
-            g.fill(sx, sy, sx + 1, sy + 1, tw | 0xB8C4FF);
+            int drift = (int) (now / (40 + i % 30)) % (w + 40) - 20;
+            sx = (sx + drift) % (w + 20); if (sx < 0) sx += w + 20; sx -= 10;
+            boolean lit = (i * 31 + (int) (now / 14)) % 100 < 55;
+            int alpha = lit ? dustA : dustA / 2;
+            int r = 1 + (i % 5 == 0 ? 1 : 0);
+            dev.noxclient.gui.Gui.circle(g, sx, sy, r,
+                alpha | (i % 7 == 0 ? 0x9B7BFF : 0xB8C4FF));
         }
 
         // radial accent glow behind the icon (concentric fading discs)
@@ -110,7 +125,19 @@ public abstract class LoadingOverlayMixin {
         int bw = Math.min(240, w - 80), bx = cx - bw / 2, by = cy + is / 2;
         dev.noxclient.gui.Gui.pill(g, bx - 1, by - 1, bw + 2, 6, A | 0x15151C);
         dev.noxclient.gui.Gui.pill(g, bx, by, Math.max(6, (int) (bw * p)), 4, A | 0x7A2BE2);
-        if (p > 0.01f)
-            g.fill(bx + (int) (bw * p) - 3, by - 1, bx + (int) (bw * p) + 1, by + 5, A | 0xE8D8FF);
+        if (p > 0.01f) {
+            // rounded head + traveling shine inside the fill
+            dev.noxclient.gui.Gui.circle(g, bx + (int) (bw * p) - 1, by + 2, 3, A | 0xE8D8FF);
+            int sw = 26, sweep = (int) ((now / 6) % (bw + sw * 2)) - sw;
+            int fillW = (int) (bw * p);
+            if (sweep < fillW && sweep + sw > 0)
+                dev.noxclient.gui.Gui.pill(g, bx + Math.max(0, sweep), by + 1,
+                    Math.min(sw, fillW - Math.max(0, sweep)), 2, (A / 3) | 0xE8D8FF);
+        }
+
+        // bottom brand hairline
+        int lineA = (A >>> 24) / 2 << 24;
+        dev.noxclient.gui.Gui.hgrad(g, 0, h - 2, w / 2, 1, 0, lineA | 0x7A2BE2);
+        dev.noxclient.gui.Gui.hgrad(g, w / 2, h - 2, w - w / 2, 1, lineA | 0x7A2BE2, 0);
     }
 }

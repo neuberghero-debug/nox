@@ -30,19 +30,25 @@ public class NoxRPC {
 
     public void stop() { running = false; }
 
+    private long backoff = 1_000;         // 1s → 60s exponential on failure
+    private boolean wasConnected;         // log only on state transition
+    private String lastLogMsg;            // dedupe repeated error logs
+
     private void loop() {
         while (running) {
             try {
                 if (!enabled) { sleep(2_000); continue; }
                 if (!connected()) {
                     closeQuietly();
-                    if (!connect()) { sleep(10_000); continue; }
+                    if (!connect()) { sleep(backoff); backoff = Math.min(backoff * 2, 60_000); continue; }
+                    backoff = 1_000;      // connected → reset
+                    if (!wasConnected) { wasConnected = true; }
                 }
                 sendActivity();
                 sleep(15_000);
             } catch (Throwable t) {
-                log("dropped: " + t.getMessage());
-                closeQuietly(); sleep(10_000);
+                logOnce("dropped: " + t.getMessage());
+                closeQuietly(); sleep(backoff); backoff = Math.min(backoff * 2, 60_000);
             }
         }
     }
@@ -70,7 +76,7 @@ public class NoxRPC {
                 // try EVERY candidate socket — inside flatpak sandboxes the
                 // first hit is often a dangling symlink, the real one later
                 java.util.List<Path> socks = findIpcSockets();
-                if (socks.isEmpty()) log("no discord-ipc socket found");
+                if (socks.isEmpty()) logOnce("no discord-ipc socket found");
                 int tried = 0;
                 for (Path sock : socks) {
                     tried++;
@@ -86,7 +92,7 @@ public class NoxRPC {
                         closeQuietly();   // dead socket → next candidate
                     }
                 }
-                if (tried > 0) log("all " + tried + " discord-ipc sockets dead — retrying later");
+                if (tried > 0) logOnce("all " + tried + " discord-ipc sockets dead — retrying later");
             }
             // nothing reachable — WS-RPC parks vesktop's single-client slot
             // while staying unserviced, so only use it when explicitly wanted
@@ -227,14 +233,23 @@ public class NoxRPC {
         frame(1, json);
         String ack = readFrame(5000);    // SET_ACTIVITY echo / error — keeps stream aligned
         if (ack.contains("\"code\"") || ack.contains("rror"))
-            log("activity: " + ack.substring(0, Math.min(160, ack.length())));
+            logOnce("activity: " + ack.substring(0, Math.min(160, ack.length())));
     }
 
     private static void log(String s) {
         System.out.println("[NOX-RPC] " + s);   // surfaces in latest.log
     }
 
+    /** Same message twice in a row → silent. Prevents the 15s spam cycle
+        when e.g. arRPC rejects every SET_ACTIVITY the same way. */
+    private void logOnce(String s) {
+        if (s.equals(lastLogMsg)) return;
+        lastLogMsg = s;
+        log(s);
+    }
+
     private String currentServer() {
+        if (dev.noxclient.module.misc.StreamerMode.serverHidden()) return null;
         var d = Minecraft.getInstance().getCurrentServer();
         return d == null ? null : d.ip;
     }

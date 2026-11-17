@@ -2,6 +2,7 @@ package dev.noxclient.gui;
 
 import dev.noxclient.NoxClient;
 import dev.noxclient.module.donutsmp.AntiESPBypass;
+import dev.noxclient.module.donutsmp.Auction;
 import dev.noxclient.module.donutsmp.StorageESP;
 import dev.noxclient.module.render.ESP;
 import dev.noxclient.module.render.PlayerESP;
@@ -22,6 +23,13 @@ import org.joml.Vector4f;
  * markers with the normal 2D pipeline.
  */
 public class NoxOverlay implements HudElement {
+    private float hs = 1f;   // current HUD scale — rects are reported in screen px
+
+    /** Report the screen-space rect an element occupies (for the HUD editor). */
+    private void rep(String id, int x, int y, int w, int h) {
+        HudLayout.report(id, (int) (x * hs), (int) (y * hs), (int) (w * hs), (int) (h * hs));
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
@@ -47,6 +55,7 @@ public class NoxOverlay implements HudElement {
         // shrinks proportionally instead of overflowing; floor keeps it legible
         float fit = Math.min(1f, Math.min(w / 420f, h / 240f));
         hs *= Math.max(fit, 0.45f);
+        this.hs = hs;
         if (hs != 1f) {
             g.pose().pushMatrix();
             g.pose().scale(hs, hs);
@@ -55,10 +64,13 @@ public class NoxOverlay implements HudElement {
         drawWidgets(g, mc, sw, sh);
         drawTargetHud(g, mc, sw, sh);
         drawSessionStats(g, mc, sw, sh);
+        drawScoreboard(g, mc, sw, sh);
+        drawAuction(g, mc, sw, sh);
+        drawStreamChat(g, mc, sw, sh);
         if (hs != 1f) g.pose().popMatrix();
         var hm = NoxClient.INSTANCE.modules.get("HudWidgets");
         boolean compassOn = hm instanceof dev.noxclient.module.render.HudWidgets hw
-            && hw.isEnabled() && hw.compass.on() && mc.player != null;
+            && hw.isEnabled() && hw.show(hw.compass) && mc.player != null;
         Toasts.render(g, mc.font, w, compassOn ? (int) (24 * hs) + 2 : 4);
     }
 
@@ -83,38 +95,37 @@ public class NoxOverlay implements HudElement {
         // info column — collect lines, then anchor to the configured corner
         var lines = new java.util.ArrayList<String[]>();
         if (hw.watermark.on()) lines.add(new String[]{"NOX " + NoxClient.VERSION, Integer.toHexString(t.accent())});
-        if (hw.coords.on() && mc.player != null) {
-            var p = mc.player.blockPosition();
-            lines.add(new String[]{p.getX() + " " + p.getY() + " " + p.getZ(), "text"});
-        }
-        if (hw.fps.on()) lines.add(new String[]{mc.getFps() + " fps", "text"});
-        if (hw.ping.on() && mc.getConnection() != null && mc.player != null) {
+        // coords render as their own centered mono card (16.4) — not a line
+        if (hw.coords.on() && mc.player != null && !dev.noxclient.module.misc.StreamerMode.coordsHidden())
+            drawCoordsCard(g, mc, w, h);
+        if (hw.show(hw.fps)) lines.add(new String[]{mc.getFps() + " fps", "text"});
+        if (hw.show(hw.ping) && mc.getConnection() != null && mc.player != null) {
             var info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
             if (info != null) lines.add(new String[]{info.getLatency() + " ms", "text"});
         }
-        if (hw.nether.on() && mc.player != null) {
+        if (hw.show(hw.nether) && mc.player != null && !dev.noxclient.module.misc.StreamerMode.coordsHidden()) {
             var p = mc.player.blockPosition();
             boolean isNether = mc.level.dimension().toString().contains("nether");
             lines.add(new String[]{isNether
                 ? "overworld: " + p.getX() * 8 + " " + p.getZ() * 8
                 : "nether: " + p.getX() / 8 + " " + p.getZ() / 8, "nether"});
         }
-        if (hw.facing.on() && mc.player != null) {
+        if (hw.show(hw.facing) && mc.player != null) {
             lines.add(new String[]{switch (mc.player.getDirection()) {
                 case NORTH -> "N (-Z)"; case SOUTH -> "S (+Z)";
                 case EAST -> "E (+X)"; case WEST -> "W (-X)";
                 default -> "?";
             }, "text"});
         }
-        if (hw.bps.on() && mc.player != null)
+        if (hw.show(hw.bps) && mc.player != null)
             lines.add(new String[]{String.format("%.1f b/s",
                 mc.player.getDeltaMovement().horizontalDistance() * 20), "text"});
-        if (hw.tps.on()) lines.add(new String[]{tpsText(), "text"});
-        if (hw.session.on()) {
+        if (hw.show(hw.tps)) lines.add(new String[]{tpsText(), "text"});
+        if (hw.show(hw.session)) {
             long s3 = (System.currentTimeMillis() - sessionStart) / 1000;
             lines.add(new String[]{String.format("session %d:%02d", s3 / 60, s3 % 60), "text"});
         }
-        if (hw.effects.on() && mc.player != null) {
+        if (hw.show(hw.effects) && mc.player != null) {
             var active = mc.player.getActiveEffects().stream().toList();
             int ei = 0;
             for (var eff : active) {
@@ -130,7 +141,11 @@ public class NoxOverlay implements HudElement {
         int rightPad = scoreboardPad(mc);
         boolean rightSide = hw.anchor.get().contains("Right");
         boolean bottom = hw.anchor.get().contains("Bottom");
-        int infoTop = bottom ? h - 4 - lines.size() * 11 : 4;
+        float[] fp = HudLayout.get("info");
+        int maxW = 0;
+        for (var l : lines) maxW = Math.max(maxW, Gui.width(mc.font, l[0]));
+        int infoTop = fp != null ? (int) (fp[1] * h) : (bottom ? h - 4 - lines.size() * 11 : 4);
+        int infoX = fp != null ? (int) (fp[0] * w) : (rightSide ? w - 6 - rightPad - maxW : 6);
         int y = infoTop;
         for (var l : lines) {
             int col = switch (l[1]) {
@@ -138,29 +153,38 @@ public class NoxOverlay implements HudElement {
                 case "text" -> t.text();
                 default -> (int) Long.parseLong(l[1], 16);
             };
-            int lx = rightSide ? w - 6 - rightPad - Gui.width(mc.font, l[0]) : 6;
-            Gui.textShadow(g, mc.font, l[0], lx, y, col); y += 11;
+            int lx = fp != null ? infoX : (rightSide ? w - 6 - rightPad - Gui.width(mc.font, l[0]) : 6);
+            Gui.text(g, mc.font, l[0], lx, y, col); y += 11;
         }
+        if (!lines.isEmpty()) rep("info", infoX, infoTop, maxW, y - infoTop);
         int infoBottom = y;   // first free row below the info block
 
         // arraylist — glass pills w/ accent edge + slide-in animation
         if (hw.arraylist.on()) {
             var mods = NoxClient.INSTANCE.modules.all().stream()
-                .filter(dev.noxclient.module.Module::isEnabled)
+                .filter(mo -> mo.isEnabled() || hw.showDisabled.get())
                 .sorted((a, b2) -> Integer.compare(
                     Gui.width(mc.font, b2.name), Gui.width(mc.font, a.name))).toList();
             boolean lRight = hw.listSide.get().contains("Right");
             boolean lBot = hw.listSide.get().contains("Bottom");
+            float[] lp = HudLayout.get("arraylist");
+            boolean edgeRight = lp == null && lRight;   // free-pos rows pin the accent left
             // cap the list to what actually fits — overflow becomes "+N more"
             int maxRows = Math.max(3, (h - 8) / 13);
+            // enabled first (sorted by width), disabled trail behind dimmed
+            if (hw.showDisabled.get())
+                mods = mods.stream().sorted((a, b2) -> Boolean.compare(b2.isEnabled(), a.isEnabled()))
+                    .toList();
             int hidden = Math.max(0, mods.size() - maxRows);
             if (hidden > 0) mods = mods.subList(0, maxRows - 1);
             // same corner as the info block? start below it instead of overlapping
             boolean sameCorner = lRight == rightSide && lBot == bottom;
-            int ay = lBot ? h - 4 - (mods.size() + (hidden > 0 ? 1 : 0)) * 13
+            int ay = lp != null ? (int) (lp[1] * h)
+                : lBot ? h - 4 - (mods.size() + (hidden > 0 ? 1 : 0)) * 13
                           : (sameCorner && !lines.isEmpty() ? infoBottom + 3 : 4);
-            if (sameCorner && lBot && !lines.isEmpty())
+            if (lp == null && sameCorner && lBot && !lines.isEmpty())
                 ay = Math.min(ay, infoTop - 3 - (mods.size() + (hidden > 0 ? 1 : 0)) * 13);
+            int listTop = ay, maxRw = 0, baseX = lp != null ? (int) (lp[0] * w) : 2;
             long nowMs = System.currentTimeMillis();
             var live = new java.util.HashSet<String>();
             for (var mod : mods) {
@@ -168,33 +192,78 @@ public class NoxOverlay implements HudElement {
                 // slide-in: modules ease from the screen edge over ~180ms
                 float a = listAnim.computeIfAbsent(mod.name,
                     k -> nowMs / 1000f);
+                if (a < 0) { a = -a; listAnim.put(mod.name, a); } // re-enabled mid-slide: keep easing in
                 float p = Math.min(1f, (nowMs / 1000f - a) / 0.18f);
                 float ease = 1f - (1f - p) * (1f - p);            // ease-out quad
                 int tw = Gui.width(mc.font, mod.name);
                 int slide = (int) ((1f - ease) * 16);
-                int px = lRight ? w - 6 - rightPad - tw - 8 + slide : 4 - slide;
-                // glass pill: soft vertical gradient + hairline accent edge
-                Gui.vgrad(g, px, ay, tw + 10, 12, 4, 0xC0131824, 0x800A0E16);
-                Gui.pill(g, lRight ? px + tw + 8 : px, ay + 1, 2, 10, t.accent());
-                Gui.textShadow(g, mc.font, mod.name, px + 6, ay + 3,
-                    (int) (0xFF * ease) << 24 | (t.text() & 0xFFFFFF));
+                // modern row: flat dark chip flush to the screen edge, 2px
+                // accent bar on the outer edge, Inter text, no shadow
+                int rw = tw + 10;
+                int px = lp != null ? baseX - slide
+                    : edgeRight ? w - 2 - rightPad - rw + slide : 2 - slide;
+                int alpha = (int) (0xFF * ease) << 24;
+                Gui.round(g, px, ay, rw, 12, 3, ((int) (0xB0 * ease)) << 24 | 0x10121A);
+                Gui.pill(g, edgeRight ? px + rw - 3 : px + 1, ay + 2, 2, 8,
+                    mod.isEnabled() ? (t.accent() & 0xFFFFFF | alpha)
+                        : (alpha | 0x004A4A5A));
+                Gui.text(g, mc.font, mod.name,
+                    edgeRight ? px + rw - 5 - tw : px + 5, ay + 2,
+                    mod.isEnabled() ? alpha | (t.text() & 0xFFFFFF)
+                        : alpha / 2 | 0x7A7A8E);
+                maxRw = Math.max(maxRw, rw);
                 ay += 13;
             }
-            listAnim.keySet().retainAll(live); // evict disabled modules
+            // disabled modules slide+fade out over 180ms before eviction
+            float nowSec = nowMs / 1000f;
+            var it = listAnim.entrySet().iterator();
+            while (it.hasNext()) {
+                var e = it.next();
+                if (live.contains(e.getKey())) continue;
+                if (e.getValue() >= 0) e.setValue(-nowSec); // first miss: stamp death time (negative)
+                float p = (nowSec + e.getValue()) / 0.18f;
+                if (UICustom.reducedMotion || p >= 1f) { it.remove(); continue; }
+                float e2 = 1f - p * p;
+                int tw = Gui.width(mc.font, e.getKey());
+                int slide = (int) ((1f - e2) * 16);
+                int rw = tw + 10;
+                int px = lp != null ? baseX - slide
+                    : edgeRight ? w - 2 - rightPad - rw + slide : 2 - slide;
+                int alpha = (int) (0xFF * e2) << 24;
+                Gui.round(g, px, ay, rw, 12, 3, ((int) (0xB0 * e2)) << 24 | 0x10121A);
+                Gui.pill(g, edgeRight ? px + rw - 3 : px + 1, ay + 2, 2, 8,
+                    t.accent() & 0xFFFFFF | alpha);
+                Gui.text(g, mc.font, e.getKey(),
+                    edgeRight ? px + rw - 5 - tw : px + 5, ay + 2, alpha | (t.text() & 0xFFFFFF));
+                maxRw = Math.max(maxRw, rw);
+                ay += 13;
+            }
             if (hidden > 0) {
                 String more = "+" + hidden + " more";
                 int tw = Gui.width(mc.font, more);
-                int px = lRight ? w - 6 - rightPad - tw - 8 : 4;
-                Gui.vgrad(g, px, ay, tw + 10, 12, 4, 0xC0131824, 0x800A0E16);
-                Gui.textShadow(g, mc.font, more, px + 6, ay + 3, 0xFF8A8A9E);
+                int px = lp != null ? baseX : edgeRight ? w - 2 - rightPad - tw - 10 : 2;
+                Gui.round(g, px, ay, tw + 10, 12, 3, 0x8010121A);
+                Gui.text(g, mc.font, more, px + 5, ay + 2, 0xFF8A8A9E);
+                maxRw = Math.max(maxRw, tw + 10);
+                ay += 13;
+            }
+            if (ay > listTop) {
+                int rx = lp != null ? baseX
+                    : edgeRight ? w - 2 - rightPad - maxRw : 2;
+                rep("arraylist", rx, listTop, maxRw, ay - listTop);
             }
         }
-        if (hw.compass.on()) drawCompass(g, mc, w, t);
-        if (hw.armor.on() || hw.totems.on()) drawGear(g, mc, w, h, hw);
+        if (hw.show(hw.compass)) drawCompass(g, mc, w, h, t);
+        if (hw.show(hw.armor) || hw.show(hw.totems)) drawGear(g, mc, w, h, hw);
         drawSpotify(g, mc, t, w, h);
         var lm = NoxClient.INSTANCE.modules.get("LyricsSky");
-        if (lm instanceof dev.noxclient.module.render.LyricsSky ls && ls.isEnabled() && ls.inGame.on())
-            LyricsHud.render(g, w / 2, h - 46, (int) (double) ls.lines.get());
+        if (lm instanceof dev.noxclient.module.render.LyricsSky ls && ls.isEnabled() && ls.inGame.on()) {
+            float[] yp = HudLayout.get("lyrics");
+            int lx0 = yp != null ? (int) (yp[0] * w) : w / 2 - 100;
+            int ly0 = yp != null ? (int) (yp[1] * h) : h - 52;
+            rep("lyrics", lx0, ly0, 200, 30);
+            LyricsHud.render(g, lx0 + 100, ly0 + 6, (int) (double) ls.lines.get());
+        }
     }
 
     /** Pixels to keep clear on the right while a scoreboard sidebar is shown. */
@@ -212,21 +281,91 @@ public class NoxOverlay implements HudElement {
         } catch (Throwable t) { return 0; }
     }
 
+    /** JetBrains Mono font for the coords card (Modul 14.2/16.4). */
+    private static final net.minecraft.network.chat.FontDescription MONO =
+        new net.minecraft.network.chat.FontDescription.Resource(
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("noxclient", "nox_mono"));
+    private static final java.util.Map<String, net.minecraft.network.chat.Component> MONO_TXT =
+        new java.util.LinkedHashMap<>(128, .75f, true) {
+            @Override protected boolean removeEldestEntry(java.util.Map.Entry<String, net.minecraft.network.chat.Component> e) {
+                return size() > 512;
+            }};
+
+    private static net.minecraft.network.chat.Component mono(String s) {
+        return MONO_TXT.computeIfAbsent(s,
+            k -> net.minecraft.network.chat.Component.literal(k)
+                .withStyle(st -> st.withFont(MONO)));
+    }
+
+    /**
+     * Coordinates card (16.4): centered card under the compass — mono digits,
+     * color-coded X/Y/Z axes, dimension icon, current biome.
+     */
+    private void drawCoordsCard(GuiGraphicsExtractor g, Minecraft mc, int w, int h) {
+        var p = mc.player.blockPosition();
+        var t = dev.noxclient.gui.theme.Theme.current();
+        String xs = String.valueOf(p.getX()), ys = String.valueOf(p.getY()),
+               zs = String.valueOf(p.getZ());
+        String dim = mc.level.dimension().identifier().getPath();
+        String biome = "";
+        try {
+            biome = mc.level.getBiome(p).unwrapKey().map(k -> k.identifier().getPath()).orElse("");
+        } catch (Throwable ignored) {}
+        String dimShort = dim.replace("the_", "");
+        int cw = mc.font.width(mono(xs + " " + ys + " " + zs + " " + dimShort + " " + biome)) + 40;
+        int cx = w / 2, cy = 26;
+        float[] cp = HudLayout.get("coords");
+        if (cp != null) {
+            cx = Math.clamp((int) (cp[0] * w), 2, Math.max(2, w - cw - 2)) + cw / 2;
+            cy = Math.clamp((int) (cp[1] * h), 2, Math.max(2, h - 24));
+        } else {
+            // the auction panel defaults to the same top-center slot — stack below it
+            var am = NoxClient.INSTANCE.modules.get("Auction");
+            int[] ar = HudLayout.rect("auction");
+            if (am instanceof dev.noxclient.module.donutsmp.Auction a && a.isEnabled()
+                && a.winnerAt < 0 && ar != null
+                && cx - cw / 2 < ar[0] + ar[2] && cx + cw / 2 > ar[0]
+                && cy < ar[1] + ar[3] && cy + 22 > ar[1])
+                cy = ar[1] + ar[3] + 4;
+        }
+        Gui.round(g, cx - cw / 2, cy, cw, 22, 10, 0xB8141824);
+        Gui.roundBorder(g, cx - cw / 2, cy, cw, 22, 10, 0x26FFFFFF, 0);
+        rep("coords", cx - cw / 2, cy, cw, 22);
+        int x = cx - cw / 2 + 8;
+        // dimension dot: nether=red, end=violet, overworld=accent
+        int dc = dim.contains("nether") ? 0xFFFF5555 : dim.contains("end") ? 0xFFB44DFF : t.accent();
+        Gui.circle(g, x + 3, cy + 11, 3, dc); x += 12;
+        // color-coded axes — X red-ish, Y green-ish, Z blue-ish (axis convention)
+        Gui.mono(g, mc.font, xs, x, cy + 7, 0xFFFF7A7A); x += Gui.monoWidth(mc.font, xs);
+        Gui.mono(g, mc.font, " ", x, cy + 7, 0xFF8A8A9E); x += Gui.monoWidth(mc.font, " ");
+        Gui.mono(g, mc.font, ys, x, cy + 7, 0xFF8AE08A); x += Gui.monoWidth(mc.font, ys);
+        Gui.mono(g, mc.font, " ", x, cy + 7, 0xFF8A8A9E); x += Gui.monoWidth(mc.font, " ");
+        Gui.mono(g, mc.font, zs, x, cy + 7, 0xFF7AB8FF); x += Gui.monoWidth(mc.font, zs);
+        if (!biome.isEmpty()) {
+            String tag = " " + biome;
+            Gui.mono(g, mc.font, tag, x, cy + 7, 0xFF5A5A6E);
+        }
+    }
+
     /**
      * Top-center compass strip: cardinal/intercardinal letters + 15° ticks
      * sliding with player yaw, accent needle marks the facing direction.
      * MC yaw: 0=S(+Z), 90=W, 180=N, 270=E.
      */
-    private void drawCompass(GuiGraphicsExtractor g, Minecraft mc, int w,
+    private void drawCompass(GuiGraphicsExtractor g, Minecraft mc, int w, int h,
                              dev.noxclient.gui.theme.Theme t) {
         int cw = Math.min(220, w - 120);
         if (cw < 90) return;
-        int cx = w / 2, cy = 6, ch = 16;
+        float[] cp = HudLayout.get("compass");
+        int cx = cp != null ? (int) (cp[0] * w) + cw / 2 : w / 2;
+        int cy = cp != null ? (int) (cp[1] * h) : 6;
+        int ch = 16;
+        rep("compass", cx - cw / 2, cy, cw, ch);
         Gui.vgrad(g, cx - cw / 2, cy, cw, ch, 8, 0xC0131824, 0x800A0E16);
         float yaw = mc.player.getYRot() % 360f;
         if (yaw < 0) yaw += 360f;
         float ppd = cw / 160f;                       // ~±80° visible range
-        g.enableScissor(cx - cw / 2 + 2, cy, cx + cw / 2 - 2, cy + ch);
+        Gui.clipOn(cx - cw / 2 + 2, cy, cx + cw / 2 - 2, cy + ch);
         for (int deg = 0; deg < 360; deg += 15) {
             float d = deg - yaw;
             d -= Math.round(d / 360f) * 360f;         // wrap to ±180
@@ -242,20 +381,22 @@ public class NoxOverlay implements HudElement {
                 int col = a | ((deg == 180 ? t.accent() : t.text()) & 0xFFFFFF);
                 Gui.text(g, mc.font, l, x - Gui.width(mc.font, l) / 2, cy + 4, col);
             } else {
-                g.fill(x, cy + ch - 6, x + 1, cy + ch - 2, a | 0x005A5A6E);
+                Gui.fill(g, x, cy + ch - 6, x + 1, cy + ch - 2, a | 0x005A5A6E);
             }
         }
-        g.disableScissor();
-        g.fill(cx - 1, cy + 3, cx + 1, cy + ch - 3, t.accent());   // facing needle
+        Gui.clipOff();
+        Gui.fill(g, cx - 1, cy + 3, cx + 1, cy + ch - 3, t.accent());   // facing needle
     }
 
     /** Armor row + totem counter above the hotbar — DonutSMP PvP staples. */
     private void drawGear(GuiGraphicsExtractor g, Minecraft mc, int w, int h,
                           dev.noxclient.module.render.HudWidgets hw) {
         var inv = mc.player.getInventory();
-        int y = h - 46;   // sits just above the vanilla hotbar
-        int x = 6;
-        if (hw.armor.on()) {
+        float[] gp = HudLayout.get("gear");
+        int y = gp != null ? (int) (gp[1] * h) : h - 46;   // sits just above the vanilla hotbar
+        int x = gp != null ? (int) (gp[0] * w) : 6;
+        int x0 = x;
+        if (hw.show(hw.armor)) {
             // 26.3: armor lives in EntityEquipment, not Inventory rows
             for (var slot : new net.minecraft.world.entity.EquipmentSlot[] {
                 net.minecraft.world.entity.EquipmentSlot.HEAD,
@@ -272,8 +413,9 @@ public class NoxOverlay implements HudElement {
             if (!main.isEmpty()) { g.item(main, x, y); g.itemDecorations(mc.font, main, x, y); x += 17; }
             var off = mc.player.getOffhandItem();
             if (!off.isEmpty()) { g.item(off, x, y); g.itemDecorations(mc.font, off, x, y); }
+            if (x > x0) rep("gear", x0, y, x - x0, 16);
         }
-        if (hw.totems.on()) {
+        if (hw.show(hw.totems)) {
             int n = 0;
             for (int i = 0; i < inv.getContainerSize(); i++)
                 if (inv.getItem(i).is(net.minecraft.world.item.Items.TOTEM_OF_UNDYING))
@@ -281,7 +423,10 @@ public class NoxOverlay implements HudElement {
             if (n > 0) {
                 var st = new net.minecraft.world.item.ItemStack(
                     net.minecraft.world.item.Items.TOTEM_OF_UNDYING);
-                int tx = w - 24, ty = h - 46;
+                float[] tp = HudLayout.get("totems");
+                int tx = tp != null ? (int) (tp[0] * w) : w - 24;
+                int ty = tp != null ? (int) (tp[1] * h) : h - 46;
+                rep("totems", tx - 24, ty, 48, 16);
                 g.item(st, tx, ty);
                 Gui.text(g, mc.font, "x" + n, tx - 4 - Gui.width(mc.font, "x" + n),
                     ty + 5, n <= 1 ? 0xFFFF5555 : 0xFFFFD75A);
@@ -298,8 +443,12 @@ public class NoxOverlay implements HudElement {
         var t = dev.noxclient.gui.theme.Theme.current();
 
         int pw = 148, ph = th.armor.on() ? 46 : 34;
-        int x = Math.clamp((int) (double) th.posX.get(), 2, Math.max(2, w - pw - 2));
-        int y = Math.clamp((int) (double) th.posY.get(), 2, Math.max(2, h - ph - 2));
+        float[] tp = HudLayout.get("targethud");
+        int x = tp != null ? Math.clamp((int) (tp[0] * w), 2, Math.max(2, w - pw - 2))
+            : Math.clamp((int) (double) th.posX.get(), 2, Math.max(2, w - pw - 2));
+        int y = tp != null ? Math.clamp((int) (tp[1] * h), 2, Math.max(2, h - ph - 2))
+            : Math.clamp((int) (double) th.posY.get(), 2, Math.max(2, h - ph - 2));
+        rep("targethud", x, y, pw, ph);
         Gui.shadow(g, x, y, pw, ph, 9);
         Gui.roundBorder(g, x, y, pw, ph, 9, t.accent() & 0x55FFFFFF, 0xF2141821);
 
@@ -356,8 +505,12 @@ public class NoxOverlay implements HudElement {
         for (var e : ss.lines.entrySet())
             pw = Math.max(pw, Gui.width(mc.font, e.getKey() + "  " + e.getValue() + "  +9.9M"));
         pw = Math.min(pw + 16, 150);
-        int x = Math.clamp((int) (double) ss.posX.get(), 2, Math.max(2, w - pw - 2));
-        int y = Math.clamp((int) (double) ss.posY.get(), 2, Math.max(2, h - ph - 2));
+        float[] tp = HudLayout.get("sessionstats");
+        int x = tp != null ? Math.clamp((int) (tp[0] * w), 2, Math.max(2, w - pw - 2))
+            : Math.clamp((int) (double) ss.posX.get(), 2, Math.max(2, w - pw - 2));
+        int y = tp != null ? Math.clamp((int) (tp[1] * h), 2, Math.max(2, h - ph - 2))
+            : Math.clamp((int) (double) ss.posY.get(), 2, Math.max(2, h - ph - 2));
+        rep("sessionstats", x, y, pw, ph);
 
         Gui.shadow(g, x, y, pw, ph, 8);
         Gui.roundBorder(g, x, y, pw, ph, 8, t.accent() & 0x55FFFFFF, 0xF2141821);
@@ -377,6 +530,125 @@ public class NoxOverlay implements HudElement {
         }
     }
 
+    /** Scoreboard module — NOX-styled sidebar replacing the vanilla one. */
+    private void drawScoreboard(GuiGraphicsExtractor g, Minecraft mc, int w, int h) {
+        var m = NoxClient.INSTANCE.modules.get("Scoreboard");
+        if (!(m instanceof dev.noxclient.module.render.Scoreboard sb) || !sb.replaces()) return;
+        if (sb.mode.get().equals("Hidden")) return;
+        var lines = sb.lines();
+        if (lines.isEmpty()) return;
+        var t = dev.noxclient.gui.theme.Theme.current();
+        String title = sb.title();
+
+        int pw = 0;
+        for (var l : lines)
+            pw = Math.max(pw, Gui.width(mc.font, l.text() + "  " + l.value()));
+        pw = Math.max(pw, Gui.width(mc.font, title)) + 18;
+        pw = Math.min(pw, w / 3 + 40);
+        int ph = (title.isEmpty() ? 0 : 16) + lines.size() * 11 + 10;
+        float[] fp = HudLayout.get("scoreboard");
+        int x = fp != null ? Math.clamp((int) (fp[0] * w), 2, Math.max(2, w - pw - 2))
+            : w - pw - 6;
+        int y = fp != null ? Math.clamp((int) (fp[1] * h), 2, Math.max(2, h - ph - 2))
+            : h / 2 - ph / 2;
+        rep("scoreboard", x, y, pw, ph);
+
+        Gui.roundBorder(g, x, y, pw, ph, 8, t.accent() & 0x44FFFFFF, 0xC8141821);
+        int ry = y + 5;
+        if (!title.isEmpty()) {
+            Gui.textCenter(g, mc.font, title, x + pw / 2, ry + 1, t.accent() | 0xFF000000);
+            ry += 10;
+            Gui.fill(g, x + 10, ry, x + pw - 10, ry + 1, 0x33FFFFFF);
+            ry += 6;
+        }
+        for (var l : lines) {
+            Gui.text(g, mc.font, l.text(), x + 9, ry, 0xFFE8E8F5);
+            if (!l.value().isEmpty())
+                Gui.text(g, mc.font, l.value(),
+                    x + pw - 9 - Gui.width(mc.font, l.value()), ry, 0xFFB8B8CC);
+            ry += 11;
+        }
+    }
+
+    /** Auction module — animated top-center panel + winner celebration. */
+    private void drawAuction(GuiGraphicsExtractor g, Minecraft mc, int w, int h) {
+        var m = NoxClient.INSTANCE.modules.get("Auction");
+        if (!(m instanceof dev.noxclient.module.donutsmp.Auction a) || !a.isEnabled()) return;
+        var t = dev.noxclient.gui.theme.Theme.current();
+        long now = System.currentTimeMillis();
+
+        if (a.winnerAt >= 0) {   // celebration banner
+            float p = Math.min(1f, (now - a.winnerAt) / 5_000f);
+            if (p >= 1f) return;
+            float in = UICustom.reducedMotion ? 1 : Math.min(1f, (now - a.winnerAt) / 350f);
+            float scale = 0.6f + 0.4f * (1f - (1f - in) * (1f - in) * (1f - in));
+            float fade = p > 0.8f ? 1f - (p - 0.8f) / 0.2f : 1f;
+            int bw2 = 260, bh = 54;
+            int bx = w / 2 - bw2 / 2, by = h / 2 - 90;
+            g.pose().pushMatrix();
+            g.pose().translate(w / 2f, by + bh / 2f);
+            g.pose().scale(scale, scale);
+            g.pose().translate(-w / 2f, -(by + bh / 2f));
+            int al = ((int) (0xF0 * fade)) << 24;
+            Gui.shadow(g, bx, by, bw2, bh, 12);
+            Gui.roundBorder(g, bx, by, bw2, bh, 12, (0xFFD870) | al, al | 0x141821);
+            Gui.textCenter(g, mc.font, "★  AUCTION WON  ★", w / 2, by + 8, 0xFFD870 | al);
+            String wn = a.winnerName != null ? a.winnerName + "  ·  $" + Auction.fmt(a.winnerBid) : "no bids";
+            Gui.textCenter(g, mc.font, wn, w / 2, by + 22, al | 0xFFFFFF);
+            Gui.textCenter(g, mc.font, a.item.get(), w / 2, by + 38, al | 0x8A8A9E);
+            if (!UICustom.reducedMotion) {
+                double tt = now / 1000.0;
+                int[] cc = {0xFFFFD870, t.accent() | 0xFF000000, 0xFF7AFFE0, 0xFFFF6EC7};
+                for (int i = 0; i < 14; i++) {
+                    double ang = i * (Math.PI * 2 / 14) + tt * 0.8;
+                    int cx = w / 2 + (int) (Math.cos(ang) * (bw2 / 2 + 14));
+                    int cy = by + bh / 2 + (int) (Math.sin(ang) * (bh / 2 + 12));
+                    Gui.circle(g, cx, cy, 2, (cc[i % cc.length] & 0x00FFFFFF) | al);
+                }
+            }
+            g.pose().popMatrix();
+            return;
+        }
+
+        int pw = 190, ph = a.topThree.on() && a.bids.size() > 1 ? 62 : 44;
+        float[] fp = HudLayout.get("auction");
+        int x = fp != null ? Math.clamp((int) (fp[0] * w), 2, Math.max(2, w - pw - 2))
+            : w / 2 - pw / 2;
+        int y = fp != null ? Math.clamp((int) (fp[1] * h), 2, Math.max(2, h - ph - 2)) : 26;
+        rep("auction", x, y, pw, ph);
+
+        Gui.shadow(g, x, y, pw, ph, 9);
+        Gui.roundBorder(g, x, y, pw, ph, 9, 0x66FFD870, 0xE6141821);
+        Gui.text(g, mc.font, "AUCTION · " + a.item.get(), x + 9, y + 6, 0xFFFFD870);
+        long left = a.millisLeft();
+        String tstr = left >= 60_000 ? (left / 60_000) + "m" + (left / 1000 % 60) + "s" : (left / 1000) + "s";
+        Gui.text(g, mc.font, tstr, x + pw - 9 - Gui.width(mc.font, tstr), y + 6, 0xFF8A8A9E);
+        int bw = pw - 18;
+        Gui.pill(g, x + 9, y + 17, bw, 3, 0xFF2A2A38);
+        Gui.pill(g, x + 9, y + 17, Math.max(2, (int) (bw * a.progress())), 3, 0xFFFFD870);
+
+        if (a.leader != null) {
+            float pl = UICustom.reducedMotion ? 1 : Math.min(1f, (now - a.leaderChangedAt) / 300f);
+            int lcol = lerpColor(0xFFFFFFFF, 0xFF55DD66, pl);
+            String lead = "♛ " + a.leader + "  $" + Auction.fmt(a.leaderAmount);
+            Gui.textBold(g, mc.font, lead, x + 9, y + 25, lcol);
+            String bc = a.bids.size() + " bid" + (a.bids.size() == 1 ? "" : "s");
+            Gui.text(g, mc.font, bc, x + pw - 9 - Gui.width(mc.font, bc), y + 25, 0xFF8A8A9E);
+            if (a.topThree.on()) {
+                int ry = y + 38, rank = 0;
+                for (var e : a.top()) {
+                    if (++rank == 1) continue;
+                    Gui.text(g, mc.font, rank + ". " + e.getKey(), x + 9, ry, 0xFFB8B8CC);
+                    String amt = "$" + Auction.fmt(e.getValue());
+                    Gui.text(g, mc.font, amt, x + pw - 9 - Gui.width(mc.font, amt), ry, 0xFF8A8A9E);
+                    ry += 11;
+                }
+            }
+        } else {
+            Gui.text(g, mc.font, "waiting for bids — /pay me!", x + 9, y + 25, 0xFF8A8A9E);
+        }
+    }
+
     private static String fmt(long v) {
         if (Math.abs(v) >= 1e6) return String.format("%.1fM", v / 1e6);
         if (Math.abs(v) >= 1e3) return String.format("%.1fK", v / 1e3);
@@ -393,8 +665,13 @@ public class NoxOverlay implements HudElement {
             + " — " + dev.noxclient.media.MediaService.title();
         int w = Math.min(Gui.width(mc.font, line), Math.min(220, sw - 16));
         int ph2 = sp.progressBar.on() ? 22 : 14;
-        int x = Math.clamp((int) (double) sp.posX.get(), 2, Math.max(2, sw - w - 16));
-        int y = Math.clamp((int) (double) sp.posY.get(), 2, Math.max(2, sh - ph2 - 2));
+        float[] pp = HudLayout.get("spotify");
+        int x = pp != null ? Math.clamp((int) (pp[0] * sw), 2, Math.max(2, sw - w - 16))
+            : Math.clamp((int) (double) sp.posX.get(), 2, Math.max(2, sw - w - 16));
+        int y = pp != null ? Math.clamp((int) (pp[1] * sh), 2, Math.max(2, sh - ph2 - 2))
+            : Math.clamp((int) (double) sp.posY.get(), 2, Math.max(2, sh - ph2 - 2));
+        drawTwitch(g, mc, t, sw, sh);
+        rep("spotify", x, y, w + 14, ph2);
         dev.noxclient.gui.Gui.roundBorder(g, x, y, w + 14, sp.progressBar.on() ? 22 : 14, 6,
             t.accent() & 0x66FFFFFF, 0xB8141420);
         String clipped = line;
@@ -407,6 +684,132 @@ public class NoxOverlay implements HudElement {
             dev.noxclient.gui.Gui.pill(g, x + 6, y + 15, bw, 3, 0xFF2A2A38);
             dev.noxclient.gui.Gui.pill(g, x + 6, y + 15,
                 Math.max(2, (int) (bw * dev.noxclient.media.MediaService.progress())), 3, 0xFF1DB954);
+        }
+    }
+
+    /** Twitch chat HUD — purple-accent card, live dot, last N IRC lines. */
+    private void drawTwitch(GuiGraphicsExtractor g, Minecraft mc, dev.noxclient.gui.theme.Theme t,
+                            int sw, int sh) {
+        var m = NoxClient.INSTANCE.modules.get("TwitchChat");
+        if (!(m instanceof dev.noxclient.module.render.TwitchChat tc) || !tc.isEnabled()) return;
+        var chat = dev.noxclient.media.TwitchService.lines();
+        if (chat.isEmpty() && dev.noxclient.media.TwitchService.status().equals("no channel")) return;
+        int head = tc.liveDot.on() ? 12 : 0;
+        int ph = head + chat.size() * 11 + 8;
+        int w = 200;
+        float[] pp = HudLayout.get("twitch");
+        int x = pp != null ? Math.clamp((int) (pp[0] * sw), 2, Math.max(2, sw - w - 16))
+            : Math.clamp((int) (double) tc.posX.get(), 2, Math.max(2, sw - w - 16));
+        int y = pp != null ? Math.clamp((int) (pp[1] * sh), 2, Math.max(2, sh - ph - 2))
+            : Math.clamp((int) (double) tc.posY.get(), 2, Math.max(2, sh - ph - 2));
+        rep("twitch", x, y, w, ph);
+        dev.noxclient.gui.Gui.round(g, x, y, w, ph, 7, 0xB8141420);
+        dev.noxclient.gui.Gui.pill(g, x, y, 3, ph, 0xFF9146FF);
+        int ty = y + 5;
+        if (head > 0) {
+            int dc = dev.noxclient.media.TwitchService.live() ? 0xFFEB3333 : 0xFF555566;
+            dev.noxclient.gui.Gui.circle(g, x + 10, ty + 4, 3, dc);
+            Gui.text(g, mc.font, dev.noxclient.media.TwitchService.live() ? "LIVE" : "offline",
+                x + 18, ty + 1, 0xFFB8B8CC);
+            Gui.text(g, mc.font, "#" + tc.channel.get(), x + w - 8
+                - Gui.width(mc.font, "#" + tc.channel.get()), ty + 1, 0xFF9146FF);
+            ty += head;
+        }
+        for (String line : chat) {
+            String clipped = line;
+            while (Gui.width(mc.font, clipped + "…") > w - 14 && !clipped.isEmpty())
+                clipped = clipped.substring(0, clipped.length() - 1);
+            if (!clipped.equals(line)) clipped += "…";
+            Gui.text(g, mc.font, clipped, x + 8, ty, 0xFFD8D8E8);
+            ty += 11;
+        }
+    }
+
+    /**
+     * TikTok stream chat HUD (Modul 1.7) — pink-accent card: header with
+     * @user + live dot + event count, last N events color-coded by kind,
+     * optional Discord strip and active-vote bar. Fed by StreamChat.
+     */
+    private void drawStreamChat(GuiGraphicsExtractor g, Minecraft mc, int sw, int sh) {
+        var m = NoxClient.INSTANCE.modules.get("TikTokLive");
+        if (!(m instanceof dev.noxclient.module.misc.TikTokLive tl) || !tl.isEnabled()
+            || !tl.chatHud.on()) return;
+        final int PINK = 0xFFFE2C55, CYAN = 0xFF25F4EE;
+
+        var chat = dev.noxclient.stream.StreamChat.last(tl.chatLines.intVal());
+        int w = 220;
+        boolean dc = tl.dcStrip.on();
+        boolean vote = dev.noxclient.stream.ViewerVotes.active();
+        int rows = Math.max(1, chat.size());   // placeholder line when empty
+        int ph = 16 + rows * 11 + (dc ? 14 : 0) + (vote ? 15 : 0) + 6;
+
+        float[] pp = HudLayout.get("streamchat");
+        int x = pp != null ? Math.clamp((int) (pp[0] * sw), 2, Math.max(2, sw - w - 2))
+            : Math.clamp((int) (double) tl.posX.get(), 2, Math.max(2, sw - w - 2));
+        int y = pp != null ? Math.clamp((int) (pp[1] * sh), 2, Math.max(2, sh - ph - 2))
+            : tl.posY.get() > 0 ? Math.clamp((int) (double) tl.posY.get(), 2, Math.max(2, sh - ph - 2))
+                              : sh - ph - 26;      // auto: above the hotbar
+        rep("streamchat", x, y, w, ph);
+
+        Gui.round(g, x, y, w, ph, 7, 0xB8141420);
+        Gui.pill(g, x, y, 3, ph, PINK);
+
+        // header: live dot + TIKTOK + @user + event count
+        int ty = y + 5;
+        boolean live = dev.noxclient.stream.TikTokBridge.connected();
+        Gui.circle(g, x + 11, ty + 4, 3, live ? 0xFFEB3333 : 0xFF555566);
+        Gui.textBold(g, mc.font, "TIKTOK", x + 19, ty + 1, PINK);
+        String user = tl.username.get().isEmpty() ? "" : "@" + tl.username.get().replaceFirst("^@", "");
+        int ux = x + 19 + Gui.width(mc.font, "TIKTOK") + 6;
+        Gui.text(g, mc.font, user, ux, ty + 1, 0xFFB8B8CC);
+        String cnt = dev.noxclient.stream.StreamChat.events() + " ev";
+        Gui.text(g, mc.font, cnt, x + w - 8 - Gui.width(mc.font, cnt), ty + 1, 0xFF5A5A6E);
+        ty += 14;
+
+        if (chat.isEmpty()) {
+            Gui.text(g, mc.font, live ? "waiting for chat…" : "sidecar offline — tools/stream_start.sh",
+                x + 9, ty, 0xFF5A5A6E);
+            ty += 11;
+        }
+        for (var en : chat) {
+            int col = switch (en.kind()) {
+                case "GIFT" -> 0xFFFF6EC7;
+                case "SUB" -> 0xFFFFD870;
+                case "LIKE" -> 0xFF7A7A8E;
+                case "META" -> CYAN;
+                case "STATUS" -> 0xFF5A5A6E;
+                default -> 0xFFE8E8F5;      // CHAT
+            };
+            String line = en.text();
+            while (Gui.width(mc.font, line + "…") > w - 16 && !line.isEmpty())
+                line = line.substring(0, line.length() - 1);
+            if (!line.equals(en.text())) line += "…";
+            Gui.text(g, mc.font, line, x + 9, ty, col);
+            ty += 11;
+        }
+
+        // active vote bar (Modul 3 surface): question + tally + countdown
+        if (vote) {
+            ty += 4;
+            var tally = dev.noxclient.stream.ViewerVotes.tally();
+            int v1 = tally.getOrDefault(1, 0), v2 = tally.getOrDefault(2, 0);
+            int tot = Math.max(1, v1 + v2);
+            long left = dev.noxclient.stream.ViewerVotes.msLeft() / 1000;
+            Gui.text(g, mc.font, "VOTE " + left + "s", x + 9, ty, 0xFF7AFFE0);
+            int bw = w - 18;
+            Gui.pill(g, x + 9, ty + 10, bw, 3, 0xFF2A2A38);
+            Gui.pill(g, x + 9, ty + 10, Math.max(2, bw * v1 / tot), 3, 0xFF7AFFE0);
+            String vs = "1:" + v1 + "  2:" + v2;
+            Gui.text(g, mc.font, vs, x + w - 8 - Gui.width(mc.font, vs), ty, 0xFFB8B8CC);
+            ty += 15;
+        }
+
+        // discord strip — the canonical invite from DiscordLink
+        if (dc) {
+            ty += 3;
+            Gui.fill(g, x + 9, ty - 1, x + w - 9, ty, 0x33FFFFFF);
+            String link = dev.noxclient.discord.DiscordLink.shortLabel();
+            Gui.textCenterBold(g, mc.font, link, x + w / 2, ty + 3, 0xFF5865F2);
         }
     }
 
@@ -433,7 +836,7 @@ public class NoxOverlay implements HudElement {
             && mc.player.distanceToSqr(e) < pe.maxDist.get() * pe.maxDist.get()) {
             if (pe.box.on()) {
                 int pc = dev.noxclient.module.misc.Friends.isFriend(e) ? 0xFF40E080 : 0xFFFF4040;
-                g.fill(x0, y0, x1, y1, pc & 0x22FFFFFF);
+                Gui.fill(g, x0, y0, x1, y1, pc & 0x22FFFFFF);
                 g.outline(x0, y0, bw, bh, pc);
             }
             String label = pe.name.on() ? e.getName().getString() : "";
@@ -453,13 +856,13 @@ public class NoxOverlay implements HudElement {
                 int col = es.color.get() | 0xFF000000;
                 switch (es.style.get()) {
                     case "Glow" -> {
-                        g.fill(x0 - 1, y0 - 1, x1 + 1, y1 + 1,
+                        Gui.fill(g, x0 - 1, y0 - 1, x1 + 1, y1 + 1,
                             (es.color.get() & 0x00FFFFFF) | 0x3A000000);
-                        g.fill(x0, y0, x1, y1, (es.color.get() & 0x00FFFFFF) | 0x88000000);
+                        Gui.fill(g, x0, y0, x1, y1, (es.color.get() & 0x00FFFFFF) | 0x88000000);
                         g.outline(x0 - 1, y0 - 1, bw + 2, bh + 2, col);
                     }
                     case "Box" -> {
-                        g.fill(x0, y0, x1, y1, es.color.get());
+                        Gui.fill(g, x0, y0, x1, y1, es.color.get());
                         g.outline(x0, y0, bw, bh, col);
                     }
                     default -> g.outline(x0, y0, bw, bh, col);
@@ -468,7 +871,7 @@ public class NoxOverlay implements HudElement {
         }
         if (isPlayer && tr instanceof Tracers t && t.isEnabled() && t.players.on()
             && mc.player.distanceToSqr(e) < t.maxDist.get() * t.maxDist.get()) {
-            line(g, w / 2, h - 20, cx, y1, t.color.get() | 0xFF000000);
+            line(g, w / 2, h - 20, cx, y1, t.playerCol.get() | 0xFF000000);
         }
     }
 
@@ -535,7 +938,7 @@ public class NoxOverlay implements HudElement {
             // p[2] is view-space depth in blocks — uncapped 900/depth produced
             // screen-filling squares for close markers
             int s = (int) Math.max(3, Math.min(14, 160 / p[2]));
-            g.fill((int) p[0] - s, (int) p[1] - s, (int) p[0] + s, (int) p[1] + s, en.getValue() & 0x55FFFFFF);
+            Gui.fill(g, (int) p[0] - s, (int) p[1] - s, (int) p[0] + s, (int) p[1] + s, en.getValue() & 0x55FFFFFF);
             g.outline((int) p[0] - s, (int) p[1] - s, s * 2, s * 2, en.getValue());
         }
     }
@@ -552,9 +955,9 @@ public class NoxOverlay implements HudElement {
 
     private void line(GuiGraphicsExtractor g, int x1, int y1, int x2, int y2, int color) {
         int dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1), steps = Math.max(dx, dy);
-        if (steps == 0) { g.fill(x1, y1, x1 + 1, y1 + 1, color); return; }
+        if (steps == 0) { Gui.fill(g, x1, y1, x1 + 1, y1 + 1, color); return; }
         for (int i = 0; i <= steps; i += 2)
-            g.fill(x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps,
+            Gui.fill(g, x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps,
                 x1 + (x2 - x1) * i / steps + 1, y1 + (y2 - y1) * i / steps + 1, color);
     }
 }

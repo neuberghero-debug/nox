@@ -22,7 +22,8 @@ public class Friends extends Module {
     }
 
     public static boolean isFriendName(String name) {
-        return name != null && LIST.contains(name.toLowerCase());
+        return name != null && (LIST.contains(name.toLowerCase())
+            || FriendSync.isSynced(name));          // cross-client synced friends
     }
 
     @Override public void onTick() {

@@ -1,0 +1,20 @@
+[package]
+name = "noxcore"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+jni = "0.21"
+ed25519-dalek = "2"
+sha2 = "0.10"
+libc = "0.2.191"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

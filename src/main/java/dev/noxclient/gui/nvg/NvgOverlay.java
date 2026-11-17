@@ -12,11 +12,13 @@ import static org.lwjgl.nanovg.NanoVG.*;
 import static org.lwjgl.nanovg.NanoVGGL3.*;
 
 /**
- * NanoVG finish pass — runs after {@link net.minecraft.client.gui.render.GuiRenderer#render()}
- * (see GuiRendererMixin). MC's GUI pipeline is deferred/batched, so any raw GL
- * inside extractRenderState lands *behind* everything; the only correct slot
- * for over-the-top polish (bloom, edge sheen, vignette, gradient strokes) is
- * post-render. Screens queue ops during extractRenderState; consumed once here.
+ * NanoVG finish pass — runs right before GpuSurface.blitFromTexture copies the
+ * main render target to the window surface (see PresentMixin). At that point
+ * every renderpearl submit for the frame has completed, so the direct-GL write
+ * into the RT color texture is the last modification before the blit — no later
+ * pass can overwrite it (the earlier GuiRenderer-TAIL slot raced with trailing
+ * submits and produced visible flicker). Screens queue ops during
+ * extractRenderState; consumed once here.
  *
  * Op layout: [type, x, y, w, h, r, rgb, alpha, arg2, arg3]
  *   GLOW      arg2=feather
@@ -33,92 +35,229 @@ public final class NvgOverlay {
     private static boolean failed = false;
 
     private static final int OP_GLOW = 0, OP_SHEEN = 1, OP_VIGNETTE = 2,
-            OP_GSTROKE = 3, OP_COMET = 4, OP_GLASS = 5, OP_INNERTOP = 6;
-    private static final List<float[]> ops = new ArrayList<>();
+            OP_GSTROKE = 3, OP_COMET = 4, OP_GLASS = 5, OP_INNERTOP = 6, OP_WASH = 7;
+    /** Single FIFO op stream — typed helpers AND generic draws share it so
+     * layering always follows call order (backdrop < window < fx < text). */
+    private static final List<java.util.function.BiConsumer<Long, MemoryStack>> generic = new ArrayList<>();
+    private static void typed(float[] o) { generic.add((c, st) -> drawTyped(c, st, o)); }
     private static long lastFrameNanos;
     private static float t; // seconds, drives all animation
 
     private NvgOverlay() {}
+
+    public static long ctx() { return ctx; }
+    public static float time() { return t; }
+
+    /** Queue a generic NVG draw — executed inside nvgBeginFrame/EndFrame.
+     * The op receives (ctx, MemoryStack) — use it for NVGColor/NVGPaint allocs. */
+    public static void op(java.util.function.BiConsumer<Long, MemoryStack> draw) {
+        generic.add(draw);
+    }
+
+    private static boolean fontsLoaded;
 
     private static boolean ensure() {
         if (ctx != 0 || failed) return ctx != 0;
         try {
             ctx = nvgCreate(NVG_ANTIALIAS | NVG_STENCIL_STROKES);
             if (ctx == 0) failed = true;
+            else System.err.println("[nox] nvg ctx created " + ctx);
         } catch (Throwable th) {
             failed = true;
+            System.err.println("[nox] nvg create FAILED: " + th);
         }
         return ctx != 0;
     }
 
+    /** Load the embedded TTFs into the NVG context once — Inter reg/sb/b + JetBrains Mono. */
+    static void ensureFonts() {
+        if (fontsLoaded || ctx == 0) return;
+        fontsLoaded = true;
+        loadFont("inter", "font/inter_regular.ttf");
+        loadFont("inter_sb", "font/inter_semibold.ttf");
+        loadFont("inter_b", "font/inter_bold.ttf");
+        loadFont("mono", "font/jetbrains_mono.ttf");
+    }
+
+    private static final java.util.List<java.nio.ByteBuffer> FONT_BUFS = new ArrayList<>();
+
+    private static void loadFont(String name, String path) {
+        try {
+            var id = net.minecraft.resources.Identifier.fromNamespaceAndPath("noxclient", path);
+            try (var in = Minecraft.getInstance().getResourceManager().getResourceOrThrow(id).open()) {
+                byte[] b = in.readAllBytes();
+                var buf = org.lwjgl.BufferUtils.createByteBuffer(b.length);
+                buf.put(b).flip();
+                FONT_BUFS.add(buf);          // must stay alive — NVG references it
+                int fh = nvgCreateFontMem(ctx, name, buf, false);
+                System.err.println("[nox] nvg font " + name + " handle=" + fh + " bytes=" + b.length);
+            }
+        } catch (Throwable th) {
+            System.err.println("[nox] nvg font load failed " + path + ": " + th);
+        }
+    }
+
     /** Queue a soft accent bloom around a rect (drawn over the element edge). */
     public static void glow(float x, float y, float w, float h, float r, int rgb, float alpha, float feather) {
-        ops.add(new float[]{OP_GLOW, x, y, w, h, r, rgb, alpha, feather, 0});
+        typed(new float[]{OP_GLOW, x, y, w, h, r, rgb, alpha, feather, 0});
     }
 
     /** Queue a vertical sheen gradient inside a rect (top highlight). */
     public static void sheen(float x, float y, float w, float h, float r, int rgb, float alpha) {
-        ops.add(new float[]{OP_SHEEN, x, y, w, h, r, rgb, alpha, 0, 0});
+        typed(new float[]{OP_SHEEN, x, y, w, h, r, rgb, alpha, 0, 0});
     }
 
     /** Queue a full-screen edge vignette (call once per frame, last op wins). */
     public static void vignette(float w, float h, float strength) {
-        ops.add(new float[]{OP_VIGNETTE, 0, 0, w, h, 0, 0, strength, 0, 0});
+        typed(new float[]{OP_VIGNETTE, 0, 0, w, h, 0, 0, strength, 0, 0});
     }
 
     /** Animated gradient border stroke — accent flows around the rounded edge. */
     public static void gradientStroke(float x, float y, float w, float h, float r,
                                       int rgbA, int rgbB, float alpha, float phase) {
-        ops.add(new float[]{OP_GSTROKE, x, y, w, h, r, rgbA, alpha, rgbB, phase});
+        typed(new float[]{OP_GSTROKE, x, y, w, h, r, rgbA, alpha, rgbB, phase});
     }
 
     /** Light streak that sweeps across the top edge every `period` seconds. */
     public static void comet(float x, float y, float w, int rgb, float alpha, float period) {
-        ops.add(new float[]{OP_COMET, x, y, w, 0, 0, rgb, alpha, period, 0});
+        typed(new float[]{OP_COMET, x, y, w, 0, 0, rgb, alpha, period, 0});
     }
 
     /** Glass depth pass — top light lift + bottom inner shadow on one rect. */
     public static void glass(float x, float y, float w, float h, float r, float lift) {
-        ops.add(new float[]{OP_GLASS, x, y, w, h, r, 0, lift, 0, 0});
+        typed(new float[]{OP_GLASS, x, y, w, h, r, 0, lift, 0, 0});
     }
 
     /** Crisp 1px inner top highlight — the "glass rim" detail. */
     public static void innerTop(float x, float y, float w, float r, int rgb, float alpha) {
-        ops.add(new float[]{OP_INNERTOP, x, y, w, 0, r, rgb, alpha, 0, 0});
+        typed(new float[]{OP_INNERTOP, x, y, w, 0, r, rgb, alpha, 0, 0});
+    }
+
+    /** Diagonal chromatic wash across a rect — the "tinted glass pane" that
+     * makes Frost/Prism visibly change the WINDOW, not just the backdrop. */
+    public static void wash(float x, float y, float w, float h, float r,
+                            int rgbA, int rgbB, float alpha) {
+        typed(new float[]{OP_WASH, x, y, w, h, r, rgbA, alpha, rgbB, 0});
     }
 
     public static void clear() {
-        ops.clear();
+        generic.clear();
     }
 
     public static boolean hasOps() {
-        return !ops.isEmpty();
+        return !generic.isEmpty();
     }
 
-    /** Called by GuiRendererMixin after GuiRenderer.render() submits the GUI batch. */
+    public static boolean hasWork() {
+        return !generic.isEmpty();
+    }
+
+    /** Screenshot the REAL backbuffer (includes NVG overlay — MC's Screenshot
+     * only reads the offscreen mainRenderTarget and misses this pass). */
+    private static volatile java.nio.file.Path pendingGrab;
+    public static void grabFrame(java.nio.file.Path out) { pendingGrab = out; }
+
+    /** Called by PresentMixin right before GpuSurface.present().
+     *
+     * We draw STRAIGHT ONTO THE WINDOW BACKBUFFER (FBO 0) as the last GL work
+     * before SDL_GL_SwapWindow. Every other slot raced with renderpearl:
+     *  - GuiRenderer TAIL: later submits still rewrote the RT -> flicker.
+     *  - RT texture attach before the blit: the RT stays bound as the blit's
+     *    sample source; drawing into a texture that is bound for sampling is
+     *    a GL feedback loop -> undefined output -> flicker.
+     * On FBO0 nothing runs after us before the swap, so the overlay cannot be
+     * overwritten mid-frame. (MC screenshots read the offscreen RT and won't
+     * show the overlay — framegrab reads FBO0 for real-pixel verification.) */
     public static void render() {
-        if (ops.isEmpty()) return;
-        if (!ensure()) { ops.clear(); return; }   // NVG dead → don't leak queued ops forever
+        // If the blit is skipped for many frames (minimized window), ops would
+        // pile up and replay as one stale burst on resume — cap them.
+        if (generic.size() > 1024) generic.clear();
+        if (generic.isEmpty() && pendingGrab == null) return;
+        if (!ensure()) { generic.clear(); return; }   // NVG dead → don't leak
+        ensureFonts();
         Minecraft mc = Minecraft.getInstance();
-        float scale = (float) mc.getWindow().getGuiScale();
+        int guiW = mc.getWindow().getGuiScaledWidth();
+        int guiH = mc.getWindow().getGuiScaledHeight();
+        int fboW = mc.getWindow().getWidth();
+        int fboH = mc.getWindow().getHeight();
+        if (guiW <= 0 || guiH <= 0 || fboW <= 0 || fboH <= 0) { generic.clear(); return; }
+        float ratio = (float) fboW / guiW;
         long now = System.nanoTime();
         if (lastFrameNanos != 0) {
             t += Math.min(0.1f, (now - lastFrameNanos) / 1_000_000_000f);
         }
         lastFrameNanos = now;
-        float pulseA = 0.55f + 0.45f * (float) Math.sin(t * 3.2);
 
-        int guiW = mc.getWindow().getGuiScaledWidth();
-        int guiH = mc.getWindow().getGuiScaledHeight();
-        nvgBeginFrame(ctx, guiW, guiH, scale);
+        int prevFbo = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL30.GL_FRAMEBUFFER_BINDING);
+        int[] prevVp = new int[4];
+        org.lwjgl.opengl.GL11.glGetIntegerv(org.lwjgl.opengl.GL11.GL_VIEWPORT, prevVp);
+        org.lwjgl.opengl.GL30.glBindFramebuffer(org.lwjgl.opengl.GL30.GL_FRAMEBUFFER, 0);
+        org.lwjgl.opengl.GL11.glViewport(0, 0, fboW, fboH);
+        boolean scissorWasOn = org.lwjgl.opengl.GL11.glIsEnabled(org.lwjgl.opengl.GL11.GL_SCISSOR_TEST);
+        if (scissorWasOn) org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_SCISSOR_TEST);
+        // The stencil RB is persistent — NVG's AA/stroke pipeline relies on
+        // stencil starting at 0 each frame; leftover bits mask out random
+        // glyph/fill regions = violent flicker. Also force the state NVG
+        // needs (no depth test/cull, stencil writes allowed).
+        boolean depthWasOn = org.lwjgl.opengl.GL11.glIsEnabled(org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
+        boolean cullWasOn = org.lwjgl.opengl.GL11.glIsEnabled(org.lwjgl.opengl.GL11.GL_CULL_FACE);
+        if (depthWasOn) org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
+        if (cullWasOn) org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_CULL_FACE);
+        org.lwjgl.opengl.GL11.glDepthMask(false);
+        org.lwjgl.opengl.GL11.glStencilMask(0xFF);
+        org.lwjgl.opengl.GL11.glClearStencil(0);
+        org.lwjgl.opengl.GL11.glClear(org.lwjgl.opengl.GL11.GL_STENCIL_BUFFER_BIT | org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT);
+        // MC's pipeline may leave a PIXEL_UNPACK_BUFFER bound — NVG texture
+        // uploads (font atlas, images) would then read PBO offsets = garbage.
+        int pub = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL21.GL_PIXEL_UNPACK_BUFFER_BINDING);
+        if (pub != 0) org.lwjgl.opengl.GL15.glBindBuffer(org.lwjgl.opengl.GL21.GL_PIXEL_UNPACK_BUFFER, 0);
+        // Renderpearl leaves sampler objects bound to texture units; those
+        // samplers use *MIPMAP* min filters, which makes NVG's single-level
+        // textures (font atlas, images) incomplete -> they sample (0,0,0,1).
+        // Detach samplers while we draw; the encoder re-binds per draw anyway.
+        try {
+            for (int u = 0; u < 8; u++) org.lwjgl.opengl.GL33.glBindSampler(u, 0);
+        } catch (Throwable ignored) {}
+        nvgBeginFrame(ctx, guiW, guiH, ratio);
         try (MemoryStack st = MemoryStack.stackPush()) {
+            for (var op : generic) op.accept(ctx, st);
+        }
+        nvgResetScissor(ctx);   // leaked clipOn without clipOff must not poison next frame
+        nvgEndFrame(ctx);
+        if (scissorWasOn) org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_SCISSOR_TEST);
+        if (depthWasOn) org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
+        if (cullWasOn) org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_CULL_FACE);
+        org.lwjgl.opengl.GL11.glDepthMask(true);
+        org.lwjgl.opengl.GL11.glStencilMask(0xFF);
+        generic.clear();
+        if (pendingGrab != null) {
+            java.nio.file.Path out = pendingGrab;
+            pendingGrab = null;
+            try {
+                java.nio.ByteBuffer px = org.lwjgl.BufferUtils.createByteBuffer(fboW * fboH * 4);
+                org.lwjgl.opengl.GL11.glReadPixels(0, 0, fboW, fboH,
+                        org.lwjgl.opengl.GL11.GL_RGBA, org.lwjgl.opengl.GL11.GL_UNSIGNED_BYTE, px);
+                org.lwjgl.stb.STBImageWrite.stbi_flip_vertically_on_write(true);
+                java.nio.file.Files.createDirectories(out.getParent());
+                org.lwjgl.stb.STBImageWrite.stbi_write_png(out.toString(), fboW, fboH, 4, px, fboW * 4);
+            } catch (Throwable th) {
+                System.err.println("[nox] framegrab failed: " + th);
+            }
+        }
+        org.lwjgl.opengl.GL11.glViewport(prevVp[0], prevVp[1], prevVp[2], prevVp[3]);
+        org.lwjgl.opengl.GL30.glBindFramebuffer(org.lwjgl.opengl.GL30.GL_FRAMEBUFFER, prevFbo);
+    }
+
+    /** Execute one typed overlay op (queued via NvgOverlay.glow/sheen/...). */
+    private static void drawTyped(long c, MemoryStack st, float[] o) {
             NVGColor col = NVGColor.malloc(st);
             NVGPaint paint = NVGPaint.malloc(st);
-            for (float[] o : ops) {
+            {
                 int type = (int) o[0];
                 float x = o[1], y = o[2], w = o[3], h = o[4], r = o[5];
                 int rgb = (int) o[6];
                 float a = o[7];
+                float pulseA = 0.55f + 0.45f * (float) Math.sin(t * 3.2);
                 switch (type) {
                     case OP_GLOW -> {
                         float feather = o[8];
@@ -194,6 +333,17 @@ public final class NvgOverlay {
                         nvgFillPaint(ctx, paint);
                         nvgFill(ctx);
                     }
+                    case OP_WASH -> {
+                        int rgbB = (int) o[8];
+                        // corner-to-corner chromatic gradient — both ends
+                        // visible → uniform tinted-glass read over the window
+                        nvgLinearGradient(ctx, x, y, x + w, y + h,
+                                rgba(col, rgb, a), rgba(col, rgbB, a), paint);
+                        nvgBeginPath(ctx);
+                        nvgRoundedRect(ctx, x, y, w, h, r);
+                        nvgFillPaint(ctx, paint);
+                        nvgFill(ctx);
+                    }
                     case OP_INNERTOP -> {
                         nvgBeginPath(ctx);
                         nvgRoundedRect(ctx, x + 0.5f, y + 0.5f, w - 1, Math.max(2, r * 2), r);
@@ -206,9 +356,6 @@ public final class NvgOverlay {
                     default -> { }
                 }
             }
-        }
-        nvgEndFrame(ctx);
-        ops.clear();
     }
 
     private static NVGColor rgba(NVGColor c, int rgb, float a) {

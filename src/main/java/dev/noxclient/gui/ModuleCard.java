@@ -23,43 +23,9 @@ public class ModuleCard {
     private static final Map<Category, String> CAT_ICON = Map.of(
         Category.COMBAT, "⚔", Category.MOVEMENT, "➤", Category.RENDER, "◉",
         Category.DONUTSMP, "◆", Category.MISC, "⚙");
-    private static final Map<String, String> ICONS = Map.ofEntries(
-        Map.entry("KillAura", "⌖"), Map.entry("AutoCrystal", "◆"),
-        Map.entry("AutoTotem", "✚"), Map.entry("Velocity", "⚡"),
-        Map.entry("Triggerbot", "⌖"), Map.entry("AnchorMacro", "⚓"),
-        Map.entry("AutoMace", "✦"), Map.entry("ShieldBreak", "⛏"),
-        Map.entry("AutoPearl", "●"), Map.entry("AutoArmor", "♜"),
-        Map.entry("AntiTrap", "▣"), Map.entry("AutoWeb", "⌘"),
-        Map.entry("ESP", "◉"), Map.entry("PlayerESP", "◉"),
-        Map.entry("Tracers", "✛"), Map.entry("Fullbright", "☀"),
-        Map.entry("CustomSky", "☾"), Map.entry("StorageESP", "▦"),
-        Map.entry("Blink", "‖"), Map.entry("Flight", "✈"),
-        Map.entry("Speed", "»"), Map.entry("NoFall", "▽"),
-        Map.entry("AutoSell", "$"), Map.entry("AHSniper", "$"),
-        Map.entry("AutoEat", "♨"), Map.entry("StaffNotifier", "⚠"),
-        Map.entry("AntiAFK", "◷"), Map.entry("CombatLog", "⚑"),
-        Map.entry("AutoReconnect", "↻"), Map.entry("OpSec", "◘"),
-        Map.entry("ModSpoofer", "⛭"), Map.entry("TamperWarning", "⚠"),
-        Map.entry("GhostMode", "○"), Map.entry("DiscordRPC", "◐"),
-        Map.entry("SelfDestruct", "✖"), Map.entry("AutoTool", "⛏"),
-        Map.entry("FastPlace", "▣"), Map.entry("TunnelBaseFinder", "⌖"),
-        Map.entry("RTPBaseFinder", "◎"), Map.entry("AntiESPBypass", "◈"),
-        Map.entry("AntiVanish", "◌"), Map.entry("ChunkFinder", "▦"),
-        Map.entry("AmethystBaseFinder", "◆"), Map.entry("ArtificialLightFinder", "✧"),
-        Map.entry("SusChunkFinder", "◍"), Map.entry("AutoTotemOrder", "✚"),
-        Map.entry("AutoCommander", "»"), Map.entry("AutoHarvest", "❀"),
-        Map.entry("AutoVoiceConfirm", "♫"),
-        Map.entry("ArmorAlert", "▥"), Map.entry("SpotifyHud", "♫"),
-        Map.entry("LyricsSky", "♪"), Map.entry("HudWidgets", "▤"),
-        Map.entry("TargetHUD", "⌖"),
-        Map.entry("Cosmetics", "★"), Map.entry("Criticals", "⚔"),
-        Map.entry("SprintReset", "»"), Map.entry("StepAssist", "▲"),
-        Map.entry("AutoSprint", "»"), Map.entry("InventoryMove", "⇄"),
-        Map.entry("NoSlow", "▶"), Map.entry("FlyBypass", "✈"),
-        Map.entry("ElytraGlide", "✈"));
-
     public final Module module;
     public int x, y, width = CARD_W, height = UICustom.cardH;
+    public long appearAt;   // stagger timestamp — card slides in after this ms
     public boolean hoverNow;
     private boolean listening;
     private float anim;                     // 0=off .. 1=on, lerped per frame
@@ -76,10 +42,7 @@ public class ModuleCard {
     private String icon() { return glyph(module); }
 
     static String glyph(Module m) {
-        String i = ICONS.get(m.name);
-        if (i != null) return i;
-        String c = CAT_ICON.get(m.category);
-        return c != null ? c : m.name.substring(0, 1);
+        return String.valueOf(Character.toUpperCase(m.name.charAt(0)));
     }
 
     static String catIcon(Category c) {
@@ -87,10 +50,18 @@ public class ModuleCard {
         return i != null ? i : "•";
     }
 
-    int gearX() { return x + width - 18; }
-    int gearY() { return y + 4; }
+    int gearX() { return x + width - 24; }
+    int gearY() { return y + 8; }
+    /** Show the category label on the card — only meaningful during a search. */
+    public boolean showCategory;
 
     void render(GuiGraphicsExtractor g, int mx, int my) {
+        float ap = UICustom.reducedMotion || appearAt == 0 ? 1f
+            : Math.min(1f, Math.max(0f, (System.currentTimeMillis() - appearAt) / 140f));
+        ap = 1f - (1f - ap) * (1f - ap) * (1f - ap);
+        if (ap <= 0f) return;
+        int dy = (int) ((1f - ap) * 10);
+        y -= dy;
         Theme t = Theme.current();
         var font = Minecraft.getInstance().font;
         boolean on = module.isEnabled();
@@ -101,41 +72,84 @@ public class ModuleCard {
         height = UICustom.cardH;
         boolean hover = inside(mx, my, x, y, width, height);
         hoverNow = hover;
-        boolean gearHover = inside(mx, my, gearX(), gearY(), 14, 14);
+        boolean gearHover = inside(mx, my, gearX(), gearY(), 16, 16);
+        boolean starHover = inside(mx, my, gearX() - 18, gearY(), 16, 16);
         int accent = UICustom.cardAccent;
         int fill = blend(UICustom.cardFillBottom, UICustom.cardFillTop, hover ? 1 : .45f);
         if ("Neon".equals(UICustom.cardStyle)) fill = blend(fill, accent, anim * .12f);
-        Gui.roundBorder(g, x, y, width, height, 8,
-            hover ? UICustom.borderHover : UICustom.border, fill);
-        if (on) Gui.round(g, x + 1, y + 14, 2, height - 28, 1, accent);
+        // enabled → accent border ~40% + soft glow; hover lifts the border otherwise
+        int border = on ? (accent & 0xFFFFFF) | 0x66000000
+            : hover ? UICustom.borderHover : UICustom.border;
+        if (on) Gui.shadow(g, x, y, width, height, 9);
+        Gui.roundBorder(g, x, y, width, height, 8, border, fill);
+
+        // — 28×28 icon chip — animated vector glyph
+        int chipX = x + 10, chipY = y + 10;
+        Gui.round(g, chipX, chipY, 28, 28, 8,
+            on ? accent | 0xFF000000 : UICustom.cardFillTop);
+        if (!on) Gui.roundBorder(g, chipX, chipY, 28, 28, 8, UICustom.border, 0);
+        ModuleIcons.draw(g, ModuleIcons.forModule(module), chipX + 14, chipY + 14, 14,
+            (on ? UICustom.winFill : accent) & 0xFFFFFF,
+            System.currentTimeMillis() / 1000f, on, hover);
 
         String ds = module.description == null ? "" : module.description;
         if (cachedWidth != width || !cachedDescription.equals(ds)) {
             cachedWidth = width; cachedDescription = ds;
-            cachedName = clip(font, module.name, width - 42);
-            String first = clip(font, ds, width - 28);
+            cachedName = clip(font, module.name, width - 96);
+            String first = clip(font, ds, width - 60);
             if (!first.equals(ds)) {
                 int end = Math.max(0, first.length() - 1);
                 int space = ds.lastIndexOf(' ', end);
                 if (space > 8) end = space;
                 cachedFirst = ds.substring(0, end);
-                cachedSecond = clip(font, ds.substring(end).stripLeading(), width - 28);
+                cachedSecond = clip(font, ds.substring(end).stripLeading(), width - 60);
             } else { cachedFirst = ds; cachedSecond = ""; }
         }
-        Gui.textBold(g, font, cachedName, x + 14, y + 12, t.text());
-        Gui.text(g, font, cachedFirst, x + 14, y + 29, UICustom.textDim);
-        if (height >= 76) Gui.text(g, font, cachedSecond, x + 14, y + 41, UICustom.textDim);
+        Gui.textBold(g, font, cachedName, chipX + 36, chipY + 3, t.text());
+        Gui.text(g, font, cachedFirst, chipX + 36, chipY + 15, UICustom.textDim);
+        if (height >= 76) Gui.text(g, font, cachedSecond, chipX + 36, chipY + 27, UICustom.textDim);
 
-        int swX = x + width - 42, swY = y + height - 22;
+        // — ⚙ affordance —
+        Gui.round(g, gearX(), gearY(), 16, 16, 5,
+            gearHover ? UICustom.cardFillTop : 0);
+        Gui.textCenter(g, font, "⚙", gearX() + 8, gearY() + 4,
+            gearHover ? t.text() : UICustom.textDim);
+
+        // — ★ favorite — visible when starred or on hover —
+        boolean fav = Favorites.is(module);
+        if (fav || hover) {
+            Gui.round(g, gearX() - 18, gearY(), 16, 16, 5,
+                starHover ? UICustom.cardFillTop : 0);
+            ModuleIcons.draw(g, ModuleIcons.Kind.STAR, gearX() - 10, gearY() + 8, 9,
+                (fav ? 0xFFE4BD7B : UICustom.textMute) & 0xFFFFFF,
+                System.currentTimeMillis() / 1000f, fav, starHover);
+        }
+
+        // — bottom row: status + meta left, bind chip + toggle right —
+        int botY = y + height - 22;
+        Gui.circle(g, x + 14, botY + 4, 3, on ? accent | 0xFF000000 : UICustom.textMute);
+        String status = on ? "Active" : "Idle";
+        Gui.text(g, font, status, x + 22, botY,
+            on ? accent | 0xFF000000 : UICustom.textMute);
+        String meta = module.gated() ? "Premium"
+            : showCategory ? module.category.label : null;
+        if (meta != null)
+            Gui.text(g, font, meta, x + 22 + Gui.width(font, status) + 10, botY,
+                module.gated() ? 0xFFE4BD7B : UICustom.textMute);
+        if (listening)
+            Gui.text(g, font, "Press a key…", x + 22 + Gui.width(font, status) + 10, botY, 0xFFFFD870);
+
+        int swX = x + width - 42, swY = y + height - 24;
+        if (module.keybind() > 0) {
+            String kn = keyName(module.keybind());
+            int kw = Gui.width(font, kn) + 10;
+            Gui.roundBorder(g, swX - 6 - kw, swY - 1, kw, 16, 5, UICustom.border, UICustom.cardFillTop);
+            Gui.textCenter(g, font, kn, swX - 6 - kw / 2, swY + 3, UICustom.textDim);
+        }
         Gui.pill(g, swX, swY, 28, 14, blend(0xFF373D4A, accent | 0xFF000000, anim));
         Gui.circle(g, swX + 6 + (int) (14 * anim), swY + 6, 4,
             blend(0xFFB4BBC8, 0xFFFFFFFF, anim));
-        for (int i = 0; i < 3; i++) Gui.circle(g, gearX() + 4 + i * 3, gearY() + 10, 1,
-            gearHover ? t.text() : UICustom.textDim);
-        String meta = module.gated() ? "Premium" : module.keybind() > 0 ? keyName(module.keybind()) : module.category.label;
-        Gui.text(g, font, meta, x + 14, y + height - 19, module.gated() ? 0xFFE4BD7B : UICustom.textDim);
-        if (listening)
-            Gui.text(g, font, "Press a key…", x + 14, y + height - 19, 0xFFFFD870);
+        y += dy;
     }
 
     private static String clip(net.minecraft.client.gui.Font font, String s, int w) {
@@ -149,8 +163,12 @@ public class ModuleCard {
      *  GLFW buttons: 0=LMB toggle, 1=RMB settings, 2=MMB keybind listen. */
     int mouseClicked(double mx, double my, int btn) {
         if (!inside(mx, my, x, y, width, height)) return 0;
-        if (inside(mx, my, gearX(), gearY(), 14, 14)) { click(); return 2; }
-        if (btn == 0) { module.toggle(); click(); return 1; }
+        if (inside(mx, my, gearX() - 18, gearY(), 16, 16)
+            && (Favorites.is(module) || hoverNow)) {
+            Favorites.toggle(module); click(); return 1;
+        }
+        if (inside(mx, my, gearX(), gearY(), 16, 16)) { click(); return 2; }
+        if (btn == 0) { module.toggle(); Favorites.markUsed(module); click(); return 1; }
         if (btn == 1 && !module.settings.isEmpty()) return 2; // RMB opens settings
         if (btn == 2) { listening = !listening; return 1; }
         return 1;

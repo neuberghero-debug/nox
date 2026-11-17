@@ -31,7 +31,7 @@ public class TamperScreen extends Screen {
         int cx = width / 2, top = height / 2 - 70, w = 300, h = 168;
         Gui.shadow(g, cx - w / 2, top, w, h, 12);
         Gui.roundBorder(g, cx - w / 2, top, w, h, 12, 0xFFFF4444, 0xF2140A0E);
-        g.fill(cx - w / 2 + 1, top + 1, cx + w / 2 - 1, top + 3, 0xFFFF4444);
+        Gui.fill(g, cx - w / 2 + 1, top + 1, cx + w / 2 - 1, top + 3, 0xFFFF4444);
 
         Gui.textCenter(g, font, "⚠  SECURITY WARNING", cx, top + 14, 0xFFFF5555);
         Gui.textCenter(g, font, "This " + NoxClient.NAME + " jar was MODIFIED after release.", cx, top + 34, 0xFFFFCCCC);

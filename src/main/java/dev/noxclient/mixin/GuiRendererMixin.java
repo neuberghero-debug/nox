@@ -1,21 +1,15 @@
 package dev.noxclient.mixin;
 
-import dev.noxclient.gui.nvg.NvgOverlay;
 import net.minecraft.client.gui.render.GuiRenderer;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * After the GUI batch is submitted, runs the NanoVG finish pass
- * (bloom/sheen/vignette ops queued by NOX screens during extractRenderState).
+ * Anchor only — the NVG overlay used to draw here at render() TAIL, but later
+ * renderpearl submits inside GameRenderer.render() could still rewrite the
+ * render target afterwards, which produced frame-dependent flicker. The pass
+ * now runs in PresentMixin right before GpuSurface.blitFromTexture — the last
+ * moment the RT can be touched before it is copied to the window surface.
  */
 @Mixin(GuiRenderer.class)
 public abstract class GuiRendererMixin {
-
-    @Inject(method = "render", at = @At("TAIL"))
-    private void nox$nvgFinish(CallbackInfo ci) {
-        NvgOverlay.render();
-    }
 }

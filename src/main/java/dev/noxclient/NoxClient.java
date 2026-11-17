@@ -26,20 +26,48 @@ public class NoxClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         INSTANCE = this;
+        dev.noxclient.util.TamperGuard.verifySync();   // FIRST: compromised jar
+        // gets flagged before any license key / alt token is ever touched
         modules = new ModuleManager();
         modules.registerAll();
         config = new ConfigManager();
         config.load();
         rpc = new NoxRPC();
         rpc.start();
-        dev.noxclient.premium.LicenseManager.init();
-        dev.noxclient.util.TamperGuard.verifyAsync();
+        if (!dev.noxclient.util.TamperGuard.compromised())
+            dev.noxclient.premium.LicenseManager.init();
+        else
+            System.err.println("[NOX] license init skipped — jar failed integrity");
+        dev.noxclient.alts.AltManager.load();
+        dev.noxclient.util.TamperGuard.verifyAsync();  // keeps re-checking in bg
+        dev.noxclient.security.CrashLoopGuard.init(
+            net.minecraft.client.Minecraft.getInstance());
+        dev.noxclient.update.UpdateManager.init();
+        dev.noxclient.telemetry.Telemetry.init();
+        dev.noxclient.stats.Stats.init();
+        dev.noxclient.util.CrashReporter.init(
+            net.minecraft.client.Minecraft.getInstance());  // /nox crashreport + audit
+        dev.noxclient.chat.NoxChat.init(                // /nox chat|chatkey|chatrelay
+            net.minecraft.client.Minecraft.getInstance()
+                .gameDirectory.toPath().resolve("nox"));
+        dev.noxclient.module.ExtraModules.register(modules);
+        dev.noxclient.security.CrashLoopGuard.enforce(modules.all());
         HudElementRegistry.addLast(
             net.minecraft.resources.Identifier.fromNamespaceAndPath("noxclient", "overlay"),
             new NoxOverlay());
 
+        // one-time notice when migrating from the old NoxWindowScreen config
+        if (config.legacyGui) {
+            dev.noxclient.gui.Toasts.push(
+                "NOX ClickGUI ist jetzt Standard — altes GUI via 'noxctl guilegacy'", 0xFFFFD870);
+        }
+
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> { config.save(); rpc.stop(); }));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            dev.noxclient.telemetry.Telemetry.shutdown();
+            dev.noxclient.stats.StatsStore.saveAsync();
+            config.save(); rpc.stop();
+        }));
 
         // addons (entrypoint "nox:addon") + /nox <name> <args…> dispatcher
         var ctx = new dev.noxclient.api.AddonContext(modules);
@@ -74,11 +102,13 @@ public class NoxClient implements ClientModInitializer {
         // open is re-derived every tick — ShopScreen/PremiumScreen can replace
         // the window without calling onClose(), which used to wedge the flag
         // (RShift then closed a null screen and keybinds stayed dead).
-        NoxWindowScreen.open = mc.gui.screen() instanceof NoxWindowScreen;
-        boolean down = InputConstants.isKeyDown(InputConstants.KEY_RSHIFT);
+        NoxWindowScreen.open = mc.gui.screen() instanceof NoxWindowScreen
+            || mc.gui.screen() instanceof dev.noxclient.gui.NoxClickGui;
+        boolean down = InputConstants.isKeyDown(InputConstants.KEY_RSHIFT)
+            || dev.noxclient.module.ModuleManager.FAKE_KEYS.contains(InputConstants.KEY_RSHIFT);
         if (down && !guiKeyWasDown) {
             if (NoxWindowScreen.open) mc.setScreenAndShow(null);
-            else if (mc.gui.screen() == null) mc.setScreenAndShow(new NoxWindowScreen());
+            else if (mc.gui.screen() == null) mc.setScreenAndShow(new dev.noxclient.gui.NoxClickGui());
             // screen != null (pause/inventory/chat): don't rip the user out
         }
         guiKeyWasDown = down;
@@ -86,11 +116,22 @@ public class NoxClient implements ClientModInitializer {
         NoxOverlay.noteTick();   // feeds the TPS HUD widget (was never called → stuck at 20.0)
         modules.tick(mc);
         dev.noxclient.physics.AnimationSystem.tick(mc);
+        dev.noxclient.security.FailSafe.tick();
         if (dev.noxclient.util.TamperGuard.compromised()) {
             dev.noxclient.util.TamperGuard.maybeShowScreen(mc);
             dev.noxclient.util.TamperGuard.warn();
         }
         if (mc.player != null && mc.level != null) config.onServerChange();
+        dev.noxclient.premium.LicenseManager.tick();   // silent 24h revalidation
+        dev.noxclient.update.UpdateManager.tick();     // 6h signed-update check
+        dev.noxclient.telemetry.Telemetry.tick();
+        dev.noxclient.stats.Stats.tick();
+        dev.noxclient.util.CrashReporter.tick();         // one-shot crash scan
+        dev.noxclient.security.Heartbeat.tick();         // 10 min integrity beat
+        // first-start privacy consent (Modul 20.1) — once, over the title screen
+        if (!dev.noxclient.telemetry.Telemetry.asked()
+            && mc.gui.screen() instanceof net.minecraft.client.gui.screens.TitleScreen)
+            mc.setScreenAndShow(new dev.noxclient.gui.PrivacyScreen());
     }
 
     public Theme theme() { return Theme.current(); }

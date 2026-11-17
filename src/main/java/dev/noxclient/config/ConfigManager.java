@@ -27,6 +27,8 @@ public class ConfigManager {
     private final Path root, globalFile, presetDir;
     private String lastServer = "";
     public boolean inviteShown;
+    /** True once when a pre-ClickGUI config was loaded (toast + persist flag). */
+    public boolean legacyGui;
 
     public ConfigManager() {
         root = Minecraft.getInstance().gameDirectory.toPath().resolve("nox");
@@ -46,6 +48,8 @@ public class ConfigManager {
             g.addProperty("winH", NoxWindowScreen.winH);
             g.addProperty("tab", NoxWindowScreen.activeTab);
             g.addProperty("inviteShown", inviteShown);
+            g.addProperty("guiV2", true);
+            g.addProperty("schema_version", ConfigMigrator.CURRENT);
             Files.writeString(globalFile, GSON.toJson(g));
             savePreset(currentServer()); // always persist the active profile too
         } catch (IOException ignored) {}
@@ -54,7 +58,8 @@ public class ConfigManager {
     public void load() {
         try {
             if (Files.exists(globalFile)) {
-                JsonObject g = JsonParser.parseString(Files.readString(globalFile)).getAsJsonObject();
+                JsonObject g = loadMigrated(globalFile);
+                if (g == null) return;
                 Theme.set(g.has("theme") ? g.get("theme").getAsInt() : 0);
                 NoxWindowScreen.winX = g.has("winX") ? g.get("winX").getAsInt() : -1;
                 NoxWindowScreen.winY = g.has("winY") ? g.get("winY").getAsInt() : 40;
@@ -62,6 +67,8 @@ public class ConfigManager {
                 NoxWindowScreen.winH = g.has("winH") ? g.get("winH").getAsInt() : 260;
                 NoxWindowScreen.activeTab = g.has("tab") ? g.get("tab").getAsInt() : 0;
                 inviteShown = g.has("inviteShown") && g.get("inviteShown").getAsBoolean();
+                // first load of a pre-ClickGUI config → one-time migration toast
+                legacyGui = !g.has("guiV2");
             }
             loadPreset(currentServer());
         } catch (Exception ignored) {}
@@ -89,16 +96,46 @@ public class ConfigManager {
     public void savePreset(String server) {
         try {
             Files.createDirectories(presetDir);
-            Files.writeString(presetDir.resolve(server + ".json"), GSON.toJson(serializeModules()));
+            JsonObject out = serializeModules();
+            out.addProperty("schema_version", ConfigMigrator.CURRENT);
+            Files.writeString(presetDir.resolve(server + ".json"), GSON.toJson(out));
         } catch (IOException ignored) {}
     }
 
     public void loadPreset(String server) {
         try {
             Path p = presetDir.resolve(server + ".json");
-            if (Files.exists(p))
-                apply(JsonParser.parseString(Files.readString(p)).getAsJsonObject());
+            if (Files.exists(p)) {
+                JsonObject o = loadMigrated(p);
+                if (o != null) apply(o);
+            }
         } catch (Exception ignored) {}
+    }
+
+    /**
+     * Read + migrate a persisted config file (Modul 24):
+     * version-check → backup <file>.bak.v{N} → migrate chain → write back.
+     * On any failure the raw bytes are restored and null returned.
+     */
+    private JsonObject loadMigrated(Path f) {
+        try {
+            String raw = Files.readString(f);
+            JsonObject o = JsonParser.parseString(raw).getAsJsonObject();
+            int v = ConfigMigrator.version(o);
+            if (v >= ConfigMigrator.CURRENT) return o;
+            Path bak = f.resolveSibling(f.getFileName() + ".bak.v" + v);
+            try {
+                ConfigMigrator.migrate(o);
+                Files.writeString(bak, raw);                       // backup pre-migration
+                Files.writeString(f, GSON.toJson(o));
+                dev.noxclient.gui.Toasts.info("Config migriert v" + v + " → v" + ConfigMigrator.CURRENT);
+            } catch (Exception ex) {
+                Files.writeString(f, raw);                          // rollback on failure
+                dev.noxclient.gui.Toasts.warn("Config-Migration fehlgeschlagen — Backup: " + bak.getFileName());
+                return null;
+            }
+            return o;
+        } catch (Exception e) { return null; }
     }
 
     // ---------- module (de)serialization ----------
@@ -141,6 +178,87 @@ public class ConfigManager {
             else if (st instanceof Setting.Col) ((Setting<Integer>) st).set((int) Long.parseLong(v));
             else ((Setting<String>) st).set(v);
         } catch (NumberFormatException ignored) {}
+    }
+
+    // ---------- preset browser ----------
+    public java.util.List<String> listPresets() {
+        try (var st = Files.list(presetDir)) {
+            return st.filter(f -> f.toString().endsWith(".json"))
+                .map(f -> f.getFileName().toString().replaceAll("[.]json$", "")).sorted().toList();
+        } catch (IOException e) { return java.util.List.of(); }
+    }
+    public boolean deletePreset(String name) {
+        try { return Files.deleteIfExists(presetDir.resolve(name + ".json")); }
+        catch (IOException e) { return false; }
+    }
+    public boolean renamePreset(String from, String to) {
+        try { Files.move(presetDir.resolve(from + ".json"),
+            presetDir.resolve(to + ".json"), StandardCopyOption.REPLACE_EXISTING); return true; }
+        catch (IOException e) { return false; }
+    }
+    public void savePresetAs(String name) { savePreset(name); }
+
+    /** Diff summary between the live config and a candidate preset JSON. */
+    public String previewDiff(JsonObject root) {
+        JsonObject cur = serializeModules();
+        int modChanges = 0, setChanges = 0;
+        var top = new java.util.ArrayList<String>();
+        for (Module m : NoxClient.INSTANCE.modules.all()) {
+            if (!root.has(m.name)) continue;
+            JsonObject in = root.getAsJsonObject(m.name), cu = cur.getAsJsonObject(m.name);
+            boolean mEnabled = in.has("enabled") && in.get("enabled").getAsBoolean() != m.isEnabled();
+            boolean mKey = in.has("keybind") && in.get("keybind").getAsInt() != m.keybind();
+            if (mEnabled || mKey) modChanges++;
+            if (in.has("settings")) {
+                JsonObject sIn = in.getAsJsonObject("settings"), sCu = cu.getAsJsonObject("settings");
+                for (Setting<?> st : m.settings) {
+                    if (!sIn.has(st.name)) continue;
+                    String nv = sIn.get(st.name).getAsString(),
+                           ov = sCu.has(st.name) ? sCu.get(st.name).getAsString() : "";
+                    if (!nv.equals(ov)) {
+                        setChanges++;
+                        if (top.size() < 5) top.add(m.name + "." + st.name + ": " + ov + " → " + nv);
+                    }
+                }
+            }
+        }
+        return modChanges + " module(s), " + setChanges + " setting(s) changed"
+            + (top.isEmpty() ? "" : " — " + String.join("; ", top));
+    }
+    /** Apply with rollback — restores the previous profile on any apply error. */
+    public boolean applySafe(JsonObject root) {
+        JsonObject snap = serializeModules();
+        try { apply(root); return true; }
+        catch (Exception e) { try { apply(snap); } catch (Exception ignored) {} return false; }
+    }
+    /** Parse a shared config payload (NOXCFG:/NOXCFG2:/raw JSON) without applying. */
+    public JsonObject parseShared(String payload) {
+        if (payload == null || payload.isBlank()) return null;
+        try {
+            if (payload.startsWith("NOXCFG2:")) {
+                byte[] gz = Base64.getUrlDecoder().decode(payload.substring(8));
+                return JsonParser.parseString(new String(inflate(gz))).getAsJsonObject();
+            }
+            if (payload.startsWith("NOXCFG:"))
+                return JsonParser.parseString(new String(Base64.getDecoder()
+                    .decode(payload.substring(7)))).getAsJsonObject();
+            return JsonParser.parseString(payload).getAsJsonObject();
+        } catch (Exception e) { return null; }
+    }
+    private static byte[] inflate(byte[] in) throws IOException {
+        var z = new java.util.zip.InflaterInputStream(new java.io.ByteArrayInputStream(in));
+        return z.readAllBytes();
+    }
+    /** Compact share code — gzip+base64url; "" when it exceeds the 2k code limit. */
+    public String shareCode() {
+        try {
+            byte[] raw = GSON.toJson(serializeModules()).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            var bos = new java.io.ByteArrayOutputStream();
+            try (var z = new java.util.zip.DeflaterOutputStream(bos)) { z.write(raw); }
+            String code = "NOXCFG2:" + Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(bos.toByteArray());
+            return code.length() <= 2000 ? code : "";
+        } catch (Exception e) { return ""; }
     }
 
     // ---------- share / import ----------

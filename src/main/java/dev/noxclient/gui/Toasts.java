@@ -1,5 +1,6 @@
 package dev.noxclient.gui;
 
+import dev.noxclient.gui.ds.DS;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -7,43 +8,75 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * HUD toast notifications — module toggles, config events. Slides in from the
- * right, holds ~2.6s, fades out. Rendered by NoxOverlay.
+ * HUD toast notifications (Modul 16.8) — card with accent strip, icon dot,
+ * title + message, lifetime progress bar. Slides in from the right edge
+ * (250ms), holds ~3.2s, slides out. Rendered by NoxOverlay.
  */
 public final class Toasts {
-    private record Toast(String text, int color, long born) {}
+    private record Toast(String title, String msg, int color, long born) {}
     private static final List<Toast> LIST = new CopyOnWriteArrayList<>();
-    private static final long LIFE = 2600;
+    private static final long LIFE = 3200;
+    private static final long EXIT = 320;
 
     public static void push(String text, int color) {
-        LIST.removeIf(x -> x.text.equals(text));   // dedup — re-push bumps to front
-        LIST.add(new Toast(text, color, System.currentTimeMillis()));
-        while (LIST.size() > 4) LIST.remove(0);
+        LIST.removeIf(x -> x.msg.equals(text));
+        LIST.add(new Toast("", text, color, System.currentTimeMillis()));
+        while (LIST.size() > 5) LIST.remove(0);
+    }
+    /** Card toast: bold title line + secondary message line. */
+    public static void push(String title, String msg, int color) {
+        LIST.removeIf(x -> x.title.equals(title) && x.msg.equals(msg));
+        LIST.add(new Toast(title, msg, color, System.currentTimeMillis()));
+        while (LIST.size() > 5) LIST.remove(0);
     }
     public static void info(String text)  { push(text, 0xFF5AC8FF); }
     public static void ok(String text)    { push(text, 0xFF66FF99); }
     public static void warn(String text)  { push(text, 0xFFFFCC55); }
     public static void error(String text) { push(text, 0xFFFF6666); }
 
-    /** Top-center stack — slides down in, fades out. */
+    /** Top-right card stack — 250ms slide-in, progress bar, slide-out. */
     public static void render(GuiGraphicsExtractor g, Font font, int w, int startY) {
         long now = System.currentTimeMillis();
-        LIST.removeIf(x -> now - x.born > LIFE);
+        LIST.removeIf(x -> now - x.born > LIFE + EXIT);
         int y = startY;
         for (Toast x : LIST) {
             float age = now - x.born;
-            float a = age < 140 ? age / 140f
+            float a = age < 250 ? age / 250f
                 : age > LIFE - 400 ? Math.max(0, (LIFE - age) / 400f) : 1f;
-            int slide = (int) ((1f - Math.min(1, a * 2)) * -10);
-            int tw = Gui.width(font, x.text) + 26;
-            int x0 = w / 2 - tw / 2;
-            int alpha = (int) (a * 0xE8) << 24;
-            Gui.roundBorder(g, x0, y + slide, tw, 16, 7,
-                (x.color & 0x00FFFFFF) | alpha, (0xE014141E & 0x00FFFFFF) | alpha);
-            Gui.circle(g, x0 + 9, y + slide + 8, 3, x.color);
-            Gui.text(g, font, x.text, x0 + 16, y + slide + 4,
-                (alpha & 0xFF000000) | 0x00FFFFFF);
-            y += 19;
+            int slide = (int) ((1f - easeOut(Math.min(1, age / 250f))) * 60);
+            if (age > LIFE) slide += (int) (((age - LIFE) / (float) EXIT) * 80);
+
+            boolean titled = !x.title.isEmpty();
+            int th = titled ? 38 : 26;
+            int tw = Math.max(Gui.width(font, x.title), Gui.width(font, x.msg)) + 34;
+            tw = Math.max(tw, 140);
+            int x1 = w - 12 + slide;          // right edge, slide in
+            int x0 = x1 - tw;
+            int alpha = (int) (a * 0xF2) << 24;
+
+            // card: surface + left accent strip + icon dot
+            Gui.round(g, x0, y, tw, th, 10, (DS.surface() & 0xFFFFFF) | alpha);
+            Gui.roundBorder(g, x0, y, tw, th, 10,
+                (x.color & 0x00FFFFFF) | (alpha / 2), 0);
+            Gui.round(g, x0, y + 4, 3, th - 8, 2, (x.color & 0xFFFFFF) | alpha);
+            Gui.circle(g, x0 + 16, y + (titled ? 12 : th / 2), 3.5f,
+                (x.color & 0xFFFFFF) | alpha);
+            if (titled) {
+                Gui.textBold(g, font, x.title, x0 + 26, y + 7, (alpha) | 0xFFFFFF);
+                Gui.text(g, font, x.msg, x0 + 26, y + 21,
+                    ((int) (a * 0xFF) << 24) | (DS.secondary() & 0xFFFFFF));
+            } else {
+                Gui.text(g, font, x.msg, x0 + 26, y + (th - 8) / 2, (alpha) | 0xFFFFFF);
+            }
+            // progress bar (fills over LIFE)
+            float prog = Math.min(1, age / (float) LIFE);
+            int pw = (int) ((tw - 8) * prog);
+            if (pw > 0)
+                Gui.round(g, x0 + 4, y + th - 3, pw, 2, 1,
+                    (x.color & 0xFFFFFF) | (alpha / 2));
+            y += th + 6;
         }
     }
+
+    private static float easeOut(float t) { return 1f - (1 - t) * (1 - t) * (1 - t); }
 }

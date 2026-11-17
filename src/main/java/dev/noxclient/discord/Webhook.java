@@ -48,6 +48,36 @@ public final class Webhook {
                     .build(), HttpResponse.BodyHandlers.discarding());
             } catch (Exception ignored) {}
         }, "nox-webhook");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** Multipart file upload (clips, screenshots) — Discord webhook `file` field.
+     *  cb gets true on 2xx. Runs on a daemon thread. */
+    public static void postFile(String webhook, java.nio.file.Path file, String caption,
+                                java.util.function.Consumer<Boolean> cb) {
+        Thread t = new Thread(() -> {
+            boolean ok = false;
+            try {
+                String boundary = "nox" + Long.toHexString(System.nanoTime());
+                byte[] data = java.nio.file.Files.readAllBytes(file);
+                String fname = file.getFileName().toString();
+                var parts = new java.util.ArrayList<byte[]>();
+                String head = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"payload_json\"\r\nContent-Type: application/json\r\n\r\n"
+                    + "{\"content\":\"" + caption.replace("\"", "'") + "\"}\r\n"
+                    + "--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\""
+                    + fname + "\"\r\nContent-Type: video/mp4\r\n\r\n";
+                parts.add(head.getBytes(StandardCharsets.UTF_8));
+                parts.add(data);
+                parts.add(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+                var resp = HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create(webhook))
+                    .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                    .POST(HttpRequest.BodyPublishers.ofByteArrays(parts))
+                    .build(), HttpResponse.BodyHandlers.ofString());
+                ok = resp.statusCode() / 100 == 2;
+            } catch (Exception ignored) {}
+            cb.accept(ok);
+        }, "nox-webhook-file");
         t.setDaemon(true); t.start();
     }
 

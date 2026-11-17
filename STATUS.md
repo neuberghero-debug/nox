@@ -1,116 +1,47 @@
-# STATUS Matrix
+# STATUS.md — Master-Upgrade Stand
 
-Legend: ✅ done & compiling · ⚠️ partial/likely needs tuning · ❌ missing · 🔒 premium
+Stand: 2026-11-16 15:15. Zwei Sessions parallel (siehe COORD.md); Session B liefert M20/26/29 + M1/3/4/5/6/9/10/22/30.2-Skelett.
+Legende: ✅ fertig · 🟡 teilweise/in Arbeit · 🔶 Code liegt vor, Backend/Deploy extern · ❌ offen
 
-## Phase 1 — Core
-| # | Feature | Status |
-|---|---|---|
-| 1.1 | GUI | ✅ floating window, drag/resize/tabs/search/settings/keybinds |
-| 1.2 | Config | ✅ JSON + per-server presets + share/import |
-| 1.3 | Module registry | ✅ 5 categories, enable/disable, settings, keybinds |
-| 1.4 | SelfDestruct | ✅ armed two-stage wipe (RAM+disk+jar) |
+| # | Modul | Status | Wo |
+|---|-------|--------|----|
+| 1 | TikTok Live Bridge | ✅ | `stream/TikTokBridge` (WS-Client, exp-backoff), `stream/RuleEngine` (trigger|action, testMode default AN, 5/s rate, cmd-whitelist), `tools/tiktok_sidecar.py`, `module/misc/TikTokLive` (premium) |
+| 2 | Highlight Reel + Kill-Cam | 🔶 | ffmpeg/Encoder [OFFEN]; Marker/Metadaten via `replay/ReplayRecorder.meta()` |
+| 3 | Viewer Votes | ✅ | `stream/ViewerVotes` (1-5 Optionen, dedupe, donator-Gewichtung, Deadline-Cb) — TikTok-Pfad angebunden; Twitch IRC [OFFEN] |
+| 4 | Gift-Combo-Ketten | ✅ | `stream/GiftCombos` (30s-Fenster, T1-T4, HUD-live, Session-Top) |
+| 5 | Screenshot Coordinate Finder | 🟡 | `module/misc/CoordFinder` (3 Regex-Varianten, Bounds-Check, Clipboard→Waypoint-Toast); OCR [OFFEN] |
+| 6 | PvP-Coach | ✅ | `module/misc/PvpCoach` (Regelwerk: Reach/Accuracy/Combo/Outcome → Drill-Tipps; premium) |
+| 7 | Stash Organizer | 🟡 | `util/StashLogger` + `module/donutsmp/StashLogger` Basis; Kategorisierung offen |
+| 8 | Cross-Client Friend Sync | 🔶 | Backend nötig; Friends-Modul lokal vorhanden |
+| 9 | Skin Changer | ✅ | `module/misc/SkinChanger` (`nox/skins/*.png`, cape-Slot, applyToOthers) |
+| 10 | Emotes | ✅ | `module/misc/Emotes` (20 Partikel-Presets, Cooldown, Sounds) |
+| 11 | Tamper Warner | ✅ | `util/TamperGuard` + `module/misc/TamperWarner` + `gui/TamperScreen` |
+| 12 | Auto Crash Report | ✅ | `util/CrashReporter` (+init/tick in NoxClient) |
+| 13 | Multi-Account | ✅ | `alts/AltManager`+`AltProxy`, `gui/AltManagerScreen` |
+| 14 | Design-System + Comp-Lib | ✅ | `gui/ds/DS`, `gui/comp/{Buttons,Cards,Comp,Icons,Inputs,Overlays}` |
+| 15 | ClickGUI-Rebuild | ✅ | `gui/NoxClickGui` (comp-lib); `NoxWindowScreen` = legacy |
+| 16 | HUD + Toast + Sounds | ✅ | `gui/Toasts`, `gui/UiSounds`, `assets/noxclient/sounds/` |
+| 17 | Themes + Micro-Anim + A11y | 🟡 | `gui/theme/Theme`, `UICustom`; A11y-Toggles offen |
+| 18 | License Hardening | ✅ | `premium/LicenseManager`+`Hwid`, `nox-license-server/` |
+| 19 | Signierte Auto-Updates | ✅ | `update/{UpdateManager,Apply}`, `tools/sign_update.py` |
+| 20 | Telemetrie (opt-in) | ✅ | `telemetry/{Telemetry,TelemetrySanitizer}`, `gui/PrivacyScreen` |
+| 21 | Client-Chat E2E | 🔶 | Relay-Server + UI fehlen |
+| 22 | Replay (.donutreplay) | 🟡 | `replay/ReplayRecorder` (Ringbuffer 10min@4Hz, gzip, DNRP-Format, Event-Frames) + `module/misc/ReplayMod`; Playback-Screen [OFFEN] |
+| 23 | Cosmetics-Werkstatt | 🟡 | `cosmetics/{CosmeticLayer,GlbModel}`, `gui/CapeEditorScreen` |
+| 24 | Config Migration | ✅ | `config/ConfigMigrator` (v0→v3 + .bak.vN) |
+| 25 | Alle GUIs redesigned | 🟡 | NoxClickGui/Shop/HudEditor gemacht; Inventar/Chat-Reskins offen |
+| 26 | Stats-System | 🟡 | `stats/{Stats,StatsStore,StatsScreen}` Basis ✅; Live-Charts/Modes/Export offen |
+| 27 | Analytics-Dashboard | 🔶 | Server-Code/Env fehlt |
+| 28 | Roadmap in Discord | ❌ | `nox-community-bot` existiert als Anker |
+| 29 | Security Audit | ✅ | `module/misc/SecurityAudit` via `ExtraModules` |
+| 30 | Anti-Crack gesamt | 🟡 | 30.1 `native/`+`ncore/NativeCore` ✅; 30.2 `premium/Distributed` (8 verteilte Checks → `Module.setEnabled`-Gate) ✅; 30.3-30.13 teilweise (NativeCore.antiDebug vorhanden; Fail-Safe/Watermark/Build-Salt [OFFEN]) |
 
-## Phase 2 — DonutSMP
-| # | Feature | Status |
-|---|---|---|
-| 2.1 | AutoSell | ✅ |
-| 2.2 | AutoEat | ✅ |
-| 2.3 | FastPlace | ✅ |
-| 2.4 | AutoTool | ✅ |
-| 2.5 | StorageESP | ✅ |
-| 2.6 | PlayerESP | ✅ |
-| 2.7 | Fullbright | ✅ |
-| 2.8 | AH Sniper 🔒 | ✅ |
-| 2.9 | Tunnel Base Finder 🔒 | ✅ |
-| 2.10 | RTP Base Finder 🔒 | ✅ |
-| 2.11 | Chunk Finder | ✅ |
-| 2.12 | Amethyst Stash Finder | ✅ |
-| 2.13 | AutoCrystal 🔒 | ✅ |
-| 2.14 | Anchor Macro 🔒 | ✅ |
-| 2.15 | Anti-ESP-Bypass 🔒 | ⚠️ heuristic |
-| 2.16 | Anti-Vanish 🔒 | ✅ |
-| 2.17 | Fly-Bypass 🔒 | ⚠️ needs live tuning |
-| 2.18 | Auto Totem Order 🔒 | ✅ |
+## Zusatz-Features (außerhalb Prompt, diese Session/früher)
+- `module/donutsmp/{Auction,OreSim,SoundFind,TunnelBaseFinder,RTPBaseFinder,...}`
+- `module/render/{Scoreboard,SelfTag,Tracers,TwitchChat,StreamerMode}`
+- `gui/{HudEditorScreen,HudLayout,ModuleIcons,Favorites,SeasonFx,PresetScreen,ReportScreen}`
+- `media/{MediaService,TwitchService}` (Spotify-HUD + Twitch-Basis)
 
-## Phase 3 — PvP & Movement
-| # | Feature | Status |
-|---|---|---|
-| 3.1 | KillAura legit | ✅ |
-| 3.2 | AutoTotem | ✅ |
-| 3.3 | Velocity | ✅ packet mixin |
-| 3.4 | NoFall | ✅ |
-| 3.5 | ElytraGlide/Swap | ✅ |
-| 3.6 | AntiTrap | ✅ |
-
-## Phase 4 — Discord
-| # | Feature | Status |
-|---|---|---|
-| 4.1 | Bot base | ✅ discord.py, slash cmds, .env |
-| 4.2 | Roles | ✅ Premium/Donator/Staff/Tester |
-| 4.3 | Tickets | ✅ private channels + transcripts |
-| 4.4 | Product channels | ✅ /post branded embeds |
-| 4.5 | Embeds | ✅ template system, #FF6EC7 |
-| 4.6 | Token mgmt | ✅ env only — rotate the leaked one |
-| 4.7 | Moderation | ✅ spam/invite/caps + timeouts |
-| 4.8 | License API | ✅ FastAPI /api/verify + /api/issue |
-
-## Phase 5 — Paid & Cosmetics
-| # | Feature | Status |
-|---|---|---|
-| 5.1 | Premium gate | ✅ license.key + API + PremiumScreen |
-| 5.2 | Cosmetics | ⚠️ particle trails done, cape renderer offen |
-| 5.3 | Donator ranks | ⚠️ role system done, perks doc only |
-| 5.4 | In-client shop | ✅ footer button → donate URL |
-| 5.5 | Donate channel | ✅ /post donate embed |
-| 5.6 | Transparency | ✅ pricing text in embed |
-
-## Phase 6 — Bypasses & Stealth
-| # | Feature | Status |
-|---|---|---|
-| 6.1 | Anti-ESP | ⚠️ |
-| 6.2 | Anti-Vanish | ✅ |
-| 6.3 | Fly bypass | ⚠️ |
-| 6.4 | Anti-trap | ✅ |
-| 6.5 | OpSec | ⚠️ in-client only |
-| 6.6 | Anti-AFK | ✅ |
-| 6.7 | GCD rotation fix | ✅ Legitifier quantizes deltas to mouse quantum |
-| 6.8 | Silent rotations | ✅ look packets w/o moving view (KillAura mode) |
-| 6.9 | SprintReset / hit-select | ✅ attack mixin + W pulse |
-| 6.10 | Triggerbot | ✅ crosshair-only attacks |
-| 6.11 | NoSlow | ✅ item slowdown compensation |
-| 6.12 | InventoryMove | ✅ moves with screens open |
-| 6.13 | Blink (lag-switch) 🔒 | ✅ send-buffer mixin, hold/pulse |
-| 6.14 | ShieldBreak / AutoMace 🔒 / AutoPearl / AutoArmor | ✅ |
-| 6.15 | AutoSprint / StepAssist | ✅ |
-| 6.16 | ModSpoofer (brand/payload fingerprint) | ✅ vanilla brand + optional full strip |
-| 6.17 | AutoCommander / AutoHarvest / SellWand / ArmorAlert | ✅ |
-| 6.18 | CustomSky (6 premades + custom RGB) | ✅ fog-environment mixin |
-| 6.19 | HudWidgets (watermark/coords/fps/ping/arraylist) | ✅ |
-
-## Extra (self-proposed DSMP features, top 3 built)
-| Feature | Status | Aufwand/Nutzen |
-|---|---|---|
-| StashLogger | ✅ | low/high — persists every find to stashes.json |
-| CombatLog | ✅ | low/high — auto-disconnect at low HP |
-| AutoReconnect | ✅ | low/med — rejoin with delay |
-| Bounty tracker | ❌ suggested | med/med — polls /bounty for target coords |
-| Death waypoint | ❌ suggested | low/med — marks death pos |
-| Auction price history | ❌ suggested | high/med — needs a DB + bot side |
-| PearlQueue / pearl cooldown HUD | ❌ suggested | low/med |
-| Warp-book GUI | ❌ suggested | med/med |
-| Seed mapper | ❌ suggested | high/low — legally risky vs server rules |
-
-## Build
-`gradle build` → `build/libs/nox-0.1.0.jar` ✅ verified compiling (MC 26.3, loom 1.20.0-alpha.31, Java 25)
-
-## Runtime-Fixes (26.3 live)
-
-| Fix | Status |
-|---|---|
-| ButtonMixin @Shadow auf geerbte Methoden → Cast | ✅ |
-| BlinkMixin non-private static → entfernt, direktes send | ✅ |
-| LoadingOverlay: onFinish/fadeOut/setOverlay selbst gefahren (HEAD-Cancel killte Abschluss) | ✅ |
-| DynamicTexture statt SimpleTexture (TextureView vor Reload) | ✅ |
-| Fullbright: gamma-Clamp → NIGHT_VISION-Mixin | ✅ |
-| Modul-Exceptions: silent → Stacktrace + §c-Chat | ✅ |
-| Invite-Popup: Parent hinterm Modal (war Blackscreen-Look) | ✅ |
+## Verifikation
+- `gradle compileJava` ✅ (16.11. 14:50, nur pre-existing Warnungen)
+- Devloop/Deploy: ausstehend bis Batch-Merge stabil

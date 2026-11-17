@@ -4,43 +4,126 @@ import dev.noxclient.module.Category;
 import dev.noxclient.module.Module;
 import dev.noxclient.setting.Setting;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.entity.*;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.Map;
+import java.util.*;
 
 /**
- * Heuristic "sus chunk" scorer: combines signals from the other finders plus
- * tile-entity density and block-change rate to rank chunks most likely to
- * contain stashes, traps, or hidden farms. Outputs a scored heatmap.
+ * BaseRadar — weighted sus-chunk scoring, best-of-breed:
+ *  · BepHax-style storage count + shulker/crafter instant-hit + spawn
+ *    distance floor + teleport-disable (no coord leaks on stream)
+ *  · 67Client-style full-honey beehive signal + flag merging
+ *  · Anubis-style chunk settle age + sound/notify
+ * Rescans loaded chunks on an interval — scores decay as loot leaves.
  */
 public class SusChunkFinder extends Module {
     private final Setting.Num radius = add(new Setting.Num("Radius (chunks)", 12, 2, 48));
-    private final Map<ChunkPos, Double> scores = new HashMap<>();
-    private final Set<ChunkPos> done = new java.util.HashSet<>();
+    private final Setting.Num rescanSec = add(new Setting.Num("Rescan (s)", 45, 10, 300));
+    private final Setting.Num minDist = add(new Setting.Num("Min dist from 0,0", 256, 0, 10000));
+    private final Setting.Num merge = add(new Setting.Num("Merge radius (ch)", 3, 0, 10));
+    private final Setting.Num settleTicks = add(new Setting.Num("Settle ticks", 40, 0, 400));
+    private final Setting.Num minScore = add(new Setting.Num("Min score", 6, 1, 50));
+    private final Setting.Bool shulkerHit = add(new Setting.Bool("Shulker instant-hit", true));
+    private final Setting.Bool crafterHit = add(new Setting.Bool("Crafter instant-hit", true));
+    private final Setting.Bool notify = add(new Setting.Bool("Chat notify", true));
+    private final Setting.Bool antiLeak = add(new Setting.Bool("Disable on teleport", false));
 
-    public SusChunkFinder() { super("SusChunkFinder", "Scores chunks by suspiciousness", Category.DONUTSMP); }
+    private final Map<ChunkPos, Double> scores = new HashMap<>();
+    private final Map<ChunkPos, Long> seenAt = new HashMap<>();
+    private final Map<ChunkPos, Long> scannedAt = new HashMap<>();
+    private final Set<ChunkPos> notified = new HashSet<>();
+    private final Set<ChunkPos> instant = new HashSet<>();
+
+    public SusChunkFinder() { super("SusChunkFinder", "BaseRadar — weighted base signals", Category.DONUTSMP); }
 
     @Override
     public void onTick() {
         if (mc.level == null || mc.player == null) return;
+        // BepHax-style coord-leak guard: a >64-block instant jump = teleport —
+        // auto-disable so flagged coords don't get screenshotted mid-hunt
+        if (antiLeak.on() && lastPos != null
+            && lastPos.distanceToSqr(mc.player.position()) > 64 * 64) {
+            setEnabled(false); return;
+        }
+        lastPos = mc.player.position();
+        long now = System.currentTimeMillis();
         ChunkPos pc = mc.player.chunkPosition();
         int r = radius.intVal();
         for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) {
             ChunkPos cp = new ChunkPos(pc.x() + dx, pc.z() + dz);
-            if (done.contains(cp) || !mc.level.hasChunk(cp.x(), cp.z())) continue;
-            done.add(cp);
-            var chunk = mc.level.getChunk(cp.x(), cp.z());
-            double score = 0;
-            score += chunk.getBlockEntities().size() * 2.0;      // dense tile entities = builds
-            // cross-signal: flagged by ChunkFinder
-            var cf = dev.noxclient.NoxClient.INSTANCE.modules.get("ChunkFinder");
-            if (cf instanceof ChunkFinder f && f.flagged().contains(cp)) score += 10;
-            if (score > 0) scores.put(cp, score);
+            if (!mc.level.hasChunk(cp.x(), cp.z())) continue;
+            if (Math.abs(cp.getMiddleBlockX()) < minDist.get() && Math.abs(cp.getMiddleBlockZ()) < minDist.get()) continue;
+            seenAt.putIfAbsent(cp, now);
+            if (now - seenAt.get(cp) < settleTicks.get() * 50L) continue;
+            Long last = scannedAt.get(cp);
+            if (last != null && now - last < rescanSec.get() * 1000L) continue;
+            scannedAt.put(cp, now);
+            double score = score(mc.level.getChunk(cp.x(), cp.z()), cp);
+            if (score >= minScore.get()) {
+                scores.put(cp, score);
+                if (notify.on() && notified.add(cp)) flag(cp, score);
+            } else scores.remove(cp);
         }
     }
 
+    private net.minecraft.world.phys.Vec3 lastPos;
+
+    private double score(net.minecraft.world.level.chunk.LevelChunk chunk, ChunkPos cp) {
+        double s = 0;
+        boolean trialOnly = true;
+        for (BlockEntity be : chunk.getBlockEntities().values()) {
+            if (be instanceof ShulkerBoxBlockEntity) { if (shulkerHit.on()) { instant.add(cp); return 100; } s += 8; trialOnly = false; }
+            else if (be instanceof CrafterBlockEntity) { if (crafterHit.on()) { instant.add(cp); return 100; } s += 6; trialOnly = false; }
+            else if (be instanceof ChestBlockEntity) { s += 2; trialOnly = false; }
+            else if (be instanceof BarrelBlockEntity) { s += 2; trialOnly = false; }
+            else if (be instanceof HopperBlockEntity) { s += 1.5; trialOnly = false; }
+            else if (be instanceof net.minecraft.world.level.block.entity.SpawnerBlockEntity) { s += 4; trialOnly = false; }
+            else if (be instanceof net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity) { s += 0; }   // trial chambers → ignored
+            else if (be instanceof BeehiveBlockEntity) {
+                // 67Client signal: a FULL honey hive means an active, tended farm
+                try {
+                    var st = be.getBlockState();
+                    int lvl = st.getValue(net.minecraft.world.level.block.state.properties
+                        .BlockStateProperties.LEVEL_HONEY);
+                    if (lvl >= 5) { s += 6; trialOnly = false; }
+                    else if (lvl > 0) { s += 1.5; trialOnly = false; }
+                } catch (Exception ignored) { s += 1; }
+            }
+            else if (be instanceof BellBlockEntity) { s += 2; trialOnly = false; }
+            else if (be instanceof LecternBlockEntity) { s += 1.5; trialOnly = false; }
+            else if (be instanceof BeaconBlockEntity) { s += 5; trialOnly = false; }
+            else { s += 0.5; }   // misc tile-entity density
+        }
+        if (trialOnly) return 0;   // pure trial-chamber content is natural
+        // cross-signal: flagged by ChunkFinder
+        var cf = dev.noxclient.NoxClient.INSTANCE.modules.get("ChunkFinder");
+        if (cf instanceof ChunkFinder f && f.flagged().contains(cp)) s += 10;
+        return s;
+    }
+
+    private void flag(ChunkPos cp, double score) {
+        // merge into a nearby existing flag (67Client middle-flag)
+        ChunkPos mid = cp;
+        int m = merge.intVal();
+        if (m > 0) {
+            double sx = 0, sz = 0; int n = 0;
+            for (ChunkPos o : scores.keySet())
+                if (Math.abs(o.x() - cp.x()) <= m && Math.abs(o.z() - cp.z()) <= m) { sx += o.x(); sz += o.z(); n++; }
+            if (n > 0) { sx += cp.x(); sz += cp.z(); n++; mid = new ChunkPos((int) Math.round(sx / n), (int) Math.round(sz / n)); }
+        }
+        if (mc.player != null)
+            mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                "§7[NOX] §dSus chunk §f" + mid.x() + " " + mid.z() + " §7score §e" + (int) score
+                + (instant.contains(cp) ? " §c(instant-hit)" : "")));
+        dev.noxclient.util.StashLogger.log("baseradar",
+            new net.minecraft.core.BlockPos(mid.getMiddleBlockX(), 70, mid.getMiddleBlockZ()),
+            "score=" + (int) score + (instant.contains(cp) ? " INSTANT" : ""));
+    }
+
     public Map<ChunkPos, Double> scores() { return scores; }
-    @Override protected void onDisable() { scores.clear(); done.clear(); }
+    public Set<ChunkPos> instant() { return instant; }
+
+    @Override protected void onDisable() {
+        scores.clear(); seenAt.clear(); scannedAt.clear(); notified.clear(); instant.clear();
+    }
 }

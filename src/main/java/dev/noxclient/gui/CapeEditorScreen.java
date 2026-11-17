@@ -245,17 +245,17 @@ public class CapeEditorScreen extends Screen {
         for (int r = 0; r < CH; r++)
             for (int c = 0; c < CW; c++) {
                 int x0 = cx + c * CELL, y0 = cy + r * CELL;
-                g.fill(x0, y0, x0 + CELL, y0 + CELL,
+                Gui.fill(g, x0, y0, x0 + CELL, y0 + CELL,
                     ((r + c) & 1) == 0 ? 0xFF20202E : 0xFF282838);
                 int col = px[r * CW + c];
                 if (col != -1)
-                    g.fill(x0 + 1, y0 + 1, x0 + CELL, y0 + CELL, 0xFF000000 | col);
+                    Gui.fill(g, x0 + 1, y0 + 1, x0 + CELL, y0 + CELL, 0xFF000000 | col);
             }
         // grid lines + hover cell
         for (int c = 0; c <= CW; c++)
-            g.fill(cx + c * CELL, cy, cx + c * CELL + 1, cy + CH * CELL, 0x22000000);
+            Gui.fill(g, cx + c * CELL, cy, cx + c * CELL + 1, cy + CH * CELL, 0x22000000);
         for (int r = 0; r <= CH; r++)
-            g.fill(cx, cy + r * CELL, cx + CW * CELL, cy + r * CELL + 1, 0x22000000);
+            Gui.fill(g, cx, cy + r * CELL, cx + CW * CELL, cy + r * CELL + 1, 0x22000000);
         int hov = cellAt(mx, my);
         if (hov >= 0)
             Gui.roundBorder(g, cx + (hov % CW) * CELL, cy + (hov / CW) * CELL,
@@ -268,7 +268,7 @@ public class CapeEditorScreen extends Screen {
         for (int r = 0; r < 8; r++)
             for (int c = 0; c < 4; c++) {
                 int x0 = rx + c * 18, y0 = cy + r * 18, col = PALETTE[r * 4 + c];
-                g.fill(x0, y0, x0 + 16, y0 + 16, 0xFF000000 | col);
+                Gui.fill(g, x0, y0, x0 + 16, y0 + 16, 0xFF000000 | col);
                 if (col == color) Gui.roundBorder(g, x0 - 1, y0 - 1, 18, 18, 3, t.accent(), 0x00000000);
             }
         // tools

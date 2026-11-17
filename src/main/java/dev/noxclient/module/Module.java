@@ -27,7 +27,7 @@ public abstract class Module {
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean v) {
-        if (v && premium && !dev.noxclient.premium.LicenseManager.premium()) {
+        if (v && premium && !dev.noxclient.premium.Distributed.premiumAllowed()) {
             if (dev.noxclient.gui.NoxWindowScreen.open)
                 dev.noxclient.gui.Toasts.push(name + " requires Premium — see Shop", 0xFFFFD870);
             else
@@ -37,20 +37,21 @@ public abstract class Module {
         }
         if (v == enabled) return;
         enabled = v;
+        dev.noxclient.gui.UiSounds.toggle(v);
         dev.noxclient.gui.Toasts.push(
             name + (v ? " enabled" : " disabled"), v ? 0xFF66FF99 : 0xFFFF6666);
         if (v) onEnable(); else onDisable();
     }
     /** Config restore — applies state without popping the premium gate screen. */
     public void restore(boolean v) {
-        if (v && premium && !dev.noxclient.premium.LicenseManager.premium()) return;
+        if (v && premium && !dev.noxclient.premium.LicenseManager.assertPremium()) return;
         if (v == enabled) return;
         enabled = v;
         if (v) onEnable(); else onDisable();
     }
     public void toggle() { setEnabled(!enabled); }
     /** True when enabling is blocked by the premium gate. */
-    public boolean gated() { return premium && !dev.noxclient.premium.LicenseManager.premium(); }
+    public boolean gated() { return premium && !dev.noxclient.premium.LicenseManager.assertPremium(); }
     public int keybind() {
         Object v = ((Setting<?>) bind).get();
         return v instanceof Number n ? n.intValue() : -1;

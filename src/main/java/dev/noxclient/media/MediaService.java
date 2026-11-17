@@ -35,7 +35,12 @@ public final class MediaService {
     }
 
     private static void pollLinux() {
-        String out = run("playerctl", "metadata", "--format",
+        // prefer the real Spotify player — bare `playerctl` picks whichever
+        // MPRIS source was last active (browsers steal it constantly)
+        String out = run("playerctl", "-p", "spotify", "metadata", "--format",
+            "{{artist}}\u0001{{title}}\u0001{{status}}\u0001{{position}}\u0001{{mpris:length}}");
+        if (out == null || !out.contains("\u0001"))
+            out = run("playerctl", "metadata", "--format",
             "{{artist}}\u0001{{title}}\u0001{{status}}\u0001{{position}}\u0001{{mpris:length}}");
         if (out == null || !out.contains("\u0001")) { clear(); return; }
         String[] f = out.split("\u0001", -1);

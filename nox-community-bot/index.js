@@ -22,6 +22,7 @@ const {
 } = require('discord.js');
 
 const config = require('./config.json');
+const community = require('./community.js');
 // env overrides config.json — keeps secrets out of the repo
 config.token = process.env.DISCORD_TOKEN || config.token;
 config.guildId = process.env.GUILD_ID || config.guildId;
@@ -973,6 +974,7 @@ async function dumpTickets(guild, channel) {
 
 client.once(Events.ClientReady, async () => {
   console.log(`[ready] ${client.user.tag}`);
+  community.startCron(client, config);
   const guild = await client.guilds.fetch(config.guildId).catch(() => null);
   if (guild) {
     if ((state.styleV ?? 0) < STYLE_V) {
@@ -1000,7 +1002,7 @@ client.once(Events.ClientReady, async () => {
       syncStickers(guild).catch(console.error);
     }, 6 * 60 * 60 * 1000);
     try {
-      await guild.commands.set(COMMANDS.map((c) => c.toJSON()));
+      await guild.commands.set([...COMMANDS, ...community.commands].map((c) => c.toJSON()));
       console.log('[commands] registered', COMMANDS.length);
     } catch (err) {
       console.error('[commands]', err.message);
@@ -1010,6 +1012,10 @@ client.once(Events.ClientReady, async () => {
   setInterval(() => updateStats().catch(console.error), 5 * 60 * 1000);
   await orderSweep();
   setInterval(() => orderSweep().catch(console.error), 5 * 60 * 1000);
+});
+
+client.on(Events.MessageCreate, async (m) => {
+  try { await community.onMessage(m, { config, state, save }); } catch {}
 });
 
 client.on(Events.GuildMemberAdd, async (member) => {
@@ -1022,7 +1028,11 @@ client.on(Events.GuildMemberAdd, async (member) => {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
-    if (interaction.isChatInputCommand()) return await handleCommand(interaction);
+    if (interaction.isChatInputCommand()) {
+      if (community.handles.has(interaction.commandName))
+        return await community.handle(interaction, { config, state, save });
+      return await handleCommand(interaction);
+    }
 
     if (interaction.isButton()) {
       const [scope, action] = interaction.customId.split(':');

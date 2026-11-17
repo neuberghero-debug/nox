@@ -4,12 +4,14 @@
   "compatibilityLevel": "JAVA_25",
   "client": [
     "ScreenMixin",
+    "GuiSetScreenMixin",
     "TitleScreenMixin",
     "LoadingOverlayMixin",
     "ButtonMixin",
     "VelocityMixin",
     "BlinkMixin",
     "AttackMixin",
+    "StatsHooksMixin",
     "CapeMixin",
     "MovePacketMixin",
     "PayloadSpoofMixin",
@@ -19,6 +21,9 @@
     "CameraFovMixin",
     "GameModeAccessor",
     "GuiRendererMixin",
+    "JoinMultiplayerMixin",
+    "PresentMixin",
+    "SkyRendererMixin",
     "AvatarRendererMixin",
     "AnimationStateMixin",
     "AnimationExtractMixin",
@@ -30,7 +35,17 @@
     "WolfAnimationMixin",
     "FirstPersonAnimationMixin",
     "CameraMotionMixin",
-    "LivingEntityRendererAccessor"
+    "LivingEntityRendererAccessor",
+    "ConnectionMixin",
+    "StreamerMixin",
+    "StreamerSkinMixin",
+    "GizmoEmitMixin",
+    "OreSimChunkMixin",
+    "OreSimBlockMixin",
+    "SoundSniffMixin",
+    "ScoreboardMixin",
+    "SelfTagMixin",
+    "BrandMixin"
   ],
   "injectors": {
     "defaultRequire": 1

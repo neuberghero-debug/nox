@@ -12,7 +12,9 @@ public class GhostMode extends Module {
         "Friends", "DeathWaypoint", "DeathRecap", "ArmorNotify", "DurabilityAlert",
         "MobAlert", "AntiBlind", "AntiFire", "NoHurtCam", "NoWeather", "TimeChanger",
         "Hitboxes", "HudWidgets", "CustomSky", "Capes", "Cosmetics",
-        "SpotifyHud", "LyricsHud", "Zoom");
+        "SpotifyHud", "LyricsHud", "Zoom",
+        // passive detectors — send nothing, undetectable, keep watching
+        "SoundFind", "StashLogger", "AntiVanish", "VisualRange", "Tracers");
 
     public GhostMode() { super("GhostMode", "Instant legit profile", Category.MISC); }
 

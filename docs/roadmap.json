@@ -1,0 +1,217 @@
+{
+  "title": "NOX master upgrade",
+  "modules": [
+    {
+      "id": 1,
+      "name": "TikTok Live Bridge",
+      "status": "done",
+      "by": "B"
+    },
+    {
+      "id": 2,
+      "name": "Highlight Reel + Kill-Cam",
+      "status": "done",
+      "by": "B"
+    },
+    {
+      "id": 3,
+      "name": "Viewer Votes",
+      "status": "done",
+      "by": "B"
+    },
+    {
+      "id": 4,
+      "name": "Gift-Combo Chains",
+      "status": "done",
+      "by": "B"
+    },
+    {
+      "id": 5,
+      "name": "Screenshot Coord Finder",
+      "status": "wip",
+      "by": "B",
+      "note": "OCR offen"
+    },
+    {
+      "id": 6,
+      "name": "PvP Coach",
+      "status": "done",
+      "by": "B"
+    },
+    {
+      "id": 7,
+      "name": "Stash Organizer",
+      "status": "done",
+      "by": "A",
+      "note": "StashIndex + /nox stashes"
+    },
+    {
+      "id": 8,
+      "name": "Friend Sync",
+      "status": "done",
+      "by": "A",
+      "note": "FastAPI+JWT, codes, gizmo markers"
+    },
+    {
+      "id": 9,
+      "name": "Skin Changer",
+      "status": "done",
+      "by": "B"
+    },
+    {
+      "id": 10,
+      "name": "Emotes Upgrade",
+      "status": "done",
+      "by": "B"
+    },
+    {
+      "id": 11,
+      "name": "Tamper Warner",
+      "status": "done",
+      "by": "A"
+    },
+    {
+      "id": 12,
+      "name": "Auto Crash Report",
+      "status": "done",
+      "by": "A"
+    },
+    {
+      "id": 13,
+      "name": "Multi-Account Upgrade",
+      "status": "done",
+      "by": "A",
+      "note": "keystore, groups, /nox alt"
+    },
+    {
+      "id": 14,
+      "name": "Design System + Comp Lib",
+      "status": "done",
+      "by": "A"
+    },
+    {
+      "id": 15,
+      "name": "ClickGUI Rebuild",
+      "status": "done",
+      "by": "A"
+    },
+    {
+      "id": 16,
+      "name": "HUD + Toasts + UI Sounds",
+      "status": "done",
+      "by": "A"
+    },
+    {
+      "id": 17,
+      "name": "Themes + Anim + A11y",
+      "status": "wip",
+      "by": "B"
+    },
+    {
+      "id": 18,
+      "name": "License Hardening",
+      "status": "done",
+      "by": "A"
+    },
+    {
+      "id": 19,
+      "name": "Signed Auto-Updates",
+      "status": "done",
+      "by": "A"
+    },
+    {
+      "id": 20,
+      "name": "Telemetry Opt-in",
+      "status": "done",
+      "by": "B"
+    },
+    {
+      "id": 21,
+      "name": "E2E Client Chat",
+      "status": "done",
+      "by": "A",
+      "note": "X25519+ChaCha20"
+    },
+    {
+      "id": 22,
+      "name": "Replay System",
+      "status": "done",
+      "by": "B",
+      "note": "Playback offen"
+    },
+    {
+      "id": 23,
+      "name": "Cosmetics Workshop",
+      "status": "done",
+      "by": "A"
+    },
+    {
+      "id": 24,
+      "name": "Config Migration",
+      "status": "done",
+      "by": "A"
+    },
+    {
+      "id": 25,
+      "name": "GUI Restyle (all screens)",
+      "status": "wip",
+      "by": "B"
+    },
+    {
+      "id": 26,
+      "name": "Client Stats",
+      "status": "done",
+      "by": "B"
+    },
+    {
+      "id": 27,
+      "name": "Analytics Dashboard",
+      "status": "done",
+      "by": "A",
+      "note": "/admin/analytics + /admin/dashboard"
+    },
+    {
+      "id": 28,
+      "name": "Discord Roadmap Sync",
+      "status": "done",
+      "by": "A"
+    },
+    {
+      "id": 29,
+      "name": "Security Audit",
+      "status": "done",
+      "by": "B"
+    },
+    {
+      "id": "30.1",
+      "name": "Native Core (Rust JNI)",
+      "status": "done",
+      "by": "A"
+    },
+    {
+      "id": "30.2",
+      "name": "Distributed Checks",
+      "status": "done",
+      "by": "B"
+    },
+    {
+      "id": "30.3-30.5",
+      "name": "Canary+Watermark+Heartbeat",
+      "status": "done",
+      "by": "A"
+    },
+    {
+      "id": "30.6+",
+      "name": "Anti-Crack Rest",
+      "status": "done",
+      "by": "A",
+      "note": "FailSafe+VmGuard+CrashLoop+ConfigSig"
+    },
+    {
+      "id": "docs",
+      "name": "Endreport docs/ (14 files)",
+      "status": "done",
+      "by": "A"
+    }
+  ]
+}
