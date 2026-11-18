@@ -6,21 +6,21 @@ Writes into the flatpak OBS config:
   ~/.var/app/com.obsproject.Studio/config/obs-studio/basic/profiles/NOX-TikTok/{basic.ini,service.json,streamEncoder.json}
 
 Canvas 1080x1920 (TikTok vertical). Sources:
-  NOX-Overlay      browser_source  http://127.0.0.1:8892/?layout=split  (topmost)
-  SCREEN — eDP-1   ONE pipewire screen capture of the panel, shown TWICE:
-                   cropped to the dev-terminal rect and to the Minecraft rect
-                   (KWin rules in ~/.config/kwinrulesrc dock the windows into
-                   those rects — MC/dev relaunches re-dock automatically,
-                   the capture itself never goes stale)
-  BG               color source
+  NOX-Overlay   browser_source  http://127.0.0.1:8892/?layout=split  (topmost)
+  STREAM        ONE pipewire window capture of the nested stream screen —
+                the "KDE-Wayland-Compositor" window created by
+                tools/stream/nested_screen.sh (a private 1080x1920 KWin
+                compositor: dev terminal in the DEV zone, Minecraft in the
+                GAME zone, docked by nested-only window rules).
+                The capture NEVER goes stale: MC/terminal relaunches happen
+                inside the same compositor window.
+  BG            color source
   Desktop+Mic audio (default devices)
 
-The portal picker appears ONCE for the screen source (check "restore in
-future sessions"); the token is stored in this file afterwards — this
-script preserves an existing RestoreToken on regeneration.
-
-Zone rects MUST stay in sync with tools/stream/overlay/index.html :root
-and the dock rects with tools/stream/apply_kwin_rules.py.
+The portal picker appears ONCE — pick the "KDE-Wayland-Compositor WL-0"
+window (check "restore in future sessions"); the token is stored in this
+file afterwards — this script preserves an existing RestoreToken on
+regeneration.
 """
 import json
 import uuid
@@ -37,33 +37,11 @@ OVERLAY_URL = (
 )
 
 W, H = 1080, 1920
-
-# screen: eDP-1 native 2256x1504, logical 1672x1115 @ 1.35
-# logical dock rects (x, y, w, h) — mirrored in apply_kwin_rules.py
-SCALE = 1.35
-DEV_RECT = (0, 32, 1672, 597)    # below the 30px top panel
-GAME_RECT = (0, 629, 1672, 455)  # above the autohide bottom dock
-SCREEN_W, SCREEN_H = 2256, 1504
-
-# canvas zones (x, y, w, h) — overlay holes, see index.html
-ZONES = {
-    "DEV": (12, 118, 1056, 574),
-    "GAME": (12, 710, 1056, 464),
-}
-
-SCREEN_SRC = "SCREEN — eDP-1"
+SCREEN_SRC = "STREAM — Nested Screen"
 
 
 def uid():
     return str(uuid.uuid4())
-
-
-def crop(rect):
-    """Logical rect -> native-pixel crop_* values for a scene item."""
-    x, y, w, h = rect
-    nx, ny = round(x * SCALE), round(y * SCALE)
-    nw, nh = min(round(w * SCALE), SCREEN_W - nx), min(round(h * SCALE), SCREEN_H - ny)
-    return (nx, ny, max(0, SCREEN_W - nx - nw), max(0, SCREEN_H - ny - nh))
 
 
 def src(name, sid, settings, mixers=0):
@@ -77,14 +55,13 @@ def src(name, sid, settings, mixers=0):
     }
 
 
-def item(source, iid, x, y, w=None, h=None, crop_vals=(0, 0, 0, 0)):
+def item(source, iid, x, y, w=None, h=None):
     it = {
         "name": source["name"], "source_uuid": source["uuid"], "visible": True,
         "locked": False, "rot": 0.0,
         "scale_ref": {"x": float(W), "y": float(H)}, "align": 5,
         "bounds_type": 0, "bounds_align": 0, "bounds_crop": False,
-        "crop_left": crop_vals[0], "crop_top": crop_vals[1],
-        "crop_right": crop_vals[2], "crop_bottom": crop_vals[3],
+        "crop_left": 0, "crop_top": 0, "crop_right": 0, "crop_bottom": 0,
         "id": iid, "group_item_backup": False,
         "pos": {"x": float(x), "y": float(y)},
         "pos_rel": {"x": -1.0, "y": -1.0},
@@ -94,10 +71,10 @@ def item(source, iid, x, y, w=None, h=None, crop_vals=(0, 0, 0, 0)):
         "show_transition": {"duration": 300}, "hide_transition": {"duration": 300},
         "private_settings": {},
     }
-    if w is not None:      # fit-to-zone: scale-into-bounds keeps aspect
+    if w is not None:      # fit-into-bounds, keeps aspect
         it["bounds_type"] = 2            # OBS_BOUNDS_SCALE_INNER
         it["bounds"] = {"x": float(w), "y": float(h)}
-        it["bounds_align"] = 5           # top-left within the zone
+        it["bounds_align"] = 5           # top-left
     return it
 
 
@@ -115,9 +92,12 @@ def existing_token():
     try:
         d = json.loads(f.read_text())
         for s in d.get("sources", []):
-            if s.get("name") == SCREEN_SRC:
-                st = s.get("settings", {})
-                return st.get("restore_token") or st.get("RestoreToken") or ""
+            if s.get("name") != SCREEN_SRC:   # only reuse the nested-window token
+                continue
+            st = s.get("settings", {})
+            t = st.get("restore_token") or st.get("RestoreToken")
+            if t:
+                return t
     except Exception:
         pass
     return ""
@@ -132,7 +112,7 @@ def main(user="jbbbbbrk"):
         "shutdown": False, "css": "body { background: transparent; }",
     })
     screen = src(SCREEN_SRC, "pipewire-screen-capture-source", {
-        "method": "screen", "capture_cursor": False, "show_cursor": False,
+        "method": "window", "capture_cursor": False, "show_cursor": False,
         "priority": 0, "restore_token": token, "RestoreToken": token,
     })
     bg = src("BG", "color_source_v3", {"color": 4279637264, "width": W, "height": H})
@@ -141,10 +121,9 @@ def main(user="jbbbbbrk"):
     mic = audio("Mikrofon-/AUX-Audio", "pulse_input_capture", {"device_id": "default"})
 
     items = [
-        item(bg, 4, 0, 0),                                                # bottom
-        item(screen, 2, *ZONES["DEV"][:2], *ZONES["DEV"][2:], crop(DEV_RECT)),
-        item(screen, 3, *ZONES["GAME"][:2], *ZONES["GAME"][2:], crop(GAME_RECT)),
-        item(browser, 1, 0, 0),                                           # top: overlay
+        item(bg, 4, 0, 0),                              # bottom
+        item(screen, 2, 0, 0, W, H),                    # nested stream screen, full canvas
+        item(browser, 1, 0, 0),                         # top: overlay
     ]
 
     scene = src("Dev Stream", "scene", {"id_counter": 10, "custom_size": False,
@@ -249,10 +228,9 @@ EnableMultitrackVideo=false
         }))
     (prof / "streamEncoder.json").write_text("{}\n")
     print(f"[profile] {prof}  (basic.ini + service.json)")
-    print('\n1× klikni „Laptop-Bildschirm teilen" v portal dialogu (jednou provždy —')
-    print("   restore token se pak obnovuje bez dialogu).")
-    print("MC/dev-okna dokují KWin pravidla z apply_kwin_rules.py — relaunch se")
-    print("zachytí automaticky, bez dalšího výběru.")
+    print('\n1× im Portal-Dialog das Fenster „KDE-Wayland-Compositor WL-0" wählen')
+    print('   (Haken „Wiederherstellung" an) — danach nie wieder; MC-Relaunches')
+    print('   bleiben automatisch im Capture.')
     print("Stream-Key: Settings→Stream — kommt aus livecenter.tiktok.com/producer")
 
 

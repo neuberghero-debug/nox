@@ -1,0 +1,33 @@
+[General]
+count=2
+rules=dev,mc
+
+[dev]
+Description=NOX dev terminal -> DEV zone
+title=noxdev
+titlematch=2
+position=13,111
+positionrule=2
+size=1054,590
+sizerule=2
+noborder=true
+noborderrule=2
+skiptaskbar=true
+skiptaskbarrule=2
+skippager=true
+skippagerrule=2
+
+[mc]
+Description=NOX minecraft -> GAME zone
+title=Minecraft
+titlematch=2
+position=13,703
+positionrule=2
+size=1054,478
+sizerule=2
+noborder=true
+noborderrule=2
+skiptaskbar=true
+skiptaskbarrule=2
+skippager=true
+skippagerrule=2

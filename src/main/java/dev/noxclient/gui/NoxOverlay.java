@@ -575,13 +575,10 @@ public class NoxOverlay implements HudElement {
         var m = NoxClient.INSTANCE.modules.get("StatsHud");
         if (!(m instanceof dev.noxclient.module.render.StatsHud sh2) || !sh2.isEnabled()) return;
         dev.noxclient.gui.comp.Charts.tickSample();   // keep rings fed while HUD is up
-        var t = dev.noxclient.gui.theme.Theme.current();
-        var sv = dev.noxclient.stats.Stats.sessionView();
-        int gap = (int) (double) sh2.spacing.get();
-        int pad = 7;
+        final float S = hs;                            // NVG draws in real GUI units
+        final float alpha = (float) (sh2.opacity.get().doubleValue() / 100.0); // setting is 0-100
 
         if (sh2.compact.on()) {
-            // one-line: "2.4/m · kd 1.80 · 3.2m/h"
             var parts = new java.util.ArrayList<String>();
             float[] kpm = dev.noxclient.gui.comp.Charts.kpmSeries();
             if (sh2.kpm.on()) parts.add(String.format("%.1f/m", kpm.length > 0 ? kpm[kpm.length - 1] : 0));
@@ -591,77 +588,189 @@ public class NoxOverlay implements HudElement {
                 mph.length > 0 ? mph[mph.length - 1] : 0) + "/h");
             if (parts.isEmpty()) return;
             String line = String.join("  ·  ", parts);
-            int pw = Gui.width(mc.font, line) + pad * 2 + 8, ph = 16;
+            int pw = Gui.width(mc.font, line) + 22, ph = 15;
             float[] tp = HudLayout.get("stats");
             int x = tp != null ? Math.clamp((int) (tp[0] * w), 2, Math.max(2, w - pw - 2)) : 6;
             int y = tp != null ? Math.clamp((int) (tp[1] * h), 2, Math.max(2, h - ph - 2))
                 : (int) (h * 0.45);
             rep("stats", x, y, pw, ph);
-            int bg = ((int) (sh2.opacity.get().doubleValue() * 2.55) << 24) | 0x10141C;
-            Gui.round(g, x, y, pw, ph, 7, bg);
-            if (sh2.edge.on()) Gui.round(g, x, y, 2, ph, 3, t.accent() | 0xFF000000);
-            Gui.text(g, mc.font, line, x + pad + 4, y + 4, t.text());
+            boolean edge = sh2.edge.on();
+            dev.noxclient.gui.nvg.NvgOverlay.op((c, st) -> {
+                float X = x * S, Y = y * S, PW = pw * S, PH = ph * S;
+                dev.noxclient.gui.nvg.Nvg.vgrad(c, st, X, Y, PW, PH, 8 * S,
+                    withA(dev.noxclient.gui.ds.DS.surfaceAlt(), alpha),
+                    withA(dev.noxclient.gui.ds.DS.surface(), alpha));
+                dev.noxclient.gui.nvg.Nvg.roundB(c, st, X, Y, PW, PH, 8 * S, 0x00FFFFFF,
+                    dev.noxclient.gui.ds.DS.line());
+                if (edge) dev.noxclient.gui.nvg.Nvg.round(c, st, X, Y + 3 * S, 2 * S, PH - 6 * S,
+                    1 * S, dev.noxclient.gui.ds.DS.accent());
+                dev.noxclient.gui.nvg.Nvg.text(c, st, "inter_sb", 9.5f * S, X + 9 * S, Y + PH / 2,
+                    line, dev.noxclient.gui.ds.DS.text(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+            });
             return;
         }
 
-        // expanded: header + per-widget sections
-        int pw = 118;
-        int ph = pad * 2;
-        if (sh2.header.on()) ph += 13;
-        if (sh2.kpm.on()) ph += 9 + 24 + gap;
-        if (sh2.kd.on()) ph += 9 + 38 + gap;
-        if (sh2.mph.on()) ph += 9 + 20 + gap;
+        // expanded card — measure with unscaled logical units, scale inside the op
+        int pw = 148;
+        int ph = 22;                                     // header row
+        if (sh2.kpm.on()) ph += 34;
+        if (sh2.kd.on()) ph += 40;
+        if (sh2.mph.on()) ph += 30;
+        int gap = (int) (double) sh2.spacing.get();
+        ph += gap;
+        if (!sh2.header.on()) ph -= 8;
         if (!sh2.kpm.on() && !sh2.kd.on() && !sh2.mph.on()) return;
-        ph -= gap;
         float[] tp = HudLayout.get("stats");
         int x = tp != null ? Math.clamp((int) (tp[0] * w), 2, Math.max(2, w - pw - 2)) : 6;
         int y = tp != null ? Math.clamp((int) (tp[1] * h), 2, Math.max(2, h - ph - 2))
             : (int) (h * 0.40);
         rep("stats", x, y, pw, ph);
 
-        int a8 = (int) (sh2.opacity.get().doubleValue() * 2.55);
-        Gui.shadow(g, x, y, pw, ph, 8);
-        Gui.round(g, x, y, pw, ph, 8, (a8 << 24) | 0x10141C);
-        if (sh2.edge.on()) Gui.round(g, x, y, 2, ph, 4, t.accent() | 0xFF000000);
-        Gui.roundBorder(g, x, y, pw, ph, 8, t.accent() & 0x33FFFFFF, 0);
+        var sv = dev.noxclient.stats.Stats.sessionView();
+        float[] kpmS = dev.noxclient.gui.comp.Charts.kpmSeries();
+        float[] mphS = dev.noxclient.gui.comp.Charts.mphSeries();
+        double kdV = dev.noxclient.gui.comp.Charts.kd();
+        String kills = sv.getOrDefault("Kills", "0"), deaths = sv.getOrDefault("Deaths", "0");
+        String tm = String.format("%d:%02d",
+            (System.currentTimeMillis() - sessionStart) / 60000,
+            ((System.currentTimeMillis() - sessionStart) / 1000) % 60);
+        boolean hdr = sh2.header.on(), kpmOn = sh2.kpm.on(), kdOn = sh2.kd.on(),
+            mphOn = sh2.mph.on(), edge = sh2.edge.on();
+        final int fph = ph, fgap = gap;
 
-        int ry = y + pad;
-        if (sh2.header.on()) {
-            Gui.textBold(g, mc.font, "STATS", x + pad + 2, ry, t.accent() | 0xFF000000);
-            String tm = String.format("%d:%02d",
-                (System.currentTimeMillis() - sessionStart) / 60000,
-                ((System.currentTimeMillis() - sessionStart) / 1000) % 60);
-            Gui.text(g, mc.font, tm, x + pw - pad - Gui.width(mc.font, tm), ry, 0xFF8A8A9E);
-            ry += 13;
+        dev.noxclient.gui.nvg.NvgOverlay.op((c, st) -> {
+            float X = x * S, Y = y * S, PW = pw * S, PH = fph * S, PAD = 10 * S, GAP = fgap * S;
+            // obsidian card
+            dev.noxclient.gui.nvg.Nvg.shadow(c, st, X, Y, PW, PH, 10 * S, 7 * S, 0x55000000);
+            dev.noxclient.gui.nvg.Nvg.vgrad(c, st, X, Y, PW, PH, 10 * S,
+                withA(dev.noxclient.gui.ds.DS.surfaceAlt(), alpha),
+                withA(dev.noxclient.gui.ds.DS.surface(), alpha));
+            dev.noxclient.gui.nvg.Nvg.roundB(c, st, X, Y, PW, PH, 10 * S, 0x00FFFFFF,
+                dev.noxclient.gui.ds.DS.line());
+            dev.noxclient.gui.nvg.Nvg.insetHi(c, st, X + 2 * S, Y, PW - 4 * S, 8 * S, 0x0EFFFFFF);
+            if (edge) dev.noxclient.gui.nvg.Nvg.round(c, st, X, Y + 4 * S, 2 * S, PH - 8 * S,
+                1 * S, dev.noxclient.gui.ds.DS.accent());
+
+            float ry = Y + PAD;
+            if (hdr) {
+                dev.noxclient.gui.nvg.Nvg.textL(c, st, "inter_b", 8f * S, X + PAD, ry,
+                    "SESSION", dev.noxclient.gui.ds.DS.cardAccent(), 1.6f * S,
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+                dev.noxclient.gui.nvg.Nvg.text(c, st, "mono", 8.5f * S, X + PW - PAD, ry,
+                    tm, dev.noxclient.gui.ds.DS.muted(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_RIGHT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+                ry += 14 * S;
+            }
+
+            // kills/min — label + value row, sparkline beneath
+            if (kpmOn) {
+                dev.noxclient.gui.nvg.Nvg.text(c, st, "inter", 8.5f * S, X + PAD, ry,
+                    "KILLS / MIN", dev.noxclient.gui.ds.DS.muted(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+                float latest = kpmS.length > 0 ? kpmS[kpmS.length - 1] : 0;
+                dev.noxclient.gui.nvg.Nvg.text(c, st, "mono", 10.5f * S, X + PW - PAD, ry - 1 * S,
+                    String.format(java.util.Locale.US, "%.1f", latest),
+                    dev.noxclient.gui.ds.DS.text(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_RIGHT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+                ry += 11 * S;
+                sparklineH(c, st, X + PAD, ry, PW - PAD * 2, 20 * S, kpmS, S);
+                ry += 23 * S + GAP;
+            }
+
+            // k/d — gauge left, value + kills/deaths right
+            if (kdOn) {
+                dev.noxclient.gui.nvg.Nvg.text(c, st, "inter", 8.5f * S, X + PAD, ry,
+                    "K / D", dev.noxclient.gui.ds.DS.muted(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+                ry += 11 * S;
+                float gcx = X + PAD + 14 * S, gcy = ry + 14 * S, gr = 12.5f * S;
+                float pct = (float) Math.min(1, kdV / 4.0);
+                dev.noxclient.gui.nvg.Nvg.arc(c, st, gcx, gcy, gr, 4.5f * S, 135, 405,
+                    dev.noxclient.gui.ds.DS.surface());
+                if (pct > 0.002f)
+                    dev.noxclient.gui.nvg.Nvg.arc(c, st, gcx, gcy, gr, 4.5f * S, 135,
+                        135 + pct * 270, dev.noxclient.gui.ds.DS.accent());
+                dev.noxclient.gui.nvg.Nvg.text(c, st, "mono", 8f * S, gcx, gcy,
+                    String.format(java.util.Locale.US, "%.2f", kdV),
+                    dev.noxclient.gui.ds.DS.text(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+                float tx = X + PAD + 32 * S;
+                dev.noxclient.gui.nvg.Nvg.text(c, st, "inter", 9f * S, tx, ry + 5 * S,
+                    "kills", dev.noxclient.gui.ds.DS.muted(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+                dev.noxclient.gui.nvg.Nvg.text(c, st, "mono", 9.5f * S, tx + 34 * S, ry + 5 * S,
+                    kills, dev.noxclient.gui.ds.DS.text(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+                dev.noxclient.gui.nvg.Nvg.text(c, st, "inter", 9f * S, tx, ry + 17 * S,
+                    "deaths", dev.noxclient.gui.ds.DS.muted(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+                dev.noxclient.gui.nvg.Nvg.text(c, st, "mono", 9.5f * S, tx + 34 * S, ry + 17 * S,
+                    deaths, dev.noxclient.gui.ds.DS.text(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+                ry += 29 * S + GAP;
+            }
+
+            // money/h — label + value row, bars beneath
+            if (mphOn) {
+                dev.noxclient.gui.nvg.Nvg.text(c, st, "inter", 8.5f * S, X + PAD, ry,
+                    "MONEY / HOUR", dev.noxclient.gui.ds.DS.muted(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+                float latest = mphS.length > 0 ? mphS[mphS.length - 1] : 0;
+                dev.noxclient.gui.nvg.Nvg.text(c, st, "mono", 10.5f * S, X + PW - PAD, ry - 1 * S,
+                    dev.noxclient.gui.comp.Charts.kfmt(latest),
+                    dev.noxclient.gui.ds.DS.text(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_RIGHT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+                ry += 11 * S;
+                barsH(c, st, X + PAD, ry, PW - PAD * 2, 15 * S, mphS, S);
+            }
+        });
+    }
+
+    /** DS argb with caller opacity applied to the alpha byte. */
+    private static int withA(int argb, float mul) {
+        int a = (int) (((argb >>> 24) & 0xFF) * mul);
+        return (a << 24) | (argb & 0xFFFFFF);
+    }
+
+    /** NVG sparkline — smooth polyline + area fade + live tip (HUD scale aware). */
+    private static void sparklineH(long c, org.lwjgl.system.MemoryStack st, float x, float y,
+                                   float w, float h, float[] v, float S) {
+        float max = 1;
+        for (float a : v) if (a > max) max = a;
+        for (int i = 0; i <= 2; i++) {
+            float gy = y + h - 1 - i * (h - 1) / 2;
+            dev.noxclient.gui.nvg.Nvg.rect(c, st, x, gy, w, 1,
+                dev.noxclient.gui.nvg.Nvg.fade(dev.noxclient.gui.ds.DS.border(), 0.4f));
         }
-        if (sh2.kpm.on()) {
-            Gui.text(g, mc.font, "kills/min", x + pad + 2, ry, 0xFF8A8A9E); ry += 10;
-            dev.noxclient.gui.comp.Charts.sparkline(g, mc.font, x + pad, ry,
-                pw - pad * 2 - 22, 20, dev.noxclient.gui.comp.Charts.kpmSeries(),
-                t.accent() | 0xFF000000);
-            ry += 24 + gap;
+        if (v.length < 2) return;
+        float[] pts = new float[v.length * 2];
+        float sx = w / (v.length - 1);
+        for (int i = 0; i < v.length; i++) {
+            pts[i * 2] = x + i * sx;
+            pts[i * 2 + 1] = y + h - 2 - v[i] / max * (h - 5 * S);
         }
-        if (sh2.kd.on()) {
-            Gui.text(g, mc.font, "k/d", x + pad + 2, ry, 0xFF8A8A9E); ry += 10;
-            double kd = dev.noxclient.gui.comp.Charts.kd();
-            float pct = (float) Math.min(1, kd / 4.0);
-            int gcx = x + 26, gcy = ry + 14, gr = 13;
-            dev.noxclient.gui.comp.Charts.gauge(g, gcx, gcy, gr, pct,
-                0xFF4ADE80, 0xFF1A1E28);
-            Gui.mono(g, mc.font, String.format(java.util.Locale.US, "%.2f", kd),
-                gcx - 9, gcy - 3, 0xFFF0F0FF);
-            Gui.text(g, mc.font, "kills  " + sv.getOrDefault("Kills", "0"),
-                x + 50, ry + 4, 0xFFB8B8CC);
-            Gui.text(g, mc.font, "deaths " + sv.getOrDefault("Deaths", "0"),
-                x + 50, ry + 15, 0xFFB8B8CC);
-            Gui.text(g, mc.font, "of 4.0 max", x + 50, ry + 26, 0xFF5A5A6E);
-            ry += 38 + gap;
-        }
-        if (sh2.mph.on()) {
-            Gui.text(g, mc.font, "money/hour", x + pad + 2, ry, 0xFF8A8A9E); ry += 10;
-            dev.noxclient.gui.comp.Charts.bars(g, mc.font, x + pad, ry,
-                pw - pad * 2, 16, dev.noxclient.gui.comp.Charts.mphSeries(),
-                t.accent() | 0xFF000000);
+        dev.noxclient.gui.nvg.Nvg.area(c, st, pts, y + h - 1, y,
+            dev.noxclient.gui.ds.DS.accent() & 0xFFFFFF, 0.20f);
+        dev.noxclient.gui.nvg.Nvg.poly(c, st, pts, 1.4f * S, dev.noxclient.gui.ds.DS.accent());
+        dev.noxclient.gui.nvg.Nvg.circle(c, st, pts[pts.length - 2], pts[pts.length - 1],
+            1.8f * S, dev.noxclient.gui.ds.DS.accent());
+    }
+
+    /** NVG bar chart — rounded bars, newest brightest. */
+    private static void barsH(long c, org.lwjgl.system.MemoryStack st, float x, float y,
+                              float w, float h, float[] v, float S) {
+        float max = 1;
+        for (float a : v) if (a > max) max = a;
+        dev.noxclient.gui.nvg.Nvg.rect(c, st, x, y + h - 1, w, 1,
+            dev.noxclient.gui.ds.DS.border());
+        int n = v.length;
+        float bw = Math.max(3 * S, (w - (n - 1) * 3 * S) / n);
+        for (int i = 0; i < n; i++) {
+            float bh = Math.max(2 * S, v[i] / max * (h - 3 * S));
+            dev.noxclient.gui.nvg.Nvg.round(c, st, x + i * (bw + 3 * S), y + h - 1 - bh, bw, bh,
+                1.5f * S, i == n - 1 ? dev.noxclient.gui.ds.DS.accent()
+                    : dev.noxclient.gui.nvg.Nvg.fade(dev.noxclient.gui.ds.DS.accent(), 0.45f));
         }
     }
 

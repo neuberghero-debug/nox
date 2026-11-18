@@ -19,4 +19,9 @@ done
 # belt & braces — match by cmdline in case the pidfiles went stale
 pkill -f "tiktok_sidecar.py" 2>/dev/null && [ "$QUIET" != "quiet" ] && echo "sidecar killed (cmdline)" || true
 pkill -f "http.server 8892" 2>/dev/null || true
+
+# nested stream screen (private KWin window on desktop "STREAM")
+if [ "${NOX_KEEP_NESTED:-0}" != "1" ]; then
+  bash tools/stream/nested_screen.sh stop 2>/dev/null || true
+fi
 [ "$QUIET" = "quiet" ] || echo "stream env stopped."

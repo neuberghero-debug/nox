@@ -46,19 +46,30 @@ echo "== overlay  pid $(cat "$RUN/overlay.pid")  →  http://127.0.0.1:$OVERLAY_
 # ---- 5. profile files ----------------------------------------------------
 python3 tools/stream/apply_preset.py --profile "$PROFILE" --user "$STREAM_USER" --discord "$DISCORD"
 
-# ---- 6. obs scene collection + profile (manual: tools/stream/make_scene.py)
+# ---- 6. nested stream screen (private 1080x1920 KWin window) ---------------
+echo "== nested stream screen =="
+bash tools/stream/nested_screen.sh start
+bash tools/stream/nested_screen.sh apps
+
+# ---- 7. Minecraft inside the nested screen --------------------------------
+if [ "${NOX_SKIP_MC:-0}" != "1" ]; then
+    echo "== minecraft (nested, auto-docked to GAME zone) =="
+    bash -c "set -a; . /tmp/nox-nested/env; set +a;
+        nohup bash '$ROOT/tools/relaunch.sh' join > '$RUN/mc-launch.log' 2>&1 &"
+fi
+
+# ---- 8. obs scene collection + profile (manual: tools/stream/make_scene.py)
 # python3 tools/stream/make_scene.py "$STREAM_USER" >/dev/null \
 #   && echo "== obs scene NOX-TikTok + profile regenerated"
-
-# ---- 7. (optional) window docking off — see tools/stream/apply_kwin_rules.py
 
 cat <<EOF
 
 == OBS checklist ==
   Profile/Collection NOX-TikTok aktiv (global.ini). Szene "Dev Stream":
-    SCREEN — eDP-1 → 1× „Laptop-Bildschirm teilen" im Portal-Dialog
-    (Häkchen „Wiederherstellung" an → danach nie wieder).
-    MC + noxdev-Okna dokují KWin-Regeln automaticky — relaunch = zachyceno.
+    STREAM — Nested Screen → 1× Fenster „KDE-Wayland-Compositor WL-0" im
+    Portal-Dialog wählen (Haken „Wiederherstellung" an → danach nie wieder).
+    MC/Terminal laufen im privaten KWin-Fenster (Desktop „STREAM") —
+    Relaunches docken automatisch in die Zonen, Capture bleibt stabil.
   Overlay-URL: http://127.0.0.1:$OVERLAY_PORT/?layout=split&user=$STREAM_USER&task=<task>
   Layout: DEV groß oben · MC mitte · VOTE-Board (fixes/features) · Chat · DC+GitHub
 == Stream-Key (<1000 Follower) ==

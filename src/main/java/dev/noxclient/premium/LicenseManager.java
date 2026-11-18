@@ -61,9 +61,60 @@ public final class LicenseManager {
     private static volatile long lastAttempt = 0; // last validate attempt
     private static volatile boolean validating;
 
-    public static boolean premium() { return premium && !clockRolledBack() && !graceExpired(); }
+    /* ---- anti-patch tripwire: premium is only true while the verified
+     * payload+signature are retained AND the hwid-bound nonce recomputes.
+     * A plain `premium=true` field set (or license file copied off another
+     * PC) leaves nonceOk()=false → every gate stays closed. ---- */
+    private static volatile byte[] sigPayload, sigBlob;
+    private static volatile long nonce;
+    private static volatile long lastReverify;      // lazy native re-verify cooldown
+    private static volatile boolean suspect;
+
+    /** FNV-1a(payload || hwid) ^ golden — binds premium to THIS machine. */
+    private static long nonceOf(byte[] payload, String hwid) {
+        long h = 0xcbf29ce484222325L;
+        for (byte b : payload) { h ^= b & 0xFF; h *= 0x100000001b3L; }
+        byte[] hb = (hwid == null ? "" : hwid).getBytes(StandardCharsets.UTF_8);
+        for (byte b : hb) { h ^= b & 0xFF; h *= 0x100000001b3L; }
+        return (h ^ 0x9E3779B97F4A7C15L) | 1L;        // never 0
+    }
+
+    private static String hwidStr() {
+        try { return dev.noxclient.ncore.NativeCore.hwid(); }
+        catch (Throwable t) { return ""; }
+    }
+
+    /** True only while premium state is backed by a real verified license. */
+    private static boolean nonceOk() {
+        return premium && sigPayload != null && nonce != 0
+            && nonce == nonceOf(sigPayload, hwidStr());
+    }
+
+    /** Lazy native re-verify (10 min cooldown) — a forged payload dies here. */
+    private static boolean reverified() {
+        long now = System.currentTimeMillis();
+        if (now - lastReverify < 600_000) return true;
+        lastReverify = now;
+        try {
+            return sigBlob != null && verify(sigPayload, sigBlob);
+        } catch (Throwable t) { return false; }
+    }
+
+    /** Tamper signal for FailSafe — someone forced premium without a license. */
+    public static boolean suspect() { return suspect; }
+
+    public static boolean premium() {
+        boolean ok = premium && !clockRolledBack() && !graceExpired();
+        if (ok && !nonceOk()) { suspect = true; return false; }
+        return ok;
+    }
+
     /** Gate used at every premium feature site (module toggle, cosmetics, replay, config, shop). */
-    public static boolean assertPremium() { return premium(); }
+    public static boolean assertPremium() {
+        boolean ok = premium();
+        if (ok && !reverified()) { premium = false; suspect = true; return false; }
+        return ok;
+    }
     /** One-time custom-cape upload entitlement (tier "cape", no expiry). */
     public static boolean capeUnlocked() { return premium() || capeUnlocked; }
     public static String licenseId() { return licenseId; }
@@ -211,6 +262,9 @@ public final class LicenseManager {
             if (System.currentTimeMillis() > exp) return Result.EXPIRED;
             licenseId = o.has("lid") ? o.get("lid").getAsString() : "";
             expires = exp;
+            // retain verified bytes + hwid nonce → premium() stays unforgable
+            sigPayload = payload; sigBlob = sig;
+            nonce = nonceOf(payload, hwidStr());
             return Result.OK;
         } catch (Exception e) { return Result.BAD_FORMAT; }
     }
@@ -254,6 +308,7 @@ public final class LicenseManager {
             Files.deleteIfExists(keyFile());
         } catch (Exception ignored) {}
         premium = false; licenseId = ""; expires = 0; lastValid = 0;
+        sigPayload = null; sigBlob = null; nonce = 0;
         saveState();
     }
     /** Days left on the active license, 0 when none/expired. */

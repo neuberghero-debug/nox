@@ -20,6 +20,7 @@
     "ChatMixin",
     "CameraFovMixin",
     "GameModeAccessor",
+    "GameRendererMixin",
     "GuiRendererMixin",
     "JoinMultiplayerMixin",
     "PresentMixin",

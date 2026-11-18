@@ -67,20 +67,22 @@ public final class MenuSky {
     private static float time;
     private static long lastNanos;
 
-    /** Menu palette — the signature NOX gargantua look. */
-    private static final int[] PALETTE = {0x7A2BE2, 0x5AC8FF, 0x9B4DFF, 0x05050E, 0x141428};
+    /** Menu palette — steel-blue gargantua (inner heat → cool outer disk). */
+    private static final int[] PALETTE = {0x3E5F8F, 0x9FB8E8, 0x6E86B8, 0x04060C, 0x101828};
 
     /**
-     * Renders this frame's sky + queues the fullscreen blit. Returns false when
-     * the pipeline/device is unavailable → caller falls back to legacy skies.
+     * Renders this frame's sky into the offscreen texture — called at
+     * GameRenderer.extract HEAD (before ANY gui commands/glyph uploads record
+     * this frame). Submitting mid-extract raced vanilla texture uploads and
+     * corrupted font atlas pages, so the pass runs at the frame boundary.
      */
-    public static boolean render(GuiGraphicsExtractor g, int w, int h) {
-        if (RenderSystem.getDevice() == null) return false;
+    public static void submitPass(int w, int h) {
+        if (RenderSystem.getDevice() == null) return;
         var compiled = RenderSystem.getCompiledPipelineNullable(PIPELINE);
-        if (compiled == null) return false;
+        if (compiled == null) return;
         ensureBuffers();
-        if (tri == null || uniforms == null) return false;
-        if (!ensureTexture(w, h)) return false;
+        if (tri == null || uniforms == null) return;
+        if (!ensureTexture(w, h)) return;
 
         // advance time
         long now = System.nanoTime();
@@ -94,6 +96,11 @@ public final class MenuSky {
             texView, Optional.of(new Vector4f(0f, 0f, 0f, 1f)), null, OptionalDouble.empty())) {
             pass.pushDebugGroup(() -> "nox menu sky");
             pass.setPipeline(compiled);
+            // bind every program uniform — setPipeline dirties ALL slots and
+            // unset ones NPE in setupDraw (no-ops when the program lacks them)
+            RenderSystem.bindDefaultUniforms(pass);
+            pass.setUniform("DynamicTransforms", RenderSystem.getDynamicUniforms()
+                .writeTransform(new Matrix4f(), new Vector4f(1f, 1f, 1f, 1f)));
             pass.setUniform("NoxSky", uniforms.slice());
             pass.setVertexBuffer(0, tri.slice());
             var seq = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
@@ -102,7 +109,11 @@ public final class MenuSky {
             pass.popDebugGroup();
         }
         encoder.submit();
+    }
 
+    /** Queues the fullscreen blit; false → caller falls back to legacy skies. */
+    public static boolean render(GuiGraphicsExtractor g, int w, int h) {
+        if (texView == null) return false;
         g.blit(TEX_ID, 0, 0, w, h, 0f, 1f, 0f, 1f);
         return true;
     }
