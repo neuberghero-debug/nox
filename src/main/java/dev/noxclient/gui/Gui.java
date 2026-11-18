@@ -177,6 +177,15 @@ public final class Gui {
     public static void backdrop(GuiGraphicsExtractor g, int w, int h, float ease) {
         float L = lvl();
         switch (UICustom.backdrop) {
+            case "Sky" -> {
+                // raymarched black hole behind the window — submitted by
+                // GameRendererMixin whenever a screen is open with Sky mode
+                if (!dev.noxclient.render.MenuSky.render(g, w, h))
+                    g.fill(0, 0, w, h, 0xFF05070C);
+                // readability dim — keep the accretion disk visible at edges
+                g.fill(0, 0, w, h, (int) (0x2E * ease) << 24);
+                edgeVignette(g, w, h, (int) (0x58 * L * ease));
+            }
             case "Frost" -> {
                 g.fill(0, 0, w, h, ((int) (0x58 * L * ease)) << 24 | 0x0A1420);
                 int a = (int) (0x24 * L * ease) << 24;

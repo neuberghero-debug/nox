@@ -20,7 +20,9 @@ public abstract class GameRendererMixin {
     @Inject(method = "extract", at = @At("HEAD"))
     private void nox$menuSkyPass(DeltaTracker tracker, boolean running, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.gui.screen() instanceof TitleScreen) {
+        var scr = mc.gui.screen();
+        if (scr instanceof TitleScreen
+            || (scr != null && "Sky".equals(dev.noxclient.gui.UICustom.backdrop))) {
             // physical framebuffer size — gui-scaled res upscales blurry
             dev.noxclient.render.MenuSky.submitPass(
                 mc.getWindow().getWidth(), mc.getWindow().getHeight());

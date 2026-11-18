@@ -547,9 +547,16 @@ public class NoxClickGui extends Screen {
             org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
         titleBtns.add(new float[]{rx - pw, pw, 0});
         rx -= pw + 10;
-        String ac = "AC: " + AntiCheats.display();
+        String acd = AntiCheats.display();
+        String ac = "AC: " + acd;
+        // semantic color: none/vanilla = green, known AC = yellow warn, grim = red
+        int acBg = switch (acd) {
+            case "None", "Vanilla" -> 0xFF34D399;
+            case "Grim", "Polar" -> 0xFFEF4444;
+            default -> 0xFFFBBF24;
+        };
         float aw = Nvg.textW(c, "inter_b", 10.5f, ac) + 14;
-        Nvg.round(c, st, rx - aw, winY + 10, aw, 20, 10, 0xFFFBBF24);
+        Nvg.round(c, st, rx - aw, winY + 10, aw, 20, 10, acBg);
         Nvg.insetHi(c, st, rx - aw + 2, winY + 10, aw - 4, 8, 0x40FFFFFF);
         Nvg.text(c, st, "inter_b", 10.5f, rx - aw / 2, winY + 15, ac, 0xFF1A1A1F,
             org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
@@ -728,7 +735,11 @@ public class NoxClickGui extends Screen {
             Nvg.insetHi(c, st, chx + 1, chy, chip - 2, 7, 0x3AFFFFFF);
             Nvg.glyph(c, st, iconOf(m), chx + chip / 2, chy + chip / 2, 17, 0xFFFFFFFF);
         } else {
-            Nvg.well(c, st, chx, chy, chip, chip, 8, Nvg.fade(DS.surface(), .9f));
+            // readable tile: lifted fill + hairline border so glyphs sit in chips,
+            // not floating loose against the card
+            Nvg.round(c, st, chx, chy, chip, chip, 8, Nvg.fade(DS.lighten(DS.surface(), .045f), .9f));
+            Nvg.roundB(c, st, chx, chy, chip, chip, 8, 0x00FFFFFF,
+                hov ? UICustom.borderHover : DS.line());
             Nvg.glyph(c, st, iconOf(m), chx + chip / 2, chy + chip / 2, 17,
                 hov ? DS.secondary() : DS.muted());
         }

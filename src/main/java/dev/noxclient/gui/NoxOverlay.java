@@ -1,6 +1,8 @@
 package dev.noxclient.gui;
 
 import dev.noxclient.NoxClient;
+import dev.noxclient.gui.ds.DS;
+import dev.noxclient.gui.nvg.NvgOverlay;
 import dev.noxclient.module.donutsmp.AntiESPBypass;
 import dev.noxclient.module.donutsmp.Auction;
 import dev.noxclient.module.donutsmp.StorageESP;
@@ -149,47 +151,89 @@ public class NoxOverlay implements HudElement {
         int infoX = fp != null ? (int) (fp[0] * w) : (rightSide ? w - 6 - rightPad - maxW : 6);
         int y = infoTop;
         String iStyle = hw.infoStyle.get();
+        final float S = hs;
         if (!lines.isEmpty() && !"Lines".equals(iStyle)) {
             // modern grouped card: subtle bg + accent edge (+ per-line pills)
             int cw = maxW + ("Card".equals(iStyle) ? 16 : 10);
             int ch = lines.size() * 11 + ("Card".equals(iStyle) ? 7 : 0);
             int cx = fp != null ? infoX - 6 : (rightSide ? w - 6 - rightPad - cw : 4);
             int cy = fp != null ? infoTop - 4 : infoTop;
-            if ("Card".equals(iStyle)) {
-                Gui.shadow(g, cx, cy, cw, ch, 7);
-                Gui.round(g, cx, cy, cw, ch, 7, 0xA810141C);
-                Gui.round(g, cx, cy, 2, ch, 4, t.accent() | 0xFF000000);
-                y = cy + 4;
-            }
+            boolean card = "Card".equals(iStyle), pills = "Pills".equals(iStyle);
+            if (card) y = cy + 4;
             int ly = y;
+            var tx = new java.util.ArrayList<String>(lines.size());
+            var tcol = new java.util.ArrayList<Integer>(lines.size());
+            var tacc = new java.util.ArrayList<Integer>(lines.size());
+            var ty = new java.util.ArrayList<Float>(lines.size());
             for (var l : lines) {
-                int col = switch (l[1]) {
+                tx.add(l[0]); ty.add((float) ly);
+                tcol.add(switch (l[1]) {
                     case "nether" -> 0xFFB44DFF; case "effect" -> 0xFF8AE0FF;
-                    case "text" -> t.text();
-                    default -> (int) Long.parseLong(l[1], 16);
-                };
-                int lw = Gui.width(mc.font, l[0]);
-                int lx = fp != null ? infoX + 2
-                    : (rightSide ? cx + cw - 8 - lw : cx + 8);
-                if ("Pills".equals(iStyle)) {
-                    Gui.round(g, lx - 4, ly - 1, lw + 8, 10, 5, 0x9010141C);
-                    Gui.round(g, lx - 4, ly - 1, 2, 10, 3,
-                        (l[1].equals("nether") ? 0xFFB44DFF : t.accent()) | 0xFF000000);
-                }
-                Gui.text(g, mc.font, l[0], lx, ly, col);
+                    case "text" -> t.text() | 0xFF000000;
+                    default -> (int) Long.parseLong(l[1], 16) | 0xFF000000;
+                });
+                tacc.add(l[1].equals("nether") ? 0xFFB44DFF : t.accent() | 0xFF000000);
                 ly += 11;
             }
+            final int fcx = cx, fcy = cy, fcw = cw, fch = ch;
+            final int fInfoX = infoX, fRP = rightPad, fW = w;
+            NvgOverlay.op((c2, st) -> {
+                float X = fcx * S, Y = fcy * S, CW = fcw * S, CH = fch * S;
+                if (card) {
+                    dev.noxclient.gui.nvg.Nvg.shadow(c2, st, X, Y, CW, CH, 7f * S,
+                        8f * S, 0x59000000);
+                    dev.noxclient.gui.nvg.Nvg.vgrad(c2, st, X, Y, CW, CH, 7f * S,
+                        withA(DS.surfaceAlt(), 0.92f), withA(DS.surface(), 0.92f));
+                    dev.noxclient.gui.nvg.Nvg.round(c2, st, X, Y, 2f * S, CH, 3f * S,
+                        t.accent() | 0xFF000000);
+                    dev.noxclient.gui.nvg.Nvg.roundB(c2, st, X, Y, CW, CH, 7f * S,
+                        0, DS.line());
+                    dev.noxclient.gui.nvg.Nvg.insetHi(c2, st, X, Y, CW, 7f * S,
+                        0x14FFFFFF);
+                }
+                float fs = 9.5f * S;
+                for (int i = 0; i < tx.size(); i++) {
+                    float lyy = ty.get(i) * S;
+                    float lw = dev.noxclient.gui.nvg.Nvg.textW(c2, "inter", fs, tx.get(i));
+                    float lx = fp != null ? (fInfoX + 2) * S
+                        : (rightSide ? X + CW - 8f * S - lw : X + 8f * S);
+                    if (pills) {
+                        dev.noxclient.gui.nvg.Nvg.round(c2, st, lx - 4f * S, lyy - 1f * S,
+                            lw + 8f * S, 10f * S, 5f * S, withA(DS.surfaceAlt(), 0.85f));
+                        dev.noxclient.gui.nvg.Nvg.round(c2, st, lx - 4f * S, lyy - 1f * S,
+                            2f * S, 10f * S, 3f * S, tacc.get(i));
+                    }
+                    dev.noxclient.gui.nvg.Nvg.text(c2, st, "inter", fs, lx, lyy,
+                        tx.get(i), tcol.get(i));
+                }
+            });
             rep("info", cx, cy, cw, ch);
         } else {
+            int ly2 = y;
+            var tx = new java.util.ArrayList<String>(lines.size());
+            var tcol = new java.util.ArrayList<Integer>(lines.size());
+            var ty = new java.util.ArrayList<Float>(lines.size());
             for (var l : lines) {
-                int col = switch (l[1]) {
+                tx.add(l[0]); ty.add((float) ly2);
+                tcol.add(switch (l[1]) {
                     case "nether" -> 0xFFB44DFF; case "effect" -> 0xFF8AE0FF;
-                    case "text" -> t.text();
-                    default -> (int) Long.parseLong(l[1], 16);
-                };
-                int lx = fp != null ? infoX : (rightSide ? w - 6 - rightPad - Gui.width(mc.font, l[0]) : 6);
-                Gui.text(g, mc.font, l[0], lx, y, col); y += 11;
+                    case "text" -> t.text() | 0xFF000000;
+                    default -> (int) Long.parseLong(l[1], 16) | 0xFF000000;
+                });
+                ly2 += 11;
             }
+            final int fInfoX = infoX, fRP = rightPad, fW = w;
+            NvgOverlay.op((c2, st) -> {
+                float fs = 9.5f * S;
+                for (int i = 0; i < tx.size(); i++) {
+                    float lw = dev.noxclient.gui.nvg.Nvg.textW(c2, "inter", fs, tx.get(i));
+                    float lx = fp != null ? fInfoX * S
+                        : (rightSide ? (fW - 6 - fRP) * S - lw : 6f * S);
+                    dev.noxclient.gui.nvg.Nvg.text(c2, st, "inter", fs, lx, ty.get(i) * S,
+                        tx.get(i), tcol.get(i));
+                }
+            });
+            y = ly2;
             if (!lines.isEmpty()) rep("info", infoX, infoTop, maxW, y - infoTop);
         }
         y = Math.max(y, infoTop + (lines.isEmpty() ? 0 : lines.size() * 11) + ("Card".equals(iStyle) ? 11 : 0));
@@ -223,6 +267,11 @@ public class NoxOverlay implements HudElement {
             int listTop = ay, maxRw = 0, baseX = lp != null ? (int) (lp[0] * w) : 2;
             long nowMs = System.currentTimeMillis();
             var live = new java.util.HashSet<String>();
+            // rows are captured at extract-time, drawn AA'd by the NVG pass —
+            // per-row: name, y, slide px, ease alpha, enabled flag
+            var rN = new java.util.ArrayList<String>();   var rY = new java.util.ArrayList<Float>();
+            var rS = new java.util.ArrayList<Float>();    var rE = new java.util.ArrayList<Float>();
+            var rOn = new java.util.ArrayList<Boolean>(); var rW = new java.util.ArrayList<Float>();
             for (var mod : mods) {
                 live.add(mod.name);
                 // slide-in: modules ease from the screen edge over ~180ms
@@ -233,20 +282,9 @@ public class NoxOverlay implements HudElement {
                 float ease = 1f - (1f - p) * (1f - p);            // ease-out quad
                 int tw = Gui.width(mc.font, mod.name);
                 int slide = (int) ((1f - ease) * 16);
-                // modern row: flat dark chip flush to the screen edge, 2px
-                // accent bar on the outer edge, Inter text, no shadow
                 int rw = tw + 10;
-                int px = lp != null ? baseX - slide
-                    : edgeRight ? w - 2 - rightPad - rw + slide : 2 - slide;
-                int alpha = (int) (0xFF * ease) << 24;
-                Gui.round(g, px, ay, rw, 12, 3, ((int) (0xB0 * ease)) << 24 | 0x10121A);
-                Gui.pill(g, edgeRight ? px + rw - 3 : px + 1, ay + 2, 2, 8,
-                    mod.isEnabled() ? (t.accent() & 0xFFFFFF | alpha)
-                        : (alpha | 0x004A4A5A));
-                Gui.text(g, mc.font, mod.name,
-                    edgeRight ? px + rw - 5 - tw : px + 5, ay + 2,
-                    mod.isEnabled() ? alpha | (t.text() & 0xFFFFFF)
-                        : alpha / 2 | 0x7A7A8E);
+                rN.add(mod.name); rY.add((float) ay); rS.add((float) slide);
+                rE.add(ease); rOn.add(mod.isEnabled()); rW.add((float) rw);
                 maxRw = Math.max(maxRw, rw);
                 ay += 13;
             }
@@ -263,26 +301,46 @@ public class NoxOverlay implements HudElement {
                 int tw = Gui.width(mc.font, e.getKey());
                 int slide = (int) ((1f - e2) * 16);
                 int rw = tw + 10;
-                int px = lp != null ? baseX - slide
-                    : edgeRight ? w - 2 - rightPad - rw + slide : 2 - slide;
-                int alpha = (int) (0xFF * e2) << 24;
-                Gui.round(g, px, ay, rw, 12, 3, ((int) (0xB0 * e2)) << 24 | 0x10121A);
-                Gui.pill(g, edgeRight ? px + rw - 3 : px + 1, ay + 2, 2, 8,
-                    t.accent() & 0xFFFFFF | alpha);
-                Gui.text(g, mc.font, e.getKey(),
-                    edgeRight ? px + rw - 5 - tw : px + 5, ay + 2, alpha | (t.text() & 0xFFFFFF));
+                rN.add(e.getKey()); rY.add((float) ay); rS.add((float) slide);
+                rE.add(e2); rOn.add(Boolean.TRUE); rW.add((float) rw);
                 maxRw = Math.max(maxRw, rw);
                 ay += 13;
             }
             if (hidden > 0) {
-                String more = "+" + hidden + " more";
-                int tw = Gui.width(mc.font, more);
-                int px = lp != null ? baseX : edgeRight ? w - 2 - rightPad - tw - 10 : 2;
-                Gui.round(g, px, ay, tw + 10, 12, 3, 0x8010121A);
-                Gui.text(g, mc.font, more, px + 5, ay + 2, 0xFF8A8A9E);
-                maxRw = Math.max(maxRw, tw + 10);
+                rN.add("+" + hidden + " more"); rY.add((float) ay); rS.add(0f);
+                rE.add(1f); rOn.add(Boolean.FALSE); rW.add((float) (Gui.width(mc.font, rN.getLast()) + 10));
+                maxRw = Math.max(maxRw, rW.getLast().intValue());
                 ay += 13;
             }
+            final int fBaseX = baseX, fRP = rightPad, fW = w;
+            final int fAccent = t.accent() | 0xFF000000, fText = t.text() | 0xFF000000;
+            NvgOverlay.op((c2, st) -> {
+                float fs = 9.5f * S, rh = 12f * S;
+                for (int i = 0; i < rN.size(); i++) {
+                    String name = rN.get(i);
+                    float ease = rE.get(i); if (ease <= 0.001f) continue;
+                    float tw2 = dev.noxclient.gui.nvg.Nvg.textW(c2, "inter", fs, name);
+                    float rw = Math.max(rW.get(i) * S, tw2 + 10f * S);
+                    float yy = rY.get(i) * S, sl = rS.get(i) * S;
+                    float px = fp != null ? fBaseX * S - sl
+                        : edgeRight ? (fW - 2 - fRP) * S - rw + sl : 2f * S - sl;
+                    boolean on = rOn.get(i), more = name.startsWith("+");
+                    int bg = withA(DS.surfaceAlt(), 0.72f * ease);
+                    dev.noxclient.gui.nvg.Nvg.round(c2, st, px, yy, rw, rh, 4f * S, bg);
+                    dev.noxclient.gui.nvg.Nvg.roundB(c2, st, px, yy, rw, rh, 4f * S,
+                        0, withA(DS.line(), ease));
+                    if (!more)
+                        dev.noxclient.gui.nvg.Nvg.round(c2, st,
+                            edgeRight ? px + rw - 2.5f * S : px + 0.5f * S,
+                            yy + 2f * S, 2f * S, 8f * S, 1.5f * S,
+                            on ? withA(fAccent, ease) : withA(0xFF4A4A5A, ease));
+                    int tcol = more ? withA(DS.muted(), ease)
+                        : on ? withA(fText, ease) : withA(0xFF7A7A8E, ease * 0.8f);
+                    dev.noxclient.gui.nvg.Nvg.text(c2, st, "inter", fs,
+                        edgeRight ? px + rw - 5f * S - tw2 : px + 5f * S,
+                        yy + (rh - fs) * 0.5f - 0.5f * S, name, tcol);
+                }
+            });
             if (ay > listTop) {
                 int rx = lp != null ? baseX
                     : edgeRight ? w - 2 - rightPad - maxRw : 2;

@@ -39,7 +39,7 @@ public class Interface extends Module {
     public final Setting.Mode season = add(Setting.Mode.of("Season", "Auto",
         "Seasonal palette — Auto follows the real-world calendar", "Auto", "Winter", "Spring", "Summer", "Autumn"));
     public final Setting.Mode backdrop = add(Setting.Mode.of("Screen backdrop", "Dim",
-        "Window backdrop style — Prism adds an animated specular edge", "Dim", "Frost", "Prism"));
+        "Window backdrop style — Prism adds an animated specular edge, Sky renders the black hole", "Dim", "Frost", "Prism", "Sky"));
     public final Setting.Mode backdropLevel = add(Setting.Mode.of("Backdrop level", "Medium",
         "Strength of the backdrop effect", "Light", "Medium", "Strong"));
     public final Setting.Bool seasonFx = add(new Setting.Bool("Seasonal FX", true,
