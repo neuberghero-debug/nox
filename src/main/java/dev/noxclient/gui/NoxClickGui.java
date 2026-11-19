@@ -80,6 +80,7 @@ public class NoxClickGui extends Screen {
     private Module expanded;
     private final Map<Module, Long> expAt = new HashMap<>();
     private final Map<Module, Long> togAt = new HashMap<>();
+    private final Map<Module, Float> hovAt = new HashMap<>();
     private Setting.Num dragNum;
 
     /* per-setting control hitboxes recorded during draw — [x, y, w, h][].
@@ -172,6 +173,17 @@ public class NoxClickGui extends Screen {
     /* ================= animations ================= */
 
     private static float easeOutCubic(float t) { return 1f - (float) Math.pow(1 - t, 3); }
+
+    /** Smooth hover 0..1 — exponential approach on the frame delta. */
+    private float hovFrac(Module m, boolean hov) {
+        Float cur = hovAt.get(m);
+        float c = cur == null ? 0f : cur;
+        float t = hov ? 1f : 0f;
+        c += (t - c) * Math.min(1f, fdt * 14f * animMul());
+        if (Math.abs(c - t) < .012f) c = t;
+        hovAt.put(m, c);
+        return c;
+    }
 
     private float expandFrac(Module m) {
         Long at = expAt.get(m);
@@ -661,7 +673,7 @@ public class NoxClickGui extends Screen {
             case MOVEMENT -> "wings";
             case RENDER -> "eye";
             case DONUTSMP -> "diamond";
-            case MISC -> "magnet";
+            case MISC -> "star";
         };
     }
 
@@ -836,11 +848,12 @@ public class NoxClickGui extends Screen {
 
         // card body — Clean = flat strip + hairline, single accent edge when on
         //           Flat = solid · Glass = top-lit gradient · Neon = glass + accent edge
+        float hf = hovFrac(m, hov);
         if ("Clean".equals(cs)) {
             // quiet strip — contrast comes from fill, not a border ring
             Nvg.round(c, st, x, y, w, rh, 10,
-                hov ? Nvg.fade(DS.lighten(DS.surfaceAlt(), .10f), .95f)
-                    : Nvg.fade(DS.surfaceAlt(), .32f));
+                Nvg.lerp(Nvg.fade(DS.surfaceAlt(), .32f),
+                    Nvg.fade(DS.lighten(DS.surfaceAlt(), .10f), .95f), hf));
             // hairline under each row instead of a boxed card
             Nvg.rect(c, st, x + 12, y + rh - 1, w - 24, 1, 0x0AFFFFFF);
             if (on)
@@ -881,7 +894,7 @@ public class NoxClickGui extends Screen {
             Nvg.round(c, st, chx, chy, chip, chip, 8,
                 Nvg.fade(DS.lighten(DS.surface(), .055f), .85f));
             Nvg.glyph(c, st, iconOf(m), chx + chip / 2, chy + chip / 2, 17,
-                on ? DS.cardAccent() : hov ? DS.text() : DS.secondary());
+                on ? DS.cardAccent() : Nvg.lerp(DS.secondary(), DS.text(), hf));
         } else if (on) {
             Nvg.hgrad(c, st, chx, chy, chip, chip, 8,
                 Nvg.fade(DS.cardAccent(), .9f), DS.accent2());
@@ -941,7 +954,7 @@ public class NoxClickGui extends Screen {
         if (!m.settings.isEmpty()) {
             float cyy = y + rh / 2f;
             boolean xp = expandFrac(m) > .5f;
-            int cc = hov || xp ? DS.secondary() : DS.muted();
+            int cc = xp ? DS.secondary() : Nvg.lerp(DS.muted(), DS.secondary(), hf);
             if (xp) {
                 Nvg.line(c, st, chevX - 4, cyy + 2, chevX, cyy - 3, 1.6f, cc);
                 Nvg.line(c, st, chevX, cyy - 3, chevX + 4, cyy + 2, 1.6f, cc);
@@ -1055,7 +1068,8 @@ public class NoxClickGui extends Screen {
                     Nvg.hgrad(c, st, mx2, mid - 9, pw, 18, 9, DS.cardAccent(), DS.accent2());
                     Nvg.insetHi(c, st, mx2 + 1, mid - 9, pw - 2, 8, 0x33FFFFFF);
                 } else {
-                    Nvg.well(c, st, mx2, mid - 9, pw, 18, 9, Nvg.fade(DS.surface(), .7f));
+                    Nvg.roundB(c, st, mx2, mid - 9, pw, 18, 9,
+                        Nvg.fade(DS.lighten(DS.surface(), .08f), .9f), DS.border());
                 }
                 Nvg.text(c, st, "inter", 10.5f, mx2 + pw / 2, mid, mo.modes[i],
                     act ? 0xFFFFFFFF : DS.secondary(),
@@ -1073,7 +1087,8 @@ public class NoxClickGui extends Screen {
             if (b.get() == -2)
                 Nvg.hgrad(c, st, x + w - pw, mid - 9, pw, 18, 9, DS.cardAccent(), DS.accent2());
             else
-                Nvg.well(c, st, x + w - pw, mid - 9, pw, 18, 9, Nvg.fade(DS.surface(), .7f));
+                Nvg.roundB(c, st, x + w - pw, mid - 9, pw, 18, 9,
+                    Nvg.fade(DS.lighten(DS.surface(), .08f), .9f), DS.border());
             Nvg.text(c, st, "mono", 10.5f, x + w - pw / 2, mid, txt,
                 b.get() == -2 ? 0xFFFFFFFF : DS.secondary(),
                 org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
@@ -1083,8 +1098,9 @@ public class NoxClickGui extends Screen {
             float tw2 = Math.min(150, Math.max(64, Nvg.textW(c, "inter", 10.5f, v) + 16));
             float fx = x + w - tw2, fy = mid - 9;
             ctrlRects.put(s, new float[][]{{fx, fy, tw2, 18}});
-            Nvg.well(c, st, fx, fy, tw2, 18, 6,
-                foc ? Nvg.fade(DS.surface(), .95f) : Nvg.fade(DS.surface(), .7f));
+            Nvg.roundB(c, st, fx, fy, tw2, 18, 6,
+                foc ? Nvg.fade(DS.lighten(DS.surface(), .08f), .95f) : Nvg.fade(DS.lighten(DS.surface(), .08f), .9f),
+                foc ? Nvg.fade(DS.cardAccent(), .6f) : DS.border());
             if (foc)
                 Nvg.borderGrad(c, st, fx, fy, tw2, 18, 6,
                     DS.cardAccent(), Nvg.fade(DS.cardAccent(), .6f), DS.accent2());

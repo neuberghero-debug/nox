@@ -47,20 +47,25 @@ public class AHSniper extends Module {
                 mc.gameMode.handleContainerInput(menu.containerId, slot.index, 0,
                     net.minecraft.world.inventory.ContainerInput.PICKUP, mc.player);
                 last = System.currentTimeMillis();
+                Double ref = AutoStonks.min(st.getHoverName().getString());
+                String deal = ref != null
+                    ? String.format(" — book min $%.0f (%.0f%% under)", ref, (1 - price / ref) * 100)
+                    : "";
                 dev.noxclient.discord.Webhook.post(
                     System.getenv().getOrDefault("NOX_SNIPER_WEBHOOK", ""),
-                    "AHSniper", "bought " + st.getItemName().getString() + " for $" + price);
+                    "AHSniper", "bought " + st.getItemName().getString() + " for $" + price + deal);
                 return;
             }
         }
     }
 
-    /** Margin gate: known session-average → price must beat it by Min profit %. */
+    /** Margin gate: needs a known book entry — an unknown price with a margin
+     *  set is a blind buy (renamed junk snipes), so it skips instead. */
     private boolean profitOk(ItemStack st, double price) {
         double margin = minProfit.get();
         if (margin <= 0) return true;
-        Double avg = AutoStonks.avg(st.getHoverName().getString());
-        return avg == null || price <= avg * (1 - margin / 100);
+        Double ref = AutoStonks.min(st.getHoverName().getString());
+        return ref != null && price <= ref * (1 - margin / 100);
     }
 
     /** Parses the $ price out of an item's name/lore — shared with AutoStonks. */

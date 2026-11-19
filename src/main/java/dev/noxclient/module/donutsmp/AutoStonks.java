@@ -10,20 +10,56 @@ import net.minecraft.world.item.ItemStack;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Learns AH prices while you browse — reports avg/min per item in chat. */
+/** Learns AH prices while you browse — reports avg/min per item in chat.
+ *  The book persists to nox/prices.json so sniping works from a cold start. */
 public class AutoStonks extends Module {
     public final Setting.Bool announce = add(new Setting.Bool("Report on close", true));
     /** session-wide price book: item name → [count, sum, min] — read by AHSniper. */
     public static final Map<String, double[]> PRICE_BOOK = new HashMap<>();
+    private static final java.io.File BOOK = new java.io.File(
+        net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().toFile(),
+        "nox/prices.json");
+    private static boolean loaded;
     private final Map<String, double[]> stats = PRICE_BOOK;
     private Object lastMenu;
 
     public AutoStonks() { super("AutoStonks", "Tracks AH price trends", Category.DONUTSMP); }
 
+    private static void load() {
+        if (loaded) return; loaded = true;
+        try {
+            if (!BOOK.isFile()) return;
+            var o = com.google.gson.JsonParser.parseReader(
+                new java.io.FileReader(BOOK)).getAsJsonObject();
+            for (var e : o.entrySet()) {
+                var a = e.getValue().getAsJsonArray();
+                if (a.size() == 3)
+                    PRICE_BOOK.put(e.getKey(), new double[]{
+                        a.get(0).getAsDouble(), a.get(1).getAsDouble(), a.get(2).getAsDouble()});
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static void save() {
+        try {
+            BOOK.getParentFile().mkdirs();
+            var o = new com.google.gson.JsonObject();
+            for (var e : PRICE_BOOK.entrySet()) {
+                var a = new com.google.gson.JsonArray();
+                a.add(e.getValue()[0]); a.add(e.getValue()[1]); a.add(e.getValue()[2]);
+                o.add(e.getKey(), a);
+            }
+            try (var w = new java.io.FileWriter(BOOK)) { w.write(o.toString()); }
+        } catch (Throwable ignored) {}
+    }
+
+    @Override protected void onDisable() { save(); }
+
     @Override public void onTick() {
         if (mc.player == null) return;
+        load();
         if (!(mc.gui.screen() instanceof AbstractContainerScreen<?> sc)) {
-            if (lastMenu != null && announce.on()) report();
+            if (lastMenu != null) { if (announce.on()) report(); save(); }
             lastMenu = null; return;
         }
         var menu = sc.getMenu();
@@ -56,6 +92,12 @@ public class AutoStonks extends Module {
     public static Double avg(String itemName) {
         double[] s = PRICE_BOOK.get(itemName);
         return s != null && s[0] > 0 ? s[1] / s[0] : null;
+    }
+
+    /** Lowest price ever seen for an item name, or null. */
+    public static Double min(String itemName) {
+        double[] s = PRICE_BOOK.get(itemName);
+        return s != null && s[0] > 0 ? s[2] : null;
     }
 
     private static String fmt(double v) {

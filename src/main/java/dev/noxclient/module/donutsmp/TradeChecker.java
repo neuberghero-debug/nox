@@ -14,7 +14,7 @@ public class TradeChecker extends Module {
     public final Setting.Bool totals = add(new Setting.Bool("Show totals", true));
     private Object lastMenu;
 
-    public TradeChecker() { super("TradeChecker", "Lists items in trade GUIs", Category.DONUTSMP); }
+    public TradeChecker() { super("TradeChecker", "Values trades against your price book", Category.DONUTSMP); }
 
     @Override public void onTick() {
         if (mc.player == null || !(mc.gui.screen() instanceof AbstractContainerScreen<?> sc)) {
@@ -26,11 +26,14 @@ public class TradeChecker extends Module {
         if (onlyTrades.on() && !title.contains("trade") && !title.contains("offer")) return;
         lastMenu = menu;
         StringBuilder sb = new StringBuilder("§e[NOX] Trade contains:");
-        int n = 0, total = 0;
+        int n = 0, total = 0, unknown = 0;
+        double est = 0;
         for (int i = 0; i < Math.min(menu.slots.size(), 54); i++) {
             ItemStack st = menu.getSlot(i).getItem();
             if (st.isEmpty()) continue;
             total += st.getCount();
+            Double ref = AutoStonks.min(st.getHoverName().getString());
+            if (ref != null) est += ref * st.getCount(); else unknown++;
             sb.append(" | ").append(st.getHoverName().getString())
               .append(" x").append(st.getCount());
             if (++n > maxItems.intVal()) { sb.append(" …"); break; }
@@ -39,6 +42,17 @@ public class TradeChecker extends Module {
         if (totals.on()) sb.append("  §7(").append(n).append(" stacks, ")
             .append(total).append(" items)");
         mc.player.sendSystemMessage(Component.literal(sb.toString()));
+        if (est > 0 || unknown > 0) {
+            String warn = unknown > 0 ? " §c⚠ " + unknown + " unpriced stack"
+                + (unknown == 1 ? "" : "s") + " — can't verify value" : " §aall priced";
+            mc.player.sendSystemMessage(Component.literal(
+                "§e[NOX] Est. value: §f$" + fmt(est) + warn));
+        }
+    }
+
+    private static String fmt(double v) {
+        return v >= 1_000_000 ? String.format("%.1fM", v / 1e6)
+             : v >= 1000 ? String.format("%.1fK", v / 1e3) : String.valueOf((int) v);
     }
     @Override public String status() {
         return mc.player != null && mc.player.containerMenu != mc.player.inventoryMenu

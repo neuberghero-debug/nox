@@ -272,7 +272,7 @@ public final class Nvg {
             nvgBeginPath(c); nvgRoundedRect(c, x + .5f, y + .5f, w - 1, h - 1, h / 2 - .5f);
             nvgStrokeColor(c, col(st, 0x2EFFFFFF, a)); nvgStrokeWidth(c, 1f); nvgStroke(c);
             nvgBeginPath(c); nvgMoveTo(c, x + h / 2, y + 1f); nvgLineTo(c, x + w - h / 2, y + 1f);
-            nvgStrokeColor(c, col(st, 0x50000000, a)); nvgStrokeWidth(c, 1.5f); nvgStroke(c);
+            nvgStrokeColor(c, col(st, 0x1F000000, a)); nvgStrokeWidth(c, 1.5f); nvgStroke(c);
         }
         float d = h - 5, kx = x + 2.5f + f * (w - h);
         shadow(c, st, kx, y + 1.5f, d, d, d / 2, 3.5f, 0x40000000);
