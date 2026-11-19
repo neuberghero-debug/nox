@@ -25,7 +25,7 @@ public class KillAura extends Module {
     private final Setting.Bool playersOnly = add(new Setting.Bool("Players only", true));
     private final Setting.Mode rotMode = add(Setting.Mode.of("Rotations", "Legit", "Legit = visible turns; Silent = packet-side", "Legit", "Silent"));
 
-    public KillAura() { super("KillAura", "Attacks nearby entities humanly", Category.COMBAT); }
+    public KillAura() { super("KillAura", "Attacks nearby entities like a player", Category.COMBAT); }
 
     @Override
     public void onTick() {

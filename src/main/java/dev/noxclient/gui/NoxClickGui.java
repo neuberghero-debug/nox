@@ -694,15 +694,12 @@ public class NoxClickGui extends Screen {
             boolean act = !designTab && tab == cat;
             boolean hov = mx >= bx && mx < bx + bw && my >= by && my < by + bh;
             if (act) {
-                Nvg.shadow(c, st, bx + 2, by + 2, bw - 4, bh - 2, 11, 9,
-                    Nvg.fade(DS.accent(), 0.32f));
-                Nvg.hgrad(c, st, bx, by, bw, bh, 11, DS.accent(), DS.accent2());
-                Nvg.insetHi(c, st, bx + 2, by, bw - 4, 9, 0x33FFFFFF);
-                // left edge bar like the mockup's rail indicator
-                Nvg.hgrad(c, st, bx - (RAIL - bw) / 2f + 1, by + bh * .26f, 3, bh * .48f, 1.5f,
-                    DS.accent2(), DS.accent());
+                // flat accent tile — one state marker, no glow stack
+                Nvg.round(c, st, bx, by, bw, bh, 11, DS.accent());
+                Nvg.rect(c, st, bx - (RAIL - bw) / 2f + 1, by + bh * .26f, 2.5f, bh * .48f,
+                    DS.accent2());
             } else if (hov) {
-                Nvg.well(c, st, bx, by, bw, bh, 11, DS.lighten(DS.surface(), .09f));
+                Nvg.round(c, st, bx, by, bw, bh, 11, DS.lighten(DS.surface(), .09f));
             }
             int icol = act ? 0xFFFFFFFF : hov ? DS.text() : DS.secondary();
             String gl = railGlyph(cat);
@@ -837,8 +834,18 @@ public class NoxClickGui extends Screen {
         boolean hov = mx >= x && mx < x + w && my >= y && my < y + rh;
         String cs = UICustom.cardStyle;
 
-        // card body — Flat = solid · Glass = top-lit gradient · Neon = glass + accent edge
-        if ("Flat".equals(cs)) {
+        // card body — Clean = flat strip + hairline, single accent edge when on
+        //           Flat = solid · Glass = top-lit gradient · Neon = glass + accent edge
+        if ("Clean".equals(cs)) {
+            // quiet strip — contrast comes from fill, not a border ring
+            Nvg.round(c, st, x, y, w, rh, 10,
+                hov ? Nvg.fade(DS.lighten(DS.surfaceAlt(), .10f), .95f)
+                    : Nvg.fade(DS.surfaceAlt(), .32f));
+            // hairline under each row instead of a boxed card
+            Nvg.rect(c, st, x + 12, y + rh - 1, w - 24, 1, 0x0AFFFFFF);
+            if (on)
+                Nvg.round(c, st, x + 1, y + rh * .16f, 3, rh * .68f, 1.5f, DS.cardAccent());
+        } else if ("Flat".equals(cs)) {
             Nvg.round(c, st, x, y, w, rh, 10,
                 hov ? DS.lighten(DS.surfaceAlt(), .07f) : Nvg.fade(DS.surfaceAlt(), .65f));
         } else {
@@ -854,8 +861,9 @@ public class NoxClickGui extends Screen {
                 Nvg.roundB(c, st, x, y, w, rh, 10, 0x00FFFFFF,
                     hov ? UICustom.borderHover : DS.line());
         }
-        // enabled state — accent edge bar + faint interior tint
-        if (on) {
+        // enabled state — accent edge bar + faint interior tint (Clean has its
+        // own quieter edge inside the card branch above)
+        if (on && !"Clean".equals(cs)) {
             Nvg.round(c, st, x, y, w, rh, 10, Nvg.fade(DS.cardAccent(), "Neon".equals(cs) ? 0.07f : 0.10f));
             Nvg.hgrad(c, st, x + 1.5f, y + rh * .22f, 3.5f, rh * .56f, 2,
                 DS.cardAccent(), DS.accent2());
@@ -868,7 +876,13 @@ public class NoxClickGui extends Screen {
 
         // icon chip — glyph on tinted tile (lit accent chip when on, well when off)
         float chip = 30, chx = x + 12, chy = y + rh / 2f - chip / 2;
-        if (on) {
+        if ("Clean".equals(cs)) {
+            // borderless tile; the accent lives in the glyph, not the chip fill
+            Nvg.round(c, st, chx, chy, chip, chip, 8,
+                Nvg.fade(DS.lighten(DS.surface(), .055f), .85f));
+            Nvg.glyph(c, st, iconOf(m), chx + chip / 2, chy + chip / 2, 17,
+                on ? DS.cardAccent() : hov ? DS.text() : DS.secondary());
+        } else if (on) {
             Nvg.hgrad(c, st, chx, chy, chip, chip, 8,
                 Nvg.fade(DS.cardAccent(), .9f), DS.accent2());
             Nvg.insetHi(c, st, chx + 1, chy, chip - 2, 7, 0x3AFFFFFF);
@@ -944,12 +958,12 @@ public class NoxClickGui extends Screen {
             int sh = (int) (ef * full);
             int ey = y + rh + 4;
             Nvg.clipPush(c, x, ey - 2, w, sh + 4);
-            Nvg.well(c, st, x + 12, ey, w - 12, full, 10, Nvg.fade(DS.surface(), .75f));
-            Nvg.line(c, st, x + 22, ey + 4, x + 22, ey + full - 4, 1f,
-                Nvg.fade(DS.accent(), .35f));
+            Nvg.well(c, st, x + 4, ey, w - 8, full, 10, Nvg.fade(DS.surface(), .58f));
+            Nvg.line(c, st, x + 16, ey + 4, x + 16, ey + full - 4, 1f,
+                Nvg.fade(DS.accent(), .28f));
             int sy = ey + 8;
             for (Setting<?> s : m.settings) {
-                drawSetting(c, st, s, x + 30, sy, w - 54);
+                drawSetting(c, st, s, x + 24, sy, w - 48);
                 settingRows.add(new SettingRow(s, sy));
                 sy += settingH(s) + 6;
             }

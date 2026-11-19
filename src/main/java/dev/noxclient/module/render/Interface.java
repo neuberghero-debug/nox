@@ -15,8 +15,8 @@ public class Interface extends Module {
         "NOX Dark", "Midnight", "Snow", "Custom"));
     public final Setting.Col accent  = add(new Setting.Col("Window accent", 0xFF7A2BE2));
     public final Setting.Col cardAcc = add(new Setting.Col("Card accent", 0xFF7A2BE2));
-    public final Setting.Mode cardStyle = add(new Setting.Mode("Card style", "Glass",
-        "Flat", "Glass", "Neon"));
+    public final Setting.Mode cardStyle = add(new Setting.Mode("Card style", "Clean",
+        "Clean", "Flat", "Glass", "Neon"));
     public final Setting.Mode winStyle = add(new Setting.Mode("Window style", "Solid",
         "Solid", "Sky", "Glass"));
     public final Setting.Col winFill = add(new Setting.Col("Window", 0xFF141821));

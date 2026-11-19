@@ -25,7 +25,7 @@ public final class UICustom {
     public static String density = "Normal";  // Compact | Normal | Spacious → row height
     public static float hudScale = 1f;        // reserved for HUD scaling
     public static String clickStyle = "Studio"; // Studio | Cards | Compact rows | Sidebar | Panels | Hub
-    public static String cardStyle = "Glass";  // Flat | Glass | Neon
+    public static String cardStyle = "Clean";  // Clean | Flat | Glass | Neon
     public static String winStyle  = "Solid";  // Solid | Sky | Glass
     public static boolean reducedMotion;
     public static boolean largeText;
