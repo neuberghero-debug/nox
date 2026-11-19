@@ -23,7 +23,8 @@ public class AutoLog extends Module {
         if (!low && onPlayerNear.on()) {
             for (var e : mc.level.entitiesForRendering())
                 if (e instanceof net.minecraft.world.entity.player.Player p
-                    && p != mc.player && p.distanceToSqr(mc.player) < 144) { low = true; break; }
+                    && p != mc.player && !dev.noxclient.module.misc.Friends.isFriend(p)
+                    && p.distanceToSqr(mc.player) < 144) { low = true; break; }
         }
         if (!low) return;
         cooldown = System.currentTimeMillis();

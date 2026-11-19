@@ -28,6 +28,7 @@ public class ModuleManager {
         // DonutSMP premium
         reg(new AHSniper());
         reg(new AutoFlip());
+        reg(new BountyTracker());
         reg(new TunnelBaseFinder());
         reg(new RTPBaseFinder());
         reg(new AntiESPBypass());

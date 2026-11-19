@@ -28,6 +28,7 @@ public abstract class ChatMixin {
     }
 
     private static void feed(String raw) {
+        dev.noxclient.util.ChatBus.feed(raw);
         if (dev.noxclient.NoxClient.INSTANCE == null) return;
         if (dev.noxclient.NoxClient.INSTANCE.modules.get("Auction")
                 instanceof dev.noxclient.module.donutsmp.Auction a

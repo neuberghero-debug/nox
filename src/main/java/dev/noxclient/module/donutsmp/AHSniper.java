@@ -23,6 +23,9 @@ public class AHSniper extends Module {
     private final Setting.Num minProfit = add(new Setting.Num("Min profit %", 0, 0, 90));
     private final Setting.Str itemFilter = add(new Setting.Str("Item id contains", ""));
     private final Setting.Num cooldown = add(new Setting.Num("Cooldown (s)", 5, 1, 60));
+    private final Setting.Bool cycle = add(new Setting.Bool("Cycle pages", true,
+        "Clicks the next-page arrow when nothing bought for a while"));
+    private final Setting.Num pageSec = add(new Setting.Num("Page every (s)", 9, 3, 60));
     private long last;
 
     /** Items we just bought — AutoFlip picks these up to relist them. */
@@ -62,6 +65,28 @@ public class AHSniper extends Module {
                 return;
             }
         }
+        // nothing bought — keep listings fresh by paging through the shop
+        if (cycle.on()
+            && dev.noxclient.util.Legitifier.ready(this, 1.0 / pageSec.get(), 0.5)) {
+            for (Slot slot : menu.slots) {
+                if (slot.container == mc.player.getInventory()) continue;
+                ItemStack st = slot.getItem();
+                if (st.isEmpty() || !nextPage(st)) continue;
+                mc.gameMode.handleContainerInput(menu.containerId, slot.index, 0,
+                    net.minecraft.world.inventory.ContainerInput.PICKUP, mc.player);
+                return;
+            }
+        }
+    }
+
+    /** Arrow/head whose name reads as a 'next page' control. */
+    private static boolean nextPage(ItemStack st) {
+        boolean arrowish = st.is(net.minecraft.world.item.Items.ARROW)
+            || st.is(net.minecraft.world.item.Items.SPECTRAL_ARROW)
+            || st.is(net.minecraft.world.item.Items.PLAYER_HEAD);
+        if (!arrowish) return false;
+        String n = st.getHoverName().getString().toLowerCase();
+        return n.contains("next") || n.contains("page") || n.contains("→") || n.contains(">");
     }
 
     /** Margin gate: needs a known book entry — an unknown price with a margin
