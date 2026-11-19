@@ -16,7 +16,7 @@ public class FlyBypass extends Module {
     private final Setting.Num jitter = add(new Setting.Num("Y jitter", 0.04, 0.01, 0.2));
     private boolean phase;
 
-    public FlyBypass() { super("FlyBypass", "Packet fly", Category.MOVEMENT); premium = true; }
+    public FlyBypass() { super("FlyBypass", "Packet fly", Category.MOVEMENT); risky = true; premium = true; }
 
     @Override
     public void onTick() {

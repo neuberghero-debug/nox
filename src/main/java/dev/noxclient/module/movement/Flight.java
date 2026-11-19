@@ -18,7 +18,7 @@ public class Flight extends Module {
     private final Setting.Bool autoOff = add(new Setting.Bool("Disable on damage", true));
     private int tick;
 
-    public Flight() { super("Flight", "Fly", Category.MOVEMENT); }
+    public Flight() { super("Flight", "Fly", Category.MOVEMENT); risky = true; }
 
     @Override
     public void onTick() {

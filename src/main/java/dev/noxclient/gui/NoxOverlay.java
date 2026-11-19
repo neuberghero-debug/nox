@@ -51,7 +51,6 @@ public class NoxOverlay implements HudElement {
         drawMarks(g, cp, mat, w, h, StorageESP.HITS);
         drawMarks(g, cp, mat, w, h, AntiESPBypass.MARKS);
         drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.OreESP.HITS);
-        drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.HoleESP.HITS);
         float hs = dev.noxclient.gui.UICustom.hudScale;
         // auto-fit: on small logical screens (high vanilla GUI scale) the HUD
         // shrinks proportionally instead of overflowing; floor keeps it legible
@@ -69,7 +68,6 @@ public class NoxOverlay implements HudElement {
         drawStats(g, mc, sw, sh);
         drawScoreboard(g, mc, sw, sh);
         drawAuction(g, mc, sw, sh);
-        drawStreamChat(g, mc, sw, sh);
         if (hs != 1f) g.pose().popMatrix();
         var hm = NoxClient.INSTANCE.modules.get("HudWidgets");
         boolean compassOn = hm instanceof dev.noxclient.module.render.HudWidgets hw
@@ -1027,95 +1025,6 @@ public class NoxOverlay implements HudElement {
         }
     }
 
-    /**
-     * TikTok stream chat HUD (Modul 1.7) — pink-accent card: header with
-     * @user + live dot + event count, last N events color-coded by kind,
-     * optional Discord strip and active-vote bar. Fed by StreamChat.
-     */
-    private void drawStreamChat(GuiGraphicsExtractor g, Minecraft mc, int sw, int sh) {
-        var m = NoxClient.INSTANCE.modules.get("TikTokLive");
-        if (!(m instanceof dev.noxclient.module.misc.TikTokLive tl) || !tl.isEnabled()
-            || !tl.chatHud.on()) return;
-        final int PINK = 0xFFFE2C55, CYAN = 0xFF25F4EE;
-
-        var chat = dev.noxclient.stream.StreamChat.last(tl.chatLines.intVal());
-        int w = 220;
-        boolean dc = tl.dcStrip.on();
-        boolean vote = dev.noxclient.stream.ViewerVotes.active();
-        int rows = Math.max(1, chat.size());   // placeholder line when empty
-        int ph = 16 + rows * 11 + (dc ? 14 : 0) + (vote ? 15 : 0) + 6;
-
-        float[] pp = HudLayout.get("streamchat");
-        int x = pp != null ? Math.clamp((int) (pp[0] * sw), 2, Math.max(2, sw - w - 2))
-            : Math.clamp((int) (double) tl.posX.get(), 2, Math.max(2, sw - w - 2));
-        int y = pp != null ? Math.clamp((int) (pp[1] * sh), 2, Math.max(2, sh - ph - 2))
-            : tl.posY.get() > 0 ? Math.clamp((int) (double) tl.posY.get(), 2, Math.max(2, sh - ph - 2))
-                              : sh - ph - 26;      // auto: above the hotbar
-        rep("streamchat", x, y, w, ph);
-
-        Gui.round(g, x, y, w, ph, 7, 0xB8141420);
-        Gui.pill(g, x, y, 3, ph, PINK);
-
-        // header: live dot + TIKTOK + @user + event count
-        int ty = y + 5;
-        boolean live = dev.noxclient.stream.TikTokBridge.connected();
-        Gui.circle(g, x + 11, ty + 4, 3, live ? 0xFFEB3333 : 0xFF555566);
-        Gui.textBold(g, mc.font, "TIKTOK", x + 19, ty + 1, PINK);
-        String user = tl.username.get().isEmpty() ? "" : "@" + tl.username.get().replaceFirst("^@", "");
-        int ux = x + 19 + Gui.width(mc.font, "TIKTOK") + 6;
-        Gui.text(g, mc.font, user, ux, ty + 1, 0xFFB8B8CC);
-        String cnt = dev.noxclient.stream.StreamChat.events() + " ev";
-        Gui.text(g, mc.font, cnt, x + w - 8 - Gui.width(mc.font, cnt), ty + 1, 0xFF5A5A6E);
-        ty += 14;
-
-        if (chat.isEmpty()) {
-            Gui.text(g, mc.font, live ? "waiting for chat…" : "sidecar offline — tools/stream_start.sh",
-                x + 9, ty, 0xFF5A5A6E);
-            ty += 11;
-        }
-        for (var en : chat) {
-            int col = switch (en.kind()) {
-                case "GIFT" -> 0xFFFF6EC7;
-                case "SUB" -> 0xFFFFD870;
-                case "LIKE" -> 0xFF7A7A8E;
-                case "META" -> CYAN;
-                case "STATUS" -> 0xFF5A5A6E;
-                default -> 0xFFE8E8F5;      // CHAT
-            };
-            String line = en.text();
-            while (Gui.width(mc.font, line + "…") > w - 16 && !line.isEmpty())
-                line = line.substring(0, line.length() - 1);
-            if (!line.equals(en.text())) line += "…";
-            Gui.text(g, mc.font, line, x + 9, ty, col);
-            ty += 11;
-        }
-
-        // active vote bar (Modul 3 surface): question + tally + countdown
-        if (vote) {
-            ty += 4;
-            var tally = dev.noxclient.stream.ViewerVotes.tally();
-            int v1 = tally.getOrDefault(1, 0), v2 = tally.getOrDefault(2, 0);
-            int tot = Math.max(1, v1 + v2);
-            long left = dev.noxclient.stream.ViewerVotes.msLeft() / 1000;
-            Gui.text(g, mc.font, "VOTE " + left + "s", x + 9, ty, 0xFF7AFFE0);
-            int bw = w - 18;
-            Gui.pill(g, x + 9, ty + 10, bw, 3, 0xFF2A2A38);
-            Gui.pill(g, x + 9, ty + 10, Math.max(2, bw * v1 / tot), 3, 0xFF7AFFE0);
-            String vs = "1:" + v1 + "  2:" + v2;
-            Gui.text(g, mc.font, vs, x + w - 8 - Gui.width(mc.font, vs), ty, 0xFFB8B8CC);
-            ty += 15;
-        }
-
-        // discord strip — the canonical invite from DiscordLink
-        if (dc) {
-            ty += 3;
-            Gui.fill(g, x + 9, ty - 1, x + w - 9, ty, 0x33FFFFFF);
-            String link = dev.noxclient.discord.DiscordLink.shortLabel();
-            Gui.textCenterBold(g, mc.font, link, x + w / 2, ty + 3, 0xFF5865F2);
-        }
-    }
-
-    /** b = [minX, minY, maxX, maxY, dist] — tight screen-space entity bounds */
     private void drawEntity(GuiGraphicsExtractor g, Minecraft mc, Entity e, double[] b) {
         var modules = NoxClient.INSTANCE.modules;
         var esp = modules.get("ESP");

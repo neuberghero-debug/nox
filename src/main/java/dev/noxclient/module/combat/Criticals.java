@@ -16,7 +16,7 @@ import dev.noxclient.util.MoveGuard;
 public class Criticals extends Module {
     private final Setting.Num cps = add(new Setting.Num("CPS", 8, 1, 15));
 
-    public Criticals() { super("Criticals", "Forces critical hits", Category.COMBAT); }
+    public Criticals() { super("Criticals", "Forces critical hits", Category.COMBAT); risky = true; }
 
     @Override
     public void onTick() {

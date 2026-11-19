@@ -8,7 +8,7 @@ import dev.noxclient.setting.Setting;
 public class FastBreak extends Module {
     public final Setting.Num delay = add(new Setting.Num("Delay ticks", 0, 0, 5));
 
-    public FastBreak() { super("FastBreak", "No break cooldown", Category.DONUTSMP); }
+    public FastBreak() { super("FastBreak", "No break cooldown", Category.DONUTSMP); risky = true; }
 
     @Override public void onTick() {
         var gm = mc.gameMode;

@@ -18,7 +18,7 @@ public class Nuker extends Module {
     public final Setting.Num bps = add(new Setting.Num("Blocks/s", 4, 1, 12));
     private BlockPos working;
 
-    public Nuker() { super("Nuker", "Mass-break around you", Category.DONUTSMP); }
+    public Nuker() { super("Nuker", "Mass-break around you", Category.DONUTSMP); risky = true; }
 
     @Override public void onTick() {
         if (mc.player == null || mc.gameMode == null) return;

@@ -11,7 +11,7 @@ public class NoFall extends Module {
 
     private boolean fired;   // latch: one spoof per fall, re-arms on landing
 
-    public NoFall() { super("NoFall", "Prevents fall damage (Packet mode may kick on strict AC)", Category.MOVEMENT); }
+    public NoFall() { super("NoFall", "Prevents fall damage (Packet mode may kick on strict AC)", Category.MOVEMENT); risky = true; }
 
     @Override
     public void onTick() {

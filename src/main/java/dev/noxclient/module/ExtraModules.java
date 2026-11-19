@@ -8,8 +8,6 @@ package dev.noxclient.module;
 public final class ExtraModules {
     public static void register(ModuleManager mm) {
         mm.register(new dev.noxclient.module.misc.SecurityAudit());
-        mm.register(new dev.noxclient.module.misc.TikTokLive());
-        mm.register(new dev.noxclient.module.misc.Emotes());
         mm.register(new dev.noxclient.module.misc.PvpCoach());
         mm.register(new dev.noxclient.module.misc.CoordFinder());
         mm.register(new dev.noxclient.module.misc.SkinChanger());

@@ -11,7 +11,7 @@ public class AntiAim extends Module {
     public final Setting.Num speed = add(new Setting.Num("Speed", 45, 10, 180));
     private float ang;
 
-    public AntiAim() { super("AntiAim", "Spinning head", Category.RENDER); }
+    public AntiAim() { super("AntiAim", "Spinning head", Category.RENDER); risky = true; }
 
     @Override public void onTick() {
         if (mc.player == null) return;

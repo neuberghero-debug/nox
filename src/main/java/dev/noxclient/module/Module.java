@@ -12,6 +12,10 @@ public abstract class Module {
     public final List<Setting<?>> settings = new ArrayList<>();
     private boolean enabled;
     public boolean premium; // set in ctor for paid modules
+    public boolean risky;   // ban-bait on DonutSMP's AC — needs a confirm press
+    /** Modules confirmed this session — the warn-and-arm ask happens once. */
+    private static final java.util.Set<String> RISK_OK = new java.util.HashSet<>();
+    private long riskAsk;
     protected final Minecraft mc = Minecraft.getInstance();
 
     private final Setting.Mode activation;
@@ -40,6 +44,20 @@ public abstract class Module {
                 net.minecraft.client.Minecraft.getInstance().setScreenAndShow(
                     new dev.noxclient.gui.PremiumScreen());
             return;
+        }
+        if (v && !enabled && risky && !RISK_OK.contains(name)) {
+            long now = System.currentTimeMillis();
+            if (now - riskAsk < 6000) {
+                RISK_OK.add(name);
+            } else {
+                riskAsk = now;
+                dev.noxclient.gui.Toasts.push(
+                    name + " can flag or kick on GrimAC — toggle again to arm", 0xFFFF6666);
+                if (mc.player != null)
+                    mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                        "§c[NOX] " + name + " is ban-bait on DonutSMP — toggle again within 6s to confirm"));
+                return;
+            }
         }
         if (v == enabled) return;
         enabled = v;

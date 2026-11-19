@@ -32,7 +32,6 @@ public class ModuleManager {
         reg(new AutoCommander());
         reg(new AutoHarvest());
         reg(new SellWand());
-        reg(new ArmorAlert());
         // Finders
         reg(new ChunkFinder());
         reg(new AmethystBaseFinder());
@@ -44,8 +43,6 @@ public class ModuleManager {
         reg(new KillAura());
         reg(new AutoTotem());
         reg(new Criticals());
-        reg(new AutoCrystal());
-        reg(new AnchorMacro());
         reg(new Velocity());
         reg(new AntiTrap());
         reg(new Triggerbot());
@@ -77,7 +74,6 @@ public class ModuleManager {
         reg(new HudWidgets());
         reg(new StatsHud());
         reg(new Scoreboard());
-        reg(new SelfTag());
         reg(new SpotifyHud());
         reg(new LyricsSky());
         reg(new TwitchChat());
@@ -103,13 +99,9 @@ public class ModuleManager {
         reg(new TradeChecker());
         reg(new DropPartyAlert());
         reg(new AutoRespawn());
-        reg(new DeathRecap());
-        reg(new Spammer());
         reg(new SafeWalk());
         reg(new AntiVoid());
         reg(new FastLadder());
-        reg(new ElytraBoost());
-        reg(new ElytraSwap());
         reg(new AutoRTP());
         reg(new AutoLogin());
         reg(new TimeChanger());
@@ -118,15 +110,12 @@ public class ModuleManager {
         reg(new NoWeather());
         reg(new AntiBlind());
         reg(new AutoKit());
-        reg(new AutoSoup());
         reg(new AutoAuction());
         reg(new StashLogger());
         reg(new VisualRange());
         reg(new Friends());
-        reg(new AutoGG());
         reg(new Sneak());
         reg(new OreESP());
-        reg(new AutoFish());
         reg(new AntiFire());
         reg(new AutoSword());
         reg(new LowTotemAlert());
@@ -135,28 +124,19 @@ public class ModuleManager {
         reg(new MobAlert());
         reg(new AutoLog());
         reg(new AutoGap());
-        reg(new AnchorAlert());
-        reg(new HoleESP());
         reg(new Breadcrumbs());
-        reg(new AutoXP());
         reg(new RaidAlarm());
-        reg(new AutoSleep());
         reg(new KillEffects());
-        reg(new Surround());
         reg(new AutoMLG());
         reg(new HighJump());
-        reg(new ArmorNotify());
         reg(new YawLock());
         reg(new AutoTPAccept());
         reg(new AutoDaily());
-        reg(new AutoJump());
         reg(new BlockInfo());
         reg(new ChunkBorders());
         reg(new WaypointShare());
         reg(new NoHurtCam());
         reg(new FastBreak());
-        reg(new AutoTrap());
-        reg(new WebAura());
         reg(new Nuker());
         reg(new Zoom());
         reg(new Freecam());
@@ -165,10 +145,6 @@ public class ModuleManager {
         reg(new Scaffold());
         reg(new Refill());
         reg(new AntiAim());
-        reg(new Burrow());
-        reg(new SelfWeb());
-        reg(new AutoBreed());
-        reg(new AutoShear());
         reg(new dev.noxclient.module.donutsmp.AutoTool());
         reg(new dev.noxclient.module.donutsmp.FastPlace());
         // TamperGuard is core — runs always, not a module

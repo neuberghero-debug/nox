@@ -45,7 +45,6 @@
     "OreSimBlockMixin",
     "SoundSniffMixin",
     "ScoreboardMixin",
-    "SelfTagMixin",
     "BrandMixin"
   ],
   "injectors": {

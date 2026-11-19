@@ -8,7 +8,7 @@ import dev.noxclient.setting.Setting;
 public class FastLadder extends Module {
     public final Setting.Num speed = add(new Setting.Num("Speed", 0.3, 0.1, 1.0));
 
-    public FastLadder() { super("FastLadder", "Climbs ladders faster", Category.MOVEMENT); }
+    public FastLadder() { super("FastLadder", "Climbs ladders faster", Category.MOVEMENT); risky = true; }
 
     @Override public void onTick() {
         if (mc.player == null || !mc.player.onClimbable()) return;

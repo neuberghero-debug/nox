@@ -21,7 +21,7 @@ public class Blink extends Module {
     private static volatile boolean flushing;
     private int tick;
 
-    public Blink() { super("Blink", "Buffer + dump packets", Category.MOVEMENT); premium = true; }
+    public Blink() { super("Blink", "Buffer + dump packets", Category.MOVEMENT); risky = true; premium = true; }
 
     public static boolean holding() { return holding && !flushing; }
 

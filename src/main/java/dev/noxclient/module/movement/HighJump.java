@@ -9,7 +9,7 @@ public class HighJump extends Module {
     public final Setting.Num boost = add(new Setting.Num("Boost", 0.4, 0.1, 1.5));
     private boolean wasGround = true;
 
-    public HighJump() { super("HighJump", "Jump higher", Category.MOVEMENT); }
+    public HighJump() { super("HighJump", "Jump higher", Category.MOVEMENT); risky = true; }
 
     @Override public void onTick() {
         if (mc.player == null) return;

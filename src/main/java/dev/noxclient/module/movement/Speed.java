@@ -13,7 +13,7 @@ public class Speed extends Module {
     private final Setting.Mode mode = add(new Setting.Mode("Mode", "Legit", "Legit", "Strafe", "BHop"));
     private final Setting.Num multiplier = add(new Setting.Num("Multiplier", 1.08, 1.0, 2.0, "Speed multiplier on top of vanilla"));
 
-    public Speed() { super("Speed", "Move faster", Category.MOVEMENT); }
+    public Speed() { super("Speed", "Move faster", Category.MOVEMENT); risky = true; }
 
     @Override
     public void onTick() {

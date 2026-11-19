@@ -9,7 +9,7 @@ public class GhostMode extends Module {
     /** Pure client-side / passive modules that stay on through a panic. */
     private static final java.util.Set<String> KEEP = java.util.Set.of(
         "GhostMode", "Panic", "StaffNotifier", "DiscordRPCModule", "DiscordNotifier",
-        "Friends", "DeathWaypoint", "DeathRecap", "ArmorNotify", "DurabilityAlert",
+        "Friends", "DeathWaypoint", "DurabilityAlert",
         "MobAlert", "AntiBlind", "AntiFire", "NoHurtCam", "NoWeather", "TimeChanger",
         "Hitboxes", "HudWidgets", "CustomSky", "Capes", "Cosmetics",
         "SpotifyHud", "LyricsHud", "Zoom",

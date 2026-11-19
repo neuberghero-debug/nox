@@ -19,7 +19,7 @@ public class Scaffold extends Module {
     public final Setting.Bool down = add(new Setting.Bool("Down on sneak", false));
     private int slot = -1; private double lockY;
 
-    public Scaffold() { super("Scaffold", "Bridges under your feet", Category.MOVEMENT); }
+    public Scaffold() { super("Scaffold", "Bridges under your feet", Category.MOVEMENT); risky = true; }
 
     @Override public void onEnable() { lockY = mc.player == null ? 0 : mc.player.getY(); }
 
