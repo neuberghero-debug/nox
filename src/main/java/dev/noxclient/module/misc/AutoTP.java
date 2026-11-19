@@ -27,7 +27,7 @@ public class AutoTP extends Module {
     public void onTick() {
         if (mc.player == null || queue.isEmpty()) return;
         long now = System.currentTimeMillis();
-        if (now - last < intervalSec.get() * 1000) return;
+        if (!dev.noxclient.util.Legitifier.ready(this, 1.0 / intervalSec.get(), 0.5)) return;
         last = now;
         String cmd = queue.poll();
         mc.getConnection().sendCommand(cmd.substring(1));

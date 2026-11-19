@@ -18,6 +18,8 @@ public class ModuleManager {
     public void registerAll() {
         // DonutSMP free
         reg(new AutoSell());
+        reg(new AutoScout());
+        reg(new VoteReminder());
         reg(new NightGrind());
         reg(new AutoEat());
         reg(new AutoVoiceConfirm());
@@ -25,6 +27,7 @@ public class ModuleManager {
         reg(new Auction());
         // DonutSMP premium
         reg(new AHSniper());
+        reg(new AutoFlip());
         reg(new TunnelBaseFinder());
         reg(new RTPBaseFinder());
         reg(new AntiESPBypass());

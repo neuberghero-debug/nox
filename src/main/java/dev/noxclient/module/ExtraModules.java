@@ -9,6 +9,8 @@ public final class ExtraModules {
     public static void register(ModuleManager mm) {
         mm.register(new dev.noxclient.module.misc.SecurityAudit());
         mm.register(new dev.noxclient.module.misc.PvpCoach());
+        mm.register(new dev.noxclient.module.misc.ClipMarker());
+        mm.register(new dev.noxclient.module.render.ChatTriggers());
         mm.register(new dev.noxclient.module.misc.CoordFinder());
         mm.register(new dev.noxclient.module.misc.SkinChanger());
         mm.register(new dev.noxclient.module.misc.ReplayMod());

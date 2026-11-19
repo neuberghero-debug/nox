@@ -29,7 +29,7 @@ public class AutoTotemOrder extends Module {
     @Override
     public void onTick() {
         if (mc.player == null || mc.gameMode == null) return;
-        if (System.currentTimeMillis() - last < 4000) return;
+        if (!dev.noxclient.util.Legitifier.ready(this, 0.25, 0.5)) return;
         AbstractContainerMenu menu = mc.player.containerMenu;
         if (menu == mc.player.inventoryMenu) return;
 

@@ -25,6 +25,9 @@ public class AHSniper extends Module {
     private final Setting.Num cooldown = add(new Setting.Num("Cooldown (s)", 5, 1, 60));
     private long last;
 
+    /** Items we just bought — AutoFlip picks these up to relist them. */
+    public static final java.util.ArrayDeque<String[]> FLIP = new java.util.ArrayDeque<>();
+
     public AHSniper() { super("AHSniper", "Snipes underpriced AH items", Category.DONUTSMP); premium = true; }
 
     @Override
@@ -32,7 +35,7 @@ public class AHSniper extends Module {
         if (mc.player == null || mc.gameMode == null) return;
         AbstractContainerMenu menu = mc.player.containerMenu;
         if (menu == mc.player.inventoryMenu) return; // no shop UI open
-        if (System.currentTimeMillis() - last < cooldown.get() * 1000) return;
+        if (System.currentTimeMillis() - last < cooldown.get() * 1000 * (0.8 + Math.random() * 0.7)) return;
 
         for (Slot slot : menu.slots) {
             // skip our own 36 inventory slots — their lore prices made the bot
@@ -47,6 +50,8 @@ public class AHSniper extends Module {
                 mc.gameMode.handleContainerInput(menu.containerId, slot.index, 0,
                     net.minecraft.world.inventory.ContainerInput.PICKUP, mc.player);
                 last = System.currentTimeMillis();
+                if (FLIP.size() < 8)
+                    FLIP.add(new String[]{st.getHoverName().getString(), String.valueOf(price)});
                 Double ref = AutoStonks.min(st.getHoverName().getString());
                 String deal = ref != null
                     ? String.format(" — book min $%.0f (%.0f%% under)", ref, (1 - price / ref) * 100)

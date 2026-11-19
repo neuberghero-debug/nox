@@ -37,7 +37,7 @@ public class AutoSell extends Module {
     public void onTick() {
         if (mc.player == null || mc.getConnection() == null) return;
         long now = System.currentTimeMillis();
-        if (now - last < interval.get() * 1000) return;
+        if (!dev.noxclient.util.Legitifier.ready(this, 1.0 / interval.get(), 0.45)) return;
 
         Set<String> filter = parse();
         var inv = mc.player.getInventory();

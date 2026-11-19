@@ -36,8 +36,8 @@ public class AutoCommander extends Module {
     public void onTick() {
         if (mc.player == null || mc.getConnection() == null || queue.isEmpty()) return;
         long now = System.currentTimeMillis();
-        if (now - last < interval.get() * 1000) return;
-        last = now + (long) (Math.random() * 3000 - 1500); // ±1.5s jitter
+        if (!dev.noxclient.util.Legitifier.ready(this, 1.0 / interval.get(), 0.5)) return;
+        last = now;
         String cmd = queue.poll();
         queue.offer(cmd); // rotate
         mc.getConnection().sendCommand(cmd);
