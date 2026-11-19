@@ -16,7 +16,7 @@ public final class AddonContext implements NoxAddonContext {
     public AddonContext(ModuleManager modules) { this.modules = modules; }
 
     @Override
-    public void registerModule(Module module) { modules.all().add(module); }
+    public void registerModule(Module module) { modules.register(module); }
 
     @Override
     public ModuleManager modules() { return modules; }

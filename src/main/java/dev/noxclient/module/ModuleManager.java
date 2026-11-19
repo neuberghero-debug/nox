@@ -18,6 +18,7 @@ public class ModuleManager {
     public void registerAll() {
         // DonutSMP free
         reg(new AutoSell());
+        reg(new NightGrind());
         reg(new AutoEat());
         reg(new AutoVoiceConfirm());
         reg(new SessionStats());
