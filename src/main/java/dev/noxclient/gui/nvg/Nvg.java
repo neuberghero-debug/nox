@@ -307,13 +307,14 @@ public final class Nvg {
                 line(c, st, x0 + .6f * u, cy, x0 + 3 * u, cy, lw, argb);
                 line(c, st, x0 + 9 * u, cy, x0 + 11.4f * u, cy, lw, argb);
             }
-            case "bolt" -> {
+            case "bolt" -> { // stroked lightning — fill paths render as bbox here
                 nvgBeginPath(c);
                 nvgMoveTo(c, x0 + 7 * u, y0 + .8f * u); nvgLineTo(c, x0 + 3.4f * u, y0 + 6.6f * u);
                 nvgLineTo(c, x0 + 6.2f * u, y0 + 6.6f * u); nvgLineTo(c, x0 + 5 * u, y0 + 11.2f * u);
                 nvgLineTo(c, x0 + 8.8f * u, y0 + 5.2f * u); nvgLineTo(c, x0 + 6 * u, y0 + 5.2f * u);
                 nvgClosePath(c);
-                nvgFillColor(c, col(st, argb)); nvgFill(c);
+                nvgStrokeColor(c, col(st, argb)); nvgStrokeWidth(c, lw);
+                nvgLineJoin(c, NVG_ROUND); nvgStroke(c);
             }
             case "eye" -> {
                 nvgBeginPath(c);
@@ -545,7 +546,8 @@ public final class Nvg {
             if (i == 0) nvgMoveTo(c, px, py); else nvgLineTo(c, px, py);
         }
         nvgClosePath(c);
-        nvgFillColor(c, col(st, argb)); nvgFill(c);
+        nvgStrokeColor(c, col(st, argb)); nvgStrokeWidth(c, Math.max(1.2f, r * .3f));
+        nvgLineJoin(c, NVG_ROUND); nvgStroke(c);   // outlined — filled paths render as bbox
     }
 
     /* ---------- composite helpers ---------- */
