@@ -70,6 +70,12 @@ public class NoxClickGui extends Screen {
 
     private float openT;
     private final long openAt = System.currentTimeMillis();
+    /** Restagger clock — reset on open + every tab/design switch so rows cascade. */
+    private long listAt = System.currentTimeMillis();
+    /* first-open intro veil — once per session, click/ESC skips */
+    private static boolean introDone;
+    private final long introAt = System.currentTimeMillis();
+    private static final int INTRO_MS = 700;
 
     private int dragDX, dragDY;
     private boolean dragging, resizing;
@@ -204,7 +210,8 @@ public class NoxClickGui extends Screen {
         if (at == null) return on ? 1 : 0;
         float t = Math.min(1f, (System.currentTimeMillis() - at) / (150f / animMul()));
         if (t >= 1f) { togAt.remove(m); return on ? 1 : 0; }
-        float f = easeOutCubic(t);
+        // easeOutBack — the knob overshoots ~9% then settles, spring feel
+        float f = 1f + 2.71f * (float) Math.pow(t - 1, 3) + 1.71f * (float) Math.pow(t - 1, 2);
         return on ? f : 1f - f;
     }
 
@@ -296,6 +303,7 @@ public class NoxClickGui extends Screen {
         if (!recordingMode) Gui.backdrop(g, width, height, openT);
 
         NvgOverlay.op(this::drawAll);
+        if (!introDone) NvgOverlay.op(this::drawIntro);
         if (palette) NvgOverlay.op(this::drawPalette);
         else super.extractRenderState(g, mx, my, dt);
     }
@@ -672,7 +680,7 @@ public class NoxClickGui extends Screen {
             case COMBAT -> "sword";
             case MOVEMENT -> "wings";
             case RENDER -> "eye";
-            case DONUTSMP -> "diamond";
+            case DONUTSMP -> "donut";
             case MISC -> "star";
         };
     }
@@ -793,6 +801,11 @@ public class NoxClickGui extends Screen {
             search.value.isEmpty() && !search.focused ? DS.muted() : DS.text(),
             org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
         if (!search.value.isEmpty()) {
+            int nres = filtered().size();
+            String rt = nres + " hit" + (nres == 1 ? "" : "s");
+            Nvg.text(c, st, "mono", 9.5f, search.x + search.w - 32, search.y + search.h / 2f, rt,
+                DS.muted(), org.lwjgl.nanovg.NanoVG.NVG_ALIGN_RIGHT
+                    | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
             float cxx = search.x + search.w - 20;
             Nvg.circle(c, st, cxx, search.y + search.h / 2f, 8, Nvg.fade(DS.muted(), 0.35f));
             Nvg.line(c, st, cxx - 3, search.y + search.h / 2f - 3, cxx + 3, search.y + search.h / 2f + 3, 1.5f, DS.text());
@@ -822,9 +835,11 @@ public class NoxClickGui extends Screen {
             Nvg.line(c, st, lx, h.y + 10, contentX() + lw - 4, h.y + 10, 1f,
                 Nvg.fade(DS.line(), .9f));
         }
+        float lt = easeOutCubic(Math.min(1f,
+            (System.currentTimeMillis() - listAt) / (240f / animMul())));
         for (Row r : rows) {
-            // staggered rise on open — rows cascade up like the mockup
-            float rt = Math.min(1f, Math.max(0f, openT * 1.7f - r.idx * .045f));
+            // staggered rise on open AND on every tab switch — rows cascade
+            float rt = Math.min(1f, Math.max(0f, lt * 1.7f - r.idx * .045f));
             float rise = (1f - rt) * 9f;
             if (rise > .4f) {
                 org.lwjgl.nanovg.NanoVG.nvgSave(c);
@@ -893,21 +908,28 @@ public class NoxClickGui extends Screen {
             // borderless tile; the accent lives in the glyph, not the chip fill
             Nvg.round(c, st, chx, chy, chip, chip, 8,
                 Nvg.fade(DS.lighten(DS.surface(), .055f), .85f));
-            Nvg.glyph(c, st, iconOf(m), chx + chip / 2, chy + chip / 2, 17,
-                on ? DS.cardAccent() : Nvg.lerp(DS.secondary(), DS.text(), hf));
+            drawIcon(c, st, m, chx + chip / 2, chy + chip / 2, 17,
+                on ? DS.cardAccent() : Nvg.lerp(DS.secondary(), DS.text(), hf), hf);
         } else if (on) {
             Nvg.hgrad(c, st, chx, chy, chip, chip, 8,
                 Nvg.fade(DS.cardAccent(), .9f), DS.accent2());
             Nvg.insetHi(c, st, chx + 1, chy, chip - 2, 7, 0x3AFFFFFF);
-            Nvg.glyph(c, st, iconOf(m), chx + chip / 2, chy + chip / 2, 17, 0xFFFFFFFF);
+            drawIcon(c, st, m, chx + chip / 2, chy + chip / 2, 17, 0xFFFFFFFF, hf);
         } else {
             // readable tile: lifted fill + hairline border so glyphs sit in chips,
             // not floating loose against the card
             Nvg.round(c, st, chx, chy, chip, chip, 8, Nvg.fade(DS.lighten(DS.surface(), .045f), .9f));
             Nvg.roundB(c, st, chx, chy, chip, chip, 8, 0x00FFFFFF,
                 hov ? UICustom.borderHover : DS.line());
-            Nvg.glyph(c, st, iconOf(m), chx + chip / 2, chy + chip / 2, 17,
-                hov ? DS.secondary() : DS.muted());
+            drawIcon(c, st, m, chx + chip / 2, chy + chip / 2, 17,
+                hov ? DS.secondary() : DS.muted(), hf);
+        }
+        // toggle flash — brief accent wash across the row while the flip runs
+        Long tg = togAt.get(m);
+        if (tg != null && !UICustom.reducedMotion) {
+            float tf = Math.min(1f, (System.currentTimeMillis() - tg) / 220f);
+            if (tf < 1f)
+                Nvg.round(c, st, x, y, w, rh, 10, Nvg.fade(DS.cardAccent(), .07f * (1f - tf)));
         }
 
         // name + description vertically centered as a block around row middle;
@@ -984,9 +1006,44 @@ public class NoxClickGui extends Screen {
         }
     }
 
+    /** Glyph with micro-motion: scale-pop on toggle (sin pulse, one shot) and
+     *  a slight tilt while the row is hovered. Identity when reducedMotion. */
+    private void drawIcon(long c, MemoryStack st, Module m, float cx, float cy,
+                          float s, int argb, float hf) {
+        if (UICustom.reducedMotion) { Nvg.glyph(c, st, iconOf(m), cx, cy, s, argb); return; }
+        float pop = 0;
+        Long at = togAt.get(m);
+        if (at != null) {
+            float tt = Math.min(1f, (System.currentTimeMillis() - at) / 170f);
+            pop = (float) Math.sin(tt * Math.PI) * .26f;
+        }
+        float tilt = hf * .10f;
+        if (pop > .005f || tilt > .005f) {
+            org.lwjgl.nanovg.NanoVG.nvgSave(c);
+            org.lwjgl.nanovg.NanoVG.nvgTranslate(c, cx, cy);
+            org.lwjgl.nanovg.NanoVG.nvgRotate(c, tilt);
+            org.lwjgl.nanovg.NanoVG.nvgScale(c, 1f + pop, 1f + pop);
+            org.lwjgl.nanovg.NanoVG.nvgTranslate(c, -cx, -cy);
+            Nvg.glyph(c, st, iconOf(m), cx, cy, s, argb);
+            org.lwjgl.nanovg.NanoVG.nvgRestore(c);
+        } else {
+            Nvg.glyph(c, st, iconOf(m), cx, cy, s, argb);
+        }
+    }
+
     /** Module name → glyph icon (keyword map, category fallback). */
     private String iconOf(Module m) {
         String n = m.name.toLowerCase(java.util.Locale.ROOT);
+        if (n.contains("bounty")) return "target";
+        if (n.contains("scout") || n.contains("activity")) return "radar";
+        if (n.contains("loot") || n.contains("chest") || n.contains("steal") || n.contains("stash")) return "chest";
+        if (n.contains("entity")) return "person";
+        if (n.contains("pearl")) return "pearl";
+        if (n.contains("tnt") || n.contains("explo")) return "tnt";
+        if (n.contains("coin") || n.contains("stonks") || n.contains("flip") || n.contains("bountyhunt")) return "coin";
+        if (n.contains("bell") || n.contains("notify") || n.contains("remind") || n.contains("vote") || n.contains("daily")) return "bell";
+        if (n.contains("pot") && !n.contains("spot") || n.contains("brew")) return "potion";
+        if (n.contains("ghost") || n.contains("autolog")) return "ghost";
         if (n.contains("aura") || n.contains("aim") || n.contains("trigger")) return "crosshair";
         if (n.contains("kill") || n.contains("sword") || n.contains("wtap") || n.contains("crit")) return "sword";
         if (n.contains("speed") || n.contains("sprint") || n.contains("timer") || n.contains("zoom")) return "bolt";
@@ -998,7 +1055,7 @@ public class NoxClickGui extends Screen {
         if (n.contains("spotify") || n.contains("music") || n.contains("lyric") || n.contains("song")) return "note";
         if (n.contains("staff") || n.contains("detect") || n.contains("radar") || n.contains("alert")) return "radar";
         if (n.contains("cape") || n.contains("skin") || n.contains("cosmet")) return "person";
-        if (n.contains("money") || n.contains("price") || n.contains("shop") || n.contains("auction") || n.contains("bazaar")) return "diamond";
+        if (n.contains("money") || n.contains("price") || n.contains("shop") || n.contains("auction") || n.contains("bazaar")) return "coin";
         if (n.contains("stash") || n.contains("storage") || n.contains("base") || n.contains("shulker")) return "cube";
         if (n.contains("waypoint") || n.contains("map") || n.contains("coord") || n.contains("ore")) return "pin";
         if (n.contains("panic") || n.contains("unstuck")) return "flag";
@@ -1027,7 +1084,7 @@ public class NoxClickGui extends Screen {
             case "movement" -> "bolt";
             case "render" -> "eye";
             case "player" -> "person";
-            case "donutsmp" -> "diamond";
+            case "donutsmp" -> "donut";
             default -> "star";
         };
     }
@@ -1111,6 +1168,49 @@ public class NoxClickGui extends Screen {
                 Nvg.rect(c, st, fx + 8 + Nvg.textW(c, "inter", 10.5f, sstr.get()),
                     mid - 7, 1.2f, 14, DS.cardAccent());
         }
+    }
+
+    /** First-open intro — dark veil + spinning black-hole mark + "loading N
+     *  modules" strip that fades out over INTRO_MS. Click/ESC skips. Once per
+     *  session; reducedMotion skips it entirely. */
+    private void drawIntro(long c, MemoryStack st) {
+        if (UICustom.reducedMotion) { introDone = true; return; }
+        long el = System.currentTimeMillis() - introAt;
+        float p = Math.min(1f, el / (float) INTRO_MS);
+        if (p >= 1f) { introDone = true; return; }
+        float a = 1f - easeOutCubic(p);
+        // veil — slightly darker than the GUI backdrop, whole screen
+        Nvg.rect(c, st, 0, 0, width, height, Nvg.fade(0xFF07080C, .92f * a));
+        float cx = width / 2f, cy = height / 2f - 24;
+        // accretion ring — same tilted-ellipse mark as the titlebar, spinning
+        float rot = el / 420f;
+        org.lwjgl.nanovg.NanoVG.nvgSave(c);
+        org.lwjgl.nanovg.NanoVG.nvgTranslate(c, cx, cy);
+        org.lwjgl.nanovg.NanoVG.nvgScale(c, 1f, .42f);
+        Nvg.ring(c, st, 0, 0, 30, 2.4f, Nvg.fade(DS.accent2(), .8f * a));
+        org.lwjgl.nanovg.NanoVG.nvgBeginPath(c);
+        org.lwjgl.nanovg.NanoVG.nvgArc(c, 0, 0, 30, rot, rot + 2.4f,
+            org.lwjgl.nanovg.NanoVG.NVG_CW);
+        org.lwjgl.nanovg.NanoVG.nvgStrokeColor(c, Nvg.col(st, Nvg.fade(DS.accent(), .95f * a)));
+        org.lwjgl.nanovg.NanoVG.nvgStrokeWidth(c, 3.6f);
+        org.lwjgl.nanovg.NanoVG.nvgLineCap(c, org.lwjgl.nanovg.NanoVG.NVG_ROUND);
+        org.lwjgl.nanovg.NanoVG.nvgStroke(c);
+        org.lwjgl.nanovg.NanoVG.nvgRestore(c);
+        Nvg.circle(c, st, cx, cy, 16, Nvg.fade(0xFF05060A, a));
+        Nvg.arc(c, st, cx, cy - 1.4f, 11, 2.4f, rot * .8f, rot * .8f + 3.4f,
+            Nvg.fade(DS.accent(), .9f * a));
+        Nvg.textL(c, st, "inter_b", 22, cx, cy + 34, "N O X",
+            Nvg.fade(DS.text(), a), 3.4f,
+            org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+        int nmods = NoxClient.INSTANCE.modules.all().size();
+        Nvg.text(c, st, "mono", 10.5f, cx, cy + 66, "loading " + nmods + " modules",
+            Nvg.fade(DS.muted(), a),
+            org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
+        // progress strip
+        float bw = 120, bx = cx - bw / 2, by = cy + 88;
+        Nvg.well(c, st, bx, by, bw, 4, 2, Nvg.fade(DS.surface(), .9f * a));
+        Nvg.hgrad(c, st, bx, by, bw * p, 4, 2,
+            Nvg.fade(DS.accent(), a), Nvg.fade(DS.accent2(), a));
     }
 
     /* ---------- live stats ---------- */
@@ -1325,6 +1425,7 @@ public class NoxClickGui extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent e, boolean dbl) {
         double mx = e.x(), my = e.y(); int btn = normButton(e.button());
+        if (!introDone) { introDone = true; return true; }
         if (palette) {
             List<Module> hits = palHits();
             int pw = 340, px = (width - pw) / 2, py = height / 5 + 54;
@@ -1367,11 +1468,13 @@ public class NoxClickGui extends Screen {
         // left rail — hitboxes recorded by the draw pass [x,y,w,h,action]
         for (float[] r : railRects) {
             if (mx >= r[0] && mx < r[0] + r[2] && my >= r[1] && my < r[1] + r[3]) {
-                if (r[4] == -2f) { designTab = true; dScroll.target = 0; return true; }
+                if (r[4] == -2f) { designTab = true; dScroll.target = 0;
+                    listAt = System.currentTimeMillis(); return true; }
                 int k = (int) r[4] + 1;
                 tab = k == 0 ? null : Category.values()[k - 1];
                 designTab = false; selIdx = -1;
-                NoxWindowScreen.activeTab = k; scroll.target = 0; return true;
+                NoxWindowScreen.activeTab = k; scroll.target = 0;
+                listAt = System.currentTimeMillis(); return true;
             }
         }
         if (mx >= search.x + search.w - 30 && mx < search.x + search.w && my >= search.y
@@ -1528,6 +1631,7 @@ public class NoxClickGui extends Screen {
     @Override
     public boolean keyPressed(KeyEvent e) {
         int key = e.key();
+        if (!introDone) { introDone = true; return true; }
         if (palette) {
             if (key == InputConstants.KEY_ESCAPE) { palette = false; return true; }
             if (key == InputConstants.KEY_BACKSPACE && !palInput.value.isEmpty())

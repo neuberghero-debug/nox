@@ -188,6 +188,22 @@ public abstract class LoadingOverlayMixin {
                 (int) (p * 100) + " %", dev.noxclient.gui.nvg.Nvg.fade(0xFF8A8A9E, A * .8f),
                 org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
 
+            /* rotating tips — cycle every 3s, soft crossfade between them */
+            String[] TIPS = {
+                "tip · type to search — no click needed",
+                "tip · Ctrl+K opens the module palette",
+                "tip · MMB pins a module to the footer",
+                "tip · RMB a row expands its settings",
+                "tip · PANIC kills every risky module",
+                "tip · AutoScout + ActivityFind hunts bases afk",
+                "tip · /nox share exports your config",
+            };
+            int ti = (int) (t / 3000) % TIPS.length;
+            float tipFade = 1f - Math.abs((t % 3000) / 1500f - 1f);   // 0→1→0
+            dev.noxclient.gui.nvg.Nvg.text(c, st, "inter", 10f, cx, by + 36,
+                TIPS[ti], dev.noxclient.gui.nvg.Nvg.fade(0xFF8A8A9E, A * .55f * (0.4f + 0.6f * tipFade)),
+                org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+
             /* bottom brand hairline */
             dev.noxclient.gui.nvg.Nvg.hgrad(c, st, 0, h - 1.5f, w * .5f, 1.5f, 0,
                 0x00FFFFFF, dev.noxclient.gui.nvg.Nvg.fade(ACC, .5f * A));

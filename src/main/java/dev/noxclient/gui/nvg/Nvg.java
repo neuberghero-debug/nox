@@ -526,6 +526,86 @@ public final class Nvg {
                 nvgBezierTo(c, x0 + 9 * u, y0 + 1.8f * u, x0 + 9 * u, y0 + 4.4f * u, cx, y0 + 4.4f * u);
                 nvgStrokeColor(c, col(st, argb)); nvgStrokeWidth(c, lw * .8f); nvgStroke(c);
             }
+            case "donut" -> { // ring + hole + sprinkles — the DonutSMP mark
+                ring(c, st, cx, cy, 4.8f * u, lw, argb);
+                ring(c, st, cx, cy, 1.7f * u, lw * .8f, argb);
+                circle(c, st, x0 + 3.8f * u, y0 + 3.2f * u, .65f * u, argb);
+                circle(c, st, x0 + 8.8f * u, y0 + 4.2f * u, .65f * u, argb);
+                circle(c, st, x0 + 7.8f * u, y0 + 8.8f * u, .65f * u, argb);
+                circle(c, st, x0 + 3.2f * u, y0 + 8f * u, .65f * u, argb);
+            }
+            case "chest" -> {
+                nvgBeginPath(c); nvgRoundedRect(c, x0 + 1.2f * u, y0 + 3.6f * u, 9.6f * u, 6.8f * u, 1.4f * u);
+                nvgStrokeColor(c, col(st, argb)); nvgStrokeWidth(c, lw); nvgStroke(c);
+                line(c, st, x0 + 1.2f * u, y0 + 6 * u, x0 + 10.8f * u, y0 + 6 * u, lw, argb);
+                nvgBeginPath(c); nvgRoundedRect(c, cx - .9f * u, y0 + 5f * u, 1.8f * u, 2.4f * u, .5f * u);
+                nvgStrokeColor(c, col(st, argb)); nvgStrokeWidth(c, lw * .85f); nvgStroke(c);
+            }
+            case "coin" -> { // ring + S from two arcs + stem
+                ring(c, st, cx, cy, 4.8f * u, lw, argb);
+                line(c, st, cx, y0 + 3f * u, cx, y0 + 9f * u, lw * .8f, argb);
+                nvgBeginPath(c);
+                nvgArc(c, cx, y0 + 4.6f * u, 1.7f * u, (float) Math.toRadians(20), (float) Math.toRadians(290), NVG_CW);
+                nvgStrokeColor(c, col(st, argb)); nvgStrokeWidth(c, lw * .85f); nvgStroke(c);
+                nvgBeginPath(c);
+                nvgArc(c, cx, y0 + 7.4f * u, 1.7f * u, (float) Math.toRadians(200), (float) Math.toRadians(350), NVG_CW);
+                nvgStrokeColor(c, col(st, argb)); nvgStrokeWidth(c, lw * .85f); nvgStroke(c);
+            }
+            case "bell" -> {
+                nvgBeginPath(c);
+                nvgMoveTo(c, x0 + 2.8f * u, y0 + 8.6f * u);
+                nvgLineTo(c, x0 + 2.8f * u, y0 + 5.4f * u);
+                nvgBezierTo(c, x0 + 2.8f * u, y0 + 3f * u, x0 + 4.4f * u, y0 + 1.6f * u, cx, y0 + 1.6f * u);
+                nvgBezierTo(c, x0 + 7.6f * u, y0 + 1.6f * u, x0 + 9.2f * u, y0 + 3f * u, x0 + 9.2f * u, y0 + 5.4f * u);
+                nvgLineTo(c, x0 + 9.2f * u, y0 + 8.6f * u);
+                nvgLineTo(c, x0 + 10.4f * u, y0 + 9.6f * u);
+                nvgLineTo(c, x0 + 1.6f * u, y0 + 9.6f * u);
+                nvgClosePath(c);
+                nvgStrokeColor(c, col(st, argb)); nvgStrokeWidth(c, lw);
+                nvgLineJoin(c, NVG_ROUND); nvgStroke(c);
+                circle(c, st, cx, y0 + 10.6f * u, .9f * u, argb);
+            }
+            case "potion" -> {
+                nvgBeginPath(c); nvgRoundedRect(c, x0 + 3f * u, y0 + 5f * u, 6f * u, 6.4f * u, 2f * u);
+                nvgStrokeColor(c, col(st, argb)); nvgStrokeWidth(c, lw); nvgStroke(c);
+                line(c, st, x0 + 5f * u, y0 + 1.6f * u, x0 + 5f * u, y0 + 5f * u, lw, argb);
+                line(c, st, x0 + 4.2f * u, y0 + 1.6f * u, x0 + 5.8f * u, y0 + 1.6f * u, lw, argb);
+                line(c, st, x0 + 3.9f * u, y0 + 8.2f * u, x0 + 8.1f * u, y0 + 8.2f * u, lw * .85f, argb);
+            }
+            case "ghost" -> {
+                nvgBeginPath(c);
+                nvgMoveTo(c, x0 + 2.4f * u, y0 + 10.8f * u);
+                nvgLineTo(c, x0 + 2.4f * u, y0 + 5.6f * u);
+                nvgBezierTo(c, x0 + 2.4f * u, y0 + 2.8f * u, x0 + 4f * u, y0 + 1.4f * u, cx, y0 + 1.4f * u);
+                nvgBezierTo(c, x0 + 8f * u, y0 + 1.4f * u, x0 + 9.6f * u, y0 + 2.8f * u, x0 + 9.6f * u, y0 + 5.6f * u);
+                nvgLineTo(c, x0 + 9.6f * u, y0 + 10.8f * u);
+                nvgLineTo(c, x0 + 7.8f * u, y0 + 9.6f * u);
+                nvgLineTo(c, cx, y0 + 10.8f * u);
+                nvgLineTo(c, x0 + 4.2f * u, y0 + 9.6f * u);
+                nvgClosePath(c);
+                nvgStrokeColor(c, col(st, argb)); nvgStrokeWidth(c, lw);
+                nvgLineJoin(c, NVG_ROUND); nvgStroke(c);
+                circle(c, st, x0 + 4.6f * u, y0 + 5.4f * u, .8f * u, argb);
+                circle(c, st, x0 + 7.4f * u, y0 + 5.4f * u, .8f * u, argb);
+            }
+            case "target" -> { // bullseye — bounty/range modules
+                ring(c, st, cx, cy, 4.8f * u, lw, argb);
+                ring(c, st, cx, cy, 2.6f * u, lw * .85f, argb);
+                circle(c, st, cx, cy, .9f * u, argb);
+            }
+            case "pearl" -> { // ender pearl — circle + inner crescent
+                ring(c, st, cx, cy, 4.8f * u, lw, argb);
+                nvgBeginPath(c);
+                nvgArc(c, cx, cy, 2.8f * u, (float) Math.toRadians(150), (float) Math.toRadians(300), NVG_CW);
+                nvgStrokeColor(c, col(st, argb)); nvgStrokeWidth(c, lw * .8f); nvgStroke(c);
+            }
+            case "tnt" -> { // charge block + lit fuse spark
+                nvgBeginPath(c); nvgRoundedRect(c, x0 + 2f * u, y0 + 4f * u, 8f * u, 6.4f * u, 1f * u);
+                nvgStrokeColor(c, col(st, argb)); nvgStrokeWidth(c, lw); nvgStroke(c);
+                line(c, st, x0 + 2f * u, y0 + 7.2f * u, x0 + 10f * u, y0 + 7.2f * u, lw, argb);
+                line(c, st, cx, y0 + 4f * u, cx, y0 + 2f * u, lw, argb);
+                circle(c, st, cx + 1.3f * u, y0 + 1.6f * u, .95f * u, argb);
+            }
             default -> { // hollow diamond — unmapped modules still get a visible mark
                 nvgBeginPath(c);
                 nvgMoveTo(c, cx, y0 + 2 * u); nvgLineTo(c, x0 + 9.6f * u, cy);
