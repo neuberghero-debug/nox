@@ -44,6 +44,8 @@ public class ModuleManager {
         reg(new SusChunkFinder());
         reg(new OreSim());
         reg(new SoundFind());
+        reg(new ActivityFind());
+        reg(new EntityFind());
         // Combat
         reg(new KillAura());
         reg(new AutoTotem());
@@ -101,6 +103,7 @@ public class ModuleManager {
         reg(new AutoWalk());
         reg(new AutoMine());
         reg(new ChestStealer());
+        reg(new AutoLoot());
         reg(new TradeChecker());
         reg(new DropPartyAlert());
         reg(new AutoRespawn());

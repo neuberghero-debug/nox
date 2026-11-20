@@ -95,9 +95,12 @@ public class SusChunkFinder extends Module {
             else { s += 0.5; }   // misc tile-entity density
         }
         if (trialOnly) return 0;   // pure trial-chamber content is natural
-        // cross-signal: flagged by ChunkFinder
+        // cross-signals: ChunkFinder flag + live activity + entity hits
         var cf = dev.noxclient.NoxClient.INSTANCE.modules.get("ChunkFinder");
         if (cf instanceof ChunkFinder f && f.flagged().contains(cp)) s += 10;
+        long ck = ((long) cp.x() << 32) | (cp.z() & 0xFFFFFFFFL);
+        if (ActivityFind.flagged().contains(ck)) s += 8;
+        if (EntityFind.flagged().contains(ck)) s += 12;
         return s;
     }
 
