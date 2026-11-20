@@ -465,6 +465,22 @@ public final class DebugConsole {
                         .value().createWorldDimensions(), null);
                 return "creating seed=" + wseed;
             }
+            case "smarks" -> {   // dump SoundFind + AntiESPBypass markers (detector verification)
+                var sb = new StringBuilder();
+                var sm = dev.noxclient.module.donutsmp.SoundFind.MARKS;
+                sb.append("soundfind=").append(sm.size());
+                for (var e : sm.entrySet()) {
+                    var m = e.getValue();
+                    sb.append(" | ").append(e.getKey()).append('@')
+                        .append((int) m.x).append(',').append((int) m.y).append(',').append((int) m.z)
+                        .append(" x").append(m.count).append(m.deep ? " DEEP" : "");
+                }
+                var am = dev.noxclient.module.donutsmp.AntiESPBypass.MARKS;
+                sb.append(" || esp=").append(am.size());
+                for (var e : am.entrySet())
+                    sb.append(" | ").append(e.getKey());
+                return sb.toString();
+            }
             case "findore" -> {   // findore <substr> — nearest REAL ore blocks in loaded chunks
                 if (mc.level == null || mc.player == null || p.length < 2) return "usage: findore gold_ore";
                 String want = p[1];

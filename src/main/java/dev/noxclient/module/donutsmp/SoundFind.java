@@ -33,31 +33,34 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * SoundFind — hears bases you can't see. Sniffs the packet channels the
- * server CANNOT strip without breaking gameplay for everyone:
+ * SoundFind — hears bases you can't see. Verified on a Grim-protected
+ * DonutSMP-style server (live test, 2026-11):
  *   BlockEvent packets  → broadcast to every chunk tracker, cylindrical
- *     (depth-blind): chests/barrels/shulkers/furnaces/pistons opening in a
- *     base 60 blocks under your feet still reach you on the surface.
- *   LevelEvent packets  → 64-block sphere: anvils, brewing, grindstones,
- *     smithing, door sieges, block breaks.
- *   Sound packets       → whatever the server/plugin actually transmits.
- *   Entity-sound + particle packets → villagers, farms, enchanting,
- *     portals, campfires.
- * Events cluster per chunk+kind, get marked in-world (through-wall cuboid +
- * floating label + beam for deep hits) and are logged via StashLogger.
- * Pure listener — sends nothing, Grim can't see it.
+ *     (depth-blind): piston fired 56 blocks below and marked correctly;
+ *     chest/barrel/shulker/furnace opens ride the same channel.
+ *   LevelEvent packets  → same broadcast: a chest destroyed 45 blocks down
+ *     marked "storage broken" DEEP.
+ *   Sound packets       → code path verified (block.chest.open marked),
+ *     BUT the server only sends them inside the sound's ~16-32-block
+ *     audible range — near-field activity only, not a deep vector.
+ *   Entity-sound packets → same server-side distance limit (~16 blocks);
+ *     hurt sounds moved to ClientboundDamageEventPacket in modern MC.
+ *   Particle packets    → the UltimateDonutSmp stack culls them outright
+ *     ("not visible for anybody") — dead vector on that server.
+ * Net: block + level events are the real depth-blind bypass; sounds are
+ * near-field confirmation. Pure listener — sends nothing, Grim can't see it.
  */
 public class SoundFind extends Module {
     private final Setting.Bool blockEvents = add(new Setting.Bool("Storage events", true,
-        "Chest/barrel/shulker/furnace opens — cylindrical broadcast, sees deepest"));
+        "Chest/barrel/shulker/furnace/piston events — chunk broadcast, depth-blind (verified)"));
     private final Setting.Bool levelEvents = add(new Setting.Bool("Level events", true,
-        "Anvils, brewing, door sieges, notable block breaks (64-block sphere)"));
+        "Anvils, brewing, block breaks — chunk broadcast, depth-blind (verified)"));
     private final Setting.Bool sounds = add(new Setting.Bool("Sound packets", true,
-        "Positioned sounds the server actually sends"));
+        "Positioned sounds — server only sends within audible range (~16-32 blocks)"));
     private final Setting.Bool entitySounds = add(new Setting.Bool("Entity sounds", true,
-        "Villagers, golems, farms — and other players"));
-    private final Setting.Bool particles = add(new Setting.Bool("Particles", true,
-        "Enchanting, portals, campfires, note blocks"));
+        "Villagers, golems, players — server-side distance limited, near-field only"));
+    private final Setting.Bool particles = add(new Setting.Bool("Particles", false,
+        "Enchanting/portals/campfires — culled by the server on DonutSMP-style stacks"));
     private final Setting.Bool deepOnly = add(new Setting.Bool("Deep only", false,
         "Only mark events far below you — filters surface noise"));
     private final Setting.Num deepDrop = add(new Setting.Num("Deep below", 18, 5, 64,
@@ -92,7 +95,7 @@ public class SoundFind extends Module {
     }
 
     public SoundFind() {
-        super("SoundFind", "Hears hidden bases via sound/event packets", Category.DONUTSMP);
+        super("SoundFind", "Marks storage/redstone events in tracked chunks — even 60+ blocks below", Category.DONUTSMP);
         inst = this;
     }
 
@@ -190,8 +193,7 @@ public class SoundFind extends Module {
     public static void onSound(ClientboundSoundPacket p) {
         if (inst == null || !inst.isEnabled() || !inst.sounds.on()) return;
         if (p.getSource() != SoundSource.BLOCKS && p.getSource() != SoundSource.PLAYERS) return;
-        String label = p.getSound().unwrapKey()
-            .map(k -> soundLabel(k.identifier().getPath())).orElse(null);
+        String label = soundLabel(p.getSound().value().location().getPath());
         if (label != null) inst.mark("sound", label, p.getX(), p.getY(), p.getZ());
     }
 
