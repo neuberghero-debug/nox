@@ -61,6 +61,8 @@ public class EntityFind extends Module {
     private final Setting.Num scanTicks = add(new Setting.Num("Scan every (t)", 20, 5, 100));
     private final Setting.Num ignoreNear = add(new Setting.Num("Ignore radius", 8, 0, 64));
     private final Setting.Bool chatNotify = add(new Setting.Bool("Chat notify", true));
+    private final Setting.Num ttl = add(new Setting.Num("Mark TTL (s)", 300, 30, 3600,
+        "How long a mark lives after the entity left render range"));
 
     public static final Map<String, Mark> MARKS = new LinkedHashMap<>();
     private static final Set<Long> flagged = ConcurrentHashMap.newKeySet();
@@ -101,7 +103,15 @@ public class EntityFind extends Module {
     @Override public void onTick() {
         if (mc.level == null || mc.player == null) return;
         if (++tick % scanTicks.intVal() != 0) return;
+        // flagged = "suspicious entities in render range NOW" for SusChunk —
+        // a set that only grows kept boosting chunks forever after the
+        // entity was gone; rebuild it every scan instead
+        flagged.clear();
         villagerCount.clear();
+        // marks outlive the entity (that's the point) but not forever
+        long cut = System.currentTimeMillis() - (long) (ttl.get() * 1000);
+        MARKS.values().removeIf(m -> m.lastMs < cut);
+        if (seen.size() > 4096) seen.clear();   // long sessions — just re-notify
         for (Entity e : mc.level.entitiesForRendering()) {
             if (e == mc.player || e instanceof Player) continue;
             String label = classify(e);

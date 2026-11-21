@@ -42,6 +42,9 @@ public class AutoLoot extends Module {
     private final Set<BlockPos> done = new HashSet<>();
     private BlockPos opening;
     private long openedAt;
+    /** The open-packet lands a tick or two AFTER a successful right-click —
+     *  don't treat the gap as "already closed". */
+    private boolean sawScreen;
     private boolean stealerWas;
     private Module stealer;
 
@@ -70,12 +73,24 @@ public class AutoLoot extends Module {
         if (mc.player == null || mc.level == null || mc.gameMode == null) return;
         if (mc.player.tickCount < 60) return;
 
-        // a container screen is open → ChestStealer drains; wait for it to close
-        if (mc.gui.screen() instanceof AbstractContainerScreen) return;
-        // screen closed after a loot — mark done, next
-        if (opening != null && openedAt > 0) {
+        // a container screen is open → ChestStealer drains; wait for it to be
+        // empty, then close it ourselves — ChestStealer's own `close` setting
+        // defaults off, so waiting for IT to close deadlocks the queue
+        if (mc.gui.screen() instanceof AbstractContainerScreen<?> sc) {
+            if (opening == null) return;              // the user's own container — hands off
+            sawScreen = true;
+            long waited = System.currentTimeMillis() - openedAt;
+            if (waited < 400) return;                 // contents arrive async
+            if (containerEmpty(sc) || waited > 8000)  // drained, or stealer stuck/denied
+                mc.player.closeContainer();           // → next tick marks it done below
+            return;
+        }
+        // screen closed after a loot — mark done, next (but the open-packet
+        // lag means "no screen yet" ≠ "closed", so give it a 2s grace)
+        if (opening != null && openedAt > 0
+            && (sawScreen || System.currentTimeMillis() - openedAt > 2000)) {
             done.add(opening);
-            opening = null; openedAt = -1;
+            opening = null; openedAt = -1; sawScreen = false;
             // brief settle between containers
             return;
         }
@@ -102,7 +117,7 @@ public class AutoLoot extends Module {
         var hit = new BlockHitResult(Vec3.atCenterOf(next), Direction.UP, next, false);
         var res = mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
         if (res.consumesAction()) {
-            opening = next; openedAt = System.currentTimeMillis();
+            opening = next; openedAt = System.currentTimeMillis(); sawScreen = false;
             queue.poll();
         } else {
             // couldn't open (claims/plugins) — skip it but keep going
@@ -122,6 +137,15 @@ public class AutoLoot extends Module {
         found.sort(Comparator.comparingDouble(p::distSqr));
         queue.addAll(found);
         return !queue.isEmpty();
+    }
+
+    /** True when every non-player slot of the open menu is empty. */
+    private boolean containerEmpty(AbstractContainerScreen<?> sc) {
+        var menu = sc.getMenu();
+        int invStart = menu.slots.size() - 36;
+        for (int i = 0; i < invStart; i++)
+            if (!menu.getSlot(i).getItem().isEmpty()) return false;
+        return true;
     }
 
     private boolean isLootable(Block b) {

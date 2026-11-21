@@ -50,7 +50,11 @@ public final class Legitifier {
     /** Snap a delta to the nearest multiple of the mouse quantum (GCD fix). */
     public static float gcdFix(float delta) {
         double q = gcdQuantum();
-        return (float) (Math.round(delta / q) * q);
+        long n = Math.round(delta / q);
+        // |delta| < q/2 quantizes to 0 — at very low rot speeds that stalled
+        // convergence entirely; emit the smallest nonzero step instead
+        if (n == 0 && delta != 0) n = delta > 0 ? 1 : -1;
+        return (float) (n * q);
     }
 
     /**

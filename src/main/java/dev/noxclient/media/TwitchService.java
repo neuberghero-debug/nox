@@ -16,6 +16,9 @@ import java.util.Deque;
  */
 public final class TwitchService {
     private static final Deque<String> lines = new ArrayDeque<>();
+    /** Monotonic total-lines counter — survives ring wraps + reconnect clears,
+     *  unlike an index into the copied buffer (which wedges once full). */
+    private static long seq;
     private static volatile String channel = "", status = "offline";
     private static volatile boolean started, live;
     private static volatile int cap = 6;
@@ -36,6 +39,18 @@ public final class TwitchService {
 
     public static java.util.List<String> lines() {
         synchronized (lines) { return java.util.List.copyOf(lines); }
+    }
+    /** Total lines ever appended — watermark for since(). */
+    public static long seq() { synchronized (lines) { return seq; } }
+    /** Lines appended after the given seq watermark (empty when none). */
+    public static java.util.List<String> since(long lastSeq) {
+        synchronized (lines) {
+            int drop = (int) Math.max(0, lines.size() - (seq - lastSeq));
+            var out = new java.util.ArrayList<String>();
+            int i = 0;
+            for (String s : lines) if (++i > drop) out.add(s);
+            return out;
+        }
     }
     public static boolean live() { return live; }
     public static String status() { return status; }
@@ -87,6 +102,7 @@ public final class TwitchService {
                         String msg = line.substring(colon + 2);
                         synchronized (lines) {
                             lines.addLast(who + ": " + msg);
+                            seq++;
                             while (lines.size() > cap) lines.pollFirst();
                         }
                     }

@@ -46,12 +46,19 @@ public class StashLogger extends Module {
             }
         }
         if (out.isEmpty()) return;
-        try {
-            Path p = mc.gameDirectory.toPath().resolve("nox-stashes.txt");
-            Files.writeString(p, out + System.lineSeparator(),
-                StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            mc.player.sendSystemMessage(Component.literal(
-                "§6[NOX] logged " + out.toString().split(";").length + " stash mark(s)"));
-        } catch (Exception ignored) {}
+        // file write off the main thread — the log only grows, sync IO here
+        // hitched the game once the file got large
+        String text = out + System.lineSeparator();
+        Path p = mc.gameDirectory.toPath().resolve("nox-stashes.txt");
+        Thread t = new Thread(() -> {
+            try {
+                Files.writeString(p, text,
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (Exception ignored) {}
+        }, "nox-stashlog");
+        t.setDaemon(true); t.start();
+        mc.player.sendSystemMessage(Component.literal(
+            "§6[NOX] logged " + out.toString().split(";").length + " stash mark(s)"));
+        if (seen.size() > 50_000) seen.clear();   // long AFK sessions — re-log
     }
 }

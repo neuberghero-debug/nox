@@ -28,7 +28,9 @@ public abstract class TitleScreenMixin {
             && !dev.noxclient.gui.AnimatedSky.render(g, s.width, s.height))
             Gargantua.render(g, s.width, s.height);
         g.fill(0, 0, s.width, s.height, 0x50000000);
-        var lm = NoxClient.INSTANCE.modules.get("LyricsSky");
+        var inst = NoxClient.INSTANCE;
+        if (inst == null || inst.modules == null) return;
+        var lm = inst.modules.get("LyricsSky");
         if (lm instanceof dev.noxclient.module.render.LyricsSky ls && ls.isEnabled() && ls.titleScreen.on())
             dev.noxclient.gui.LyricsHud.render(g, s.width / 2, (int) (s.height * 0.78),
                 (int) (double) ls.lines.get());
@@ -36,7 +38,9 @@ public abstract class TitleScreenMixin {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void nox$inviteOnce(CallbackInfo ci) {
-        var cfg = NoxClient.INSTANCE.config;
+        var inst = NoxClient.INSTANCE;
+        if (inst == null) return;
+        var cfg = inst.config;
         if (cfg != null && !cfg.inviteShown) {
             cfg.inviteShown = true;
             cfg.save();

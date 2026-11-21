@@ -27,6 +27,9 @@ public abstract class MovePacketMixin {
 
     @Inject(method = "send", at = @At("HEAD"), cancellable = true)
     private void nox$moveGuard(Packet<?> packet, CallbackInfo ci) {
+        // already cancelled upstream (Blink queued it) — decide() would mark
+        // the window used for a packet that never leaves the wire
+        if (ci.isCancelled()) return;
         if (!(packet instanceof ServerboundMovePlayerPacket p)) return;
         switch (MoveGuard.decide(p)) {
             case CANCEL -> ci.cancel();

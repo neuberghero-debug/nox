@@ -28,7 +28,6 @@ public class AutoSell extends Module {
     private final Setting.Str handCmd = add(new Setting.Str("Hand cmd", "sellhand"));
     private final Setting.Str allCmd = add(new Setting.Str("All cmd", "sellall"));
 
-    private long last;
     private final java.util.Set<String> warned = new java.util.HashSet<>();
 
     public AutoSell() { super("AutoSell", "Auto-sells items via /sell", Category.DONUTSMP); }
@@ -36,7 +35,6 @@ public class AutoSell extends Module {
     @Override
     public void onTick() {
         if (mc.player == null || mc.getConnection() == null) return;
-        long now = System.currentTimeMillis();
         if (!dev.noxclient.util.Legitifier.ready(this, 1.0 / interval.get(), 0.45)) return;
 
         Set<String> filter = parse();
@@ -44,10 +42,8 @@ public class AutoSell extends Module {
 
         if (mode.get().equals("Blacklist")) {
             // one command sells all non-filtered stacks
-            if (hasAny(inv, filter, false)) {
+            if (hasAny(inv, filter, false))
                 send(allCmd.get());
-                last = now;
-            }
             return;
         }
 
@@ -68,7 +64,6 @@ public class AutoSell extends Module {
             }
             selectSlot(i);
             send(handCmd.get());
-            last = now; // reset the interval only on an actual sale
             return; // one stack per interval keeps the pacing human
         }
     }
@@ -94,6 +89,7 @@ public class AutoSell extends Module {
     }
 
     private void send(String cmd) {
+        if (cmd == null || cmd.isBlank()) return;   // empty setting → no bare "/"
         mc.getConnection().sendCommand(cmd);
         if (chatLog.on() && mc.player != null)
             mc.player.sendSystemMessage(Component.literal("§7[NOX] /" + cmd));

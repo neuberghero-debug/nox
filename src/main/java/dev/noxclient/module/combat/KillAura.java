@@ -40,16 +40,20 @@ public class KillAura extends Module {
         double pitch = Math.toDegrees(-Math.atan2(to.y, Math.hypot(to.x, to.z)));
 
         float max = rotSpeed.get().floatValue();
-        float ny = Legitifier.approach(mc.player.getYRot(), (float) yaw, max);
-        float np = Legitifier.approach(mc.player.getXRot(), (float) pitch, max);
         if (rotMode.get().equals("Silent")) {
             // zero-packet silent aim: the next outgoing Rot/PosRot/StatusOnly
             // is rewritten in-flight by MoveGuard — GrimAC Timer kicks on any
-            // extra move packet we used to inject here.
-            dev.noxclient.util.MoveGuard.requestRot(ny, np);
+            // extra move packet we used to inject here. Approach from the
+            // last SENT rotation, not the (never-moving) real view.
+            float fromY = Float.isNaN(lastYaw) ? mc.player.getYRot() : lastYaw;
+            float fromP = Float.isNaN(lastYaw) ? mc.player.getXRot() : lastPitch;
+            lastYaw = Legitifier.approach(fromY, (float) yaw, max);
+            lastPitch = Legitifier.approach(fromP, (float) pitch, max);
+            dev.noxclient.util.MoveGuard.requestRot(lastYaw, lastPitch);
         } else {
-            mc.player.setYRot(ny);
-            mc.player.setXRot(np);
+            lastYaw = Float.NaN;
+            mc.player.setYRot(Legitifier.approach(mc.player.getYRot(), (float) yaw, max));
+            mc.player.setXRot(Legitifier.approach(mc.player.getXRot(), (float) pitch, max));
         }
 
         // attack only when cooldown is full AND timing passes the human filter
@@ -60,6 +64,11 @@ public class KillAura extends Module {
             mc.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
         }
     }
+
+    /** Silent mode: the server-side rotation we last emitted — the player's
+     *  real view never moves, so approaching from it would emit the same
+     *  first-step offset forever and never converge on the target. */
+    private float lastYaw = Float.NaN, lastPitch;
 
     private boolean isAimedAt(LivingEntity t) {
         var hit = mc.crosshairPickEntity;

@@ -26,7 +26,9 @@ public class ChatTriggers extends Module {
     private final Setting.Num cooldown = add(new Setting.Num("User cooldown (s)", 15, 3, 120));
 
     private final Map<String, Long> lastFire = new HashMap<>();
-    private int seen;
+    /** Seq watermark into TwitchService — index-based tracking wedges forever
+     *  once the ring buffer is full. */
+    private long seen;
 
     public ChatTriggers() { super("ChatTriggers", "Twitch chat runs whitelisted client commands",
         Category.RENDER); }
@@ -35,11 +37,8 @@ public class ChatTriggers extends Module {
         if (mc.player == null) return;
         String ch = channel.get();
         if (!ch.isEmpty()) TwitchService.start(ch, 8);
-        var lines = TwitchService.lines();
-        if (seen > lines.size()) seen = 0;                  // buffer wrapped
-        for (int i = seen; i < lines.size(); i++)
-            handle(lines.get(i));
-        seen = lines.size();
+        for (String line : TwitchService.since(seen)) handle(line);
+        seen = TwitchService.seq();
     }
 
     private void handle(String line) {

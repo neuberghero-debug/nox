@@ -24,8 +24,8 @@ public class PvpCoach extends Module {
     private static final Deque<Hit> fight = new ArrayDeque<>();
     private static long lastHitAt;
     private static int swings, hits;
-    private static double dmgDealtStart, dmgTakenStart;
     private static boolean inFight;
+    private boolean wasSwing;
 
     public PvpCoach() { super("PvpCoach", "Rule-based post-fight coaching tips", Category.MISC); premium = true; }
 
@@ -35,32 +35,25 @@ public class PvpCoach extends Module {
         var mc = net.minecraft.client.Minecraft.getInstance();
         if (mc.player == null) return;
         hits++;
-        if (!inFight) {
-            inFight = true;
-            dmgDealtStart = takenSnapshot();
-        }
+        if (!inFight) inFight = true;
         double reach = mc.player.distanceTo(target);
         fight.addLast(new Hit(System.currentTimeMillis(), reach, mc.player.isSprinting()));
         lastHitAt = System.currentTimeMillis();
-        Stats.onHit(target);
+        // NOTE: Stats.onHit is owned by AttackMixin — calling it here too
+        // double-counted every hit
     }
 
     /** Call on swing (misses count for accuracy). */
-    public static void onSwing() {
-        swings++;
-        if (!inFight && swings > 0) dmgTakenStart = hp();
-    }
-
-    private static double hp() {
-        var mc = net.minecraft.client.Minecraft.getInstance();
-        return mc.player == null ? 0 : mc.player.getHealth();
-    }
-    private static double takenSnapshot() { return hp(); }
+    public static void onSwing() { swings++; }
 
     @Override
     public void onTick() {
-        if (!inFight) return;
         if (mc.player == null) { reset(); return; }
+        // swing edge → accuracy denominator (hits AND misses both swing)
+        boolean sw = mc.player.isSwinging();
+        if (sw && !wasSwing) onSwing();
+        wasSwing = sw;
+        if (!inFight) return;
         boolean dead = mc.player.isDeadOrDying();
         boolean timedOut = System.currentTimeMillis() - lastHitAt > 10_000;
         if (!dead && !timedOut) return;

@@ -86,7 +86,8 @@ public class AHSniper extends Module {
             || st.is(net.minecraft.world.item.Items.PLAYER_HEAD);
         if (!arrowish) return false;
         String n = st.getHoverName().getString().toLowerCase();
-        return n.contains("next") || n.contains("page") || n.contains("→") || n.contains(">");
+        // NOTE: no bare ">" — listed arrows/heads can carry ">" in their name
+        return n.contains("next") || n.contains("page") || n.contains("→");
     }
 
     /** Margin gate: needs a known book entry — an unknown price with a margin

@@ -54,7 +54,9 @@ public class AutoScout extends Module {
             var mm = NoxClient.INSTANCE.modules;
             for (String n : STACK) {
                 Module m = mm.get(n);
-                if (m != null && !m.isEnabled()) { m.setEnabled(true); armed.add(m); }
+                // restore() — internal arming must not bounce off a module's
+                // risky-confirm gate and silently leave the stack half-armed
+                if (m != null && !m.isEnabled()) { m.restore(true); armed.add(m); }
             }
         }
         Toasts.push("AutoScout armed — " + armed.size() + " finders up", 0xFF66D9A0);
@@ -74,7 +76,9 @@ public class AutoScout extends Module {
         holding = false;
 
         if (!dev.noxclient.util.Legitifier.ready(this, 1.0 / hopSec.get(), 0.5)) return;
-        mc.getConnection().sendCommand(rtpCmd.get());
+        String cmd = rtpCmd.get();
+        if (cmd == null || cmd.isBlank()) return;   // empty setting → no bare "/"
+        mc.getConnection().sendCommand(cmd);
         lastHop = System.currentTimeMillis(); hops++;
         mark("rtp #" + hops);
     }
@@ -92,17 +96,19 @@ public class AutoScout extends Module {
                     best = Math.max(best, e.getValue());
             if (best >= hitScore.get()) return true;
         }
-        // deep marks = active base below — hold even without a scored chunk
-        double r2 = holdRadius.get() * 16 * holdRadius.get() * 16;
-        for (MarkProbe m : probes()) if (m.deep()
-            && m.dist2(mc.player) < r2) return true;
+        // deep marks = active base below — hold even without a scored chunk.
+        // same Chebyshev-chunk geometry as the sus-score probe above so the
+        // "hold radius" setting means one thing everywhere
+        int r = holdRadius.intVal();
+        for (MarkProbe m : probes())
+            if (m.deep() && m.chDist(pc) <= r) return true;
         return false;
     }
 
     private record MarkProbe(double x, double z, boolean deep) {
-        double dist2(net.minecraft.client.player.LocalPlayer p) {
-            double dx = x - p.getX(), dz = z - p.getZ();
-            return dx * dx + dz * dz;
+        int chDist(net.minecraft.world.level.ChunkPos pc) {
+            return Math.max(Math.abs(((int) x >> 4) - pc.x()),
+                Math.abs(((int) z >> 4) - pc.z()));
         }
     }
 

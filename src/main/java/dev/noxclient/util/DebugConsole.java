@@ -36,15 +36,29 @@ public final class DebugConsole {
     public static volatile double hoverX = -1, hoverY = -1;
     private static Path cmd, ack;
     private static long lastPoll;
+    /** Off in production builds unless <gameDir>/nox_dbg exists — the file
+     *  command pipe lets any local process drive the client (screenshots,
+     *  chat, clicks), so it must be opt-in, not always-on. */
+    private static boolean enabled;
 
     public static void init() {
         Path dir = FabricLoader.getInstance().getGameDir();
         cmd = dir.resolve("nox_cmd");
         ack = dir.resolve("nox_ack");
+        enabled = FabricLoader.getInstance().isDevelopmentEnvironment()
+            || Files.exists(dir.resolve("nox_dbg"));
     }
 
     public static void tick(Minecraft mc) {
         if (cmd == null) init();
+        if (!enabled) {
+            // tools can drop the flag after boot — re-check occasionally
+            if (System.currentTimeMillis() - lastPoll > 3000) {
+                lastPoll = System.currentTimeMillis();
+                enabled = Files.exists(cmd.getParent().resolve("nox_dbg"));
+            }
+            if (!enabled) return;
+        }
         long now = System.currentTimeMillis();
         if (now - lastPoll < 150) return;
         lastPoll = now;

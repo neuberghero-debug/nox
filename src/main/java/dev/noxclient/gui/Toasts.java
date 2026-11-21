@@ -50,6 +50,7 @@ public final class Toasts {
             int th = titled ? 38 : 26;
             int tw = Math.max(Gui.width(font, x.title), Gui.width(font, x.msg)) + 34;
             tw = Math.max(tw, 140);
+            tw = Math.min(tw, w - 24);   // long messages used to run off-screen left
             int x1 = w - 12 + slide;          // right edge, slide in
             int x0 = x1 - tw;
             int alpha = (int) (a * 0xF2) << 24;
@@ -61,12 +62,14 @@ public final class Toasts {
             Gui.round(g, x0, y + 4, 3, th - 8, 2, (x.color & 0xFFFFFF) | alpha);
             Gui.circle(g, x0 + 16, y + (titled ? 12 : th / 2), 3.5f,
                 (x.color & 0xFFFFFF) | alpha);
+            String msg = font.plainSubstrByWidth(x.msg, tw - 30);
             if (titled) {
-                Gui.textBold(g, font, x.title, x0 + 26, y + 7, (alpha) | 0xFFFFFF);
-                Gui.text(g, font, x.msg, x0 + 26, y + 21,
+                Gui.textBold(g, font, font.plainSubstrByWidth(x.title, tw - 30),
+                    x0 + 26, y + 7, (alpha) | 0xFFFFFF);
+                Gui.text(g, font, msg, x0 + 26, y + 21,
                     ((int) (a * 0xFF) << 24) | (DS.secondary() & 0xFFFFFF));
             } else {
-                Gui.text(g, font, x.msg, x0 + 26, y + (th - 8) / 2, (alpha) | 0xFFFFFF);
+                Gui.text(g, font, msg, x0 + 26, y + (th - 8) / 2, (alpha) | 0xFFFFFF);
             }
             // progress bar (fills over LIFE)
             float prog = Math.min(1, age / (float) LIFE);

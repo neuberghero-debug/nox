@@ -172,7 +172,7 @@ public class FriendSync extends Module {
                 if (jwt != null) rb.header("Authorization", "Bearer " + jwt);
                 String s = HttpClient.newHttpClient().send(rb.build(),
                     HttpResponse.BodyHandlers.ofString()).body();
-                cb.accept(G.fromJson(s, JsonObject.class));
+                if (cb != null) cb.accept(G.fromJson(s, JsonObject.class));
             } catch (Throwable ignored) {}
         }, "nox-friendsync");
         t.setDaemon(true); t.start();
@@ -206,9 +206,13 @@ public class FriendSync extends Module {
         }
     }
 
+    /** Chat/toast from the HTTP daemon thread — hop to the client thread so
+     *  the chat component list isn't mutated mid-render. */
     private void chat(String s) {
-        var p = Minecraft.getInstance().player;
-        if (p != null) p.sendSystemMessage(Component.literal(s));
-        else dev.noxclient.gui.Toasts.push(s.replaceAll("§.", ""), 0xFF7AFFE0);
+        Minecraft.getInstance().execute(() -> {
+            var p = Minecraft.getInstance().player;
+            if (p != null) p.sendSystemMessage(Component.literal(s));
+            else dev.noxclient.gui.Toasts.push(s.replaceAll("§.", ""), 0xFF7AFFE0);
+        });
     }
 }

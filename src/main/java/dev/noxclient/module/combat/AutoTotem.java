@@ -30,18 +30,27 @@ public class AutoTotem extends Module {
             var stack = mc.player.getInventory().getItem(i);
             if (!stack.is(Items.TOTEM_OF_UNDYING)) continue;
             if (i < 9) {
-                // hotbar → one clean SWAP packet (same as the vanilla swap-hands key)
+                // hotbar → SWAP acts on the SERVER-selected slot, so the slot
+                // change must reach it first via SetCarriedItem, then restore
                 var inv = mc.player.getInventory();
                 int prev = inv.getSelectedSlot();
+                mc.player.connection.send(new net.minecraft.network.protocol.game
+                    .ServerboundSetCarriedItemPacket(i));
                 inv.setSelectedSlot(i);
                 mc.player.connection.send(new net.minecraft.network.protocol.game
                     .ServerboundPlayerActionPacket(
                         net.minecraft.network.protocol.game.ServerboundPlayerActionPacket
                             .Action.SWAP_ITEM_WITH_OFFHAND,
                         net.minecraft.core.BlockPos.ZERO, net.minecraft.core.Direction.DOWN));
+                mc.player.connection.send(new net.minecraft.network.protocol.game
+                    .ServerboundSetCarriedItemPacket(prev));
                 inv.setSelectedSlot(prev);
             } else {
-                // main inventory → pick up, place into offhand (container slot 45)
+                // containerId-0 clicks are server-reverted without an open
+                // container screen — only attempt while one is up, else the
+                // totem just flickers back every tick
+                if (!(mc.gui.screen() instanceof net.minecraft.client.gui.screens.inventory
+                        .AbstractContainerScreen<?>)) continue;
                 mc.gameMode.handleContainerInput(
                     mc.player.inventoryMenu.containerId, i, 0,
                     net.minecraft.world.inventory.ContainerInput.PICKUP, mc.player);

@@ -455,13 +455,31 @@ function withPanelLock(fn) {
 }
 
 /* A panel message is identified by being authored by THIS bot and carrying
-   the canonical footer — survives restarts and lost state files. */
-function isOurPanel(m) {
-  return m.author.id === client.user.id
-    && m.embeds.some((e) => e.footer?.text === FOOTER);
+   components whose customId belongs to that panel type — NOT just the footer:
+   a footer-only match could adopt a different panel type in the same channel
+   and delete the real one as a "duplicate". Older generations with the same
+   interaction ids are adopted + edited in place. */
+const PANEL_MARKERS = {
+  verify: 'verify:', ticket: 'ticket:create', roles: 'role:',
+  pings: 'ping:', buy: 'buy:',
+};
+
+function panelIds(m) {
+  const ids = [];
+  for (const row of m.components ?? [])
+    for (const c of row.components ?? [])
+      if (c.customId) ids.push(c.customId);
+  return ids;
+}
+
+function isOurPanel(m, marker) {
+  if (m.author.id !== client.user.id) return false;
+  const ids = panelIds(m);
+  return ids.some((id) => id.startsWith(marker));
 }
 
 async function adoptOrPostPanel(channel, key, payload) {
+  const marker = PANEL_MARKERS[key];
   // 1. stored id → edit in place
   let msg = state.panels[key]
     ? await channel.messages.fetch(state.panels[key]).catch(() => null)
@@ -472,7 +490,7 @@ async function adoptOrPostPanel(channel, key, payload) {
   if (!msg) {
     const recent = await channel.messages.fetch({ limit: 100 }).catch(() => null);
     if (recent) {
-      const ours = [...recent.values()].filter(isOurPanel)
+      const ours = [...recent.values()].filter((m) => isOurPanel(m, marker))
         .sort((a, b) => b.createdTimestamp - a.createdTimestamp);
       msg = ours.shift() ?? null;
       for (const dup of ours) {

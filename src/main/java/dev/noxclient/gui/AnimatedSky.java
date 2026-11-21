@@ -50,13 +50,17 @@ public final class AnimatedSky {
             id -> id.getNamespace().equals("noxclient")
                 && (id.getPath().endsWith(".png") || id.getPath().endsWith(".jpg")));
         found.keySet().stream().sorted(Comparator.comparing(Identifier::getPath)).forEach(id -> {
-            try (var in = rm.getResourceOrThrow(id).open();
-                 NativeImage img = id.getPath().endsWith(".jpg")
-                     ? jpeg(in) : NativeImage.read(in)) {
-                Identifier reg = Identifier.fromNamespaceAndPath("noxclient", "skyframe/" + FRAMES.size());
-                mc.getTextureManager().register(reg,
-                    new DynamicTexture(() -> "nox_sky_" + FRAMES.size(), img));
-                FRAMES.add(new Frame(reg, img.getWidth(), img.getHeight()));
+            try (var in = rm.getResourceOrThrow(id).open()) {
+                // the DynamicTexture owns the image from here on — closing it
+                // eagerly relied on register() uploading synchronously
+                NativeImage img = id.getPath().endsWith(".jpg")
+                    ? jpeg(in) : NativeImage.read(in);
+                try {
+                    Identifier reg = Identifier.fromNamespaceAndPath("noxclient", "skyframe/" + FRAMES.size());
+                    mc.getTextureManager().register(reg,
+                        new DynamicTexture(() -> "nox_sky_" + FRAMES.size(), img));
+                    FRAMES.add(new Frame(reg, img.getWidth(), img.getHeight()));
+                } catch (Throwable t) { img.close(); throw t; }
             } catch (Throwable ignored) {}
         });
     }

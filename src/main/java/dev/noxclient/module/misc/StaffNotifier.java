@@ -118,8 +118,10 @@ public class StaffNotifier extends Module {
         if (!quiet.on())
             mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
                 net.minecraft.sounds.SoundEvents.ENDER_DRAGON_GROWL, 1.0f));
-        if (autoLogout.on()) { mc.disconnectWithProgressScreen(); return; }
+        // panic FIRST — autoLogout used to return before it, leaving the
+        // module profile hot when you reconnected
         if (autoPanic.on()) panic();
+        if (autoLogout.on()) mc.disconnectWithProgressScreen();
     }
 
     /** GhostMode kill-switch: kills flaggable modules, passive watchers stay. */

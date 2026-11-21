@@ -136,7 +136,15 @@ public class OreSim extends Module {
         String s = seed.get().trim();
         if (!s.isEmpty()) {
             try { worldSeed = Long.parseLong(s); return true; }
-            catch (NumberFormatException e) { worldSeed = s.hashCode(); return true; }
+            catch (NumberFormatException e) {
+                // vanilla hashes text seeds — keep that, but say it out loud:
+                // a typo'd seed otherwise produces confidently wrong ores
+                worldSeed = s.hashCode();
+                dev.noxclient.gui.Toasts.push(
+                    "OreSim: seed isn't numeric — using text-seed hash " + worldSeed
+                    + " (typo? servers use numeric seeds)", 0xFFFFAA33);
+                return true;
+            }
         }
         try {
             var server = mc.getSingleplayerServer();

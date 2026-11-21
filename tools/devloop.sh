@@ -12,6 +12,9 @@ gradle build -x test --console=plain -q
 echo "== doctor =="
 python3 tools/nox_doctor.py || { echo "doctor failed — NOT deploying"; exit 1; }
 
+echo "== guide-data regen =="
+python3 tools/gen_guide.py || echo "guide regen failed (non-fatal)"
+
 echo "== deploy (atomic) =="
 [ -f "$JAR" ] || { echo "jar missing: $JAR"; exit 1; }
 cp "$JAR" "$MODS/.nox.jar.tmp" && sync

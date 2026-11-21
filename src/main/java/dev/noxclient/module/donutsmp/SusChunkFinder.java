@@ -40,8 +40,11 @@ public class SusChunkFinder extends Module {
     public void onTick() {
         if (mc.level == null || mc.player == null) return;
         // BepHax-style coord-leak guard: a >64-block instant jump = teleport —
-        // auto-disable so flagged coords don't get screenshotted mid-hunt
-        if (antiLeak.on() && lastPos != null
+        // auto-disable so flagged coords don't get screenshotted mid-hunt.
+        // NOT while AutoScout is up — its RTPs ARE the authorized jumps.
+        var scout = dev.noxclient.NoxClient.INSTANCE.modules.get("AutoScout");
+        boolean scouting = scout != null && scout.isEnabled();
+        if (antiLeak.on() && !scouting && lastPos != null
             && lastPos.distanceToSqr(mc.player.position()) > 64 * 64) {
             setEnabled(false); return;
         }
@@ -49,6 +52,16 @@ public class SusChunkFinder extends Module {
         long now = System.currentTimeMillis();
         ChunkPos pc = mc.player.chunkPosition();
         int r = radius.intVal();
+        // long-session bound: drop bookkeeping for chunks far outside radius
+        if (seenAt.size() > 8192) {
+            int lim = r + 4;
+            seenAt.keySet().removeIf(c -> Math.abs(c.x() - pc.x()) > lim
+                || Math.abs(c.z() - pc.z()) > lim);
+            scannedAt.keySet().removeIf(c -> Math.abs(c.x() - pc.x()) > lim
+                || Math.abs(c.z() - pc.z()) > lim);
+            notified.removeIf(c -> Math.abs(c.x() - pc.x()) > lim
+                || Math.abs(c.z() - pc.z()) > lim);
+        }
         for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) {
             ChunkPos cp = new ChunkPos(pc.x() + dx, pc.z() + dz);
             if (!mc.level.hasChunk(cp.x(), cp.z())) continue;

@@ -22,6 +22,9 @@ public class NoxClient implements ClientModInitializer {
     public ConfigManager config;
     public NoxRPC rpc;
     private boolean guiKeyWasDown;
+    /** Set by NOX screens on close — the RSHIFT edge in the same tick must not
+     *  instantly reopen the GUI it just closed. */
+    public static volatile long guiClosedAt;
 
     @Override
     public void onInitializeClient() {
@@ -104,9 +107,11 @@ public class NoxClient implements ClientModInitializer {
         // (RShift then closed a null screen and keybinds stayed dead).
         NoxWindowScreen.open = mc.gui.screen() instanceof NoxWindowScreen
             || mc.gui.screen() instanceof dev.noxclient.gui.NoxClickGui;
+        if (mc.getConnection() == null)
+            dev.noxclient.util.MoveGuard.reset();   // no stale queued pos into a new server
         boolean down = InputConstants.isKeyDown(InputConstants.KEY_RSHIFT)
             || dev.noxclient.module.ModuleManager.FAKE_KEYS.contains(InputConstants.KEY_RSHIFT);
-        if (down && !guiKeyWasDown) {
+        if (down && !guiKeyWasDown && System.currentTimeMillis() - guiClosedAt > 300) {
             if (NoxWindowScreen.open) mc.setScreenAndShow(null);
             else if (mc.gui.screen() == null) mc.setScreenAndShow(openClickGui());
             // screen != null (pause/inventory/chat): don't rip the user out

@@ -51,6 +51,9 @@ def wait_ack(gd, line, timeout=8.0):
     return last_txt if last_txt else "<ack timeout>"
 
 def send(gd, line):
+    # opt the prod client in — DebugConsole only polls when this flag file
+    # exists (or under isDevelopmentEnvironment)
+    open(os.path.join(gd, "nox_dbg"), "a").close()
     open(os.path.join(gd, "nox_cmd"), "w").write(line)
     r = wait_ack(gd, line)
     print(f"$ {line}\n  -> {r}")

@@ -23,7 +23,11 @@ public class StorageESP extends Module {
 
     /** pos -> ARGB color, read by the HUD overlay every frame */
     public static final Map<BlockPos, Integer> HITS = new ConcurrentHashMap<>();
-    private final java.util.Set<ChunkPos> done = new java.util.HashSet<>();
+    /** chunk -> last-scan ms; a done-forever set never picks up chests placed
+     *  after the first scan and ghosts the ones that get mined. */
+    private final java.util.Map<ChunkPos, Long> scanned = new java.util.HashMap<>();
+    private static final long RESCAN_MS = 15_000;
+    private long pruneAt;
 
     public StorageESP() { super("StorageESP", "Storage blocks through walls", Category.RENDER); }
 
@@ -32,10 +36,23 @@ public class StorageESP extends Module {
         if (mc.level == null || mc.player == null) return;
         ChunkPos pc = mc.player.chunkPosition();
         int r = radius.intVal();
+        long now = System.currentTimeMillis();
+        // drop marks left behind / outside radius once in a while
+        if (now - pruneAt > 2000) {
+            pruneAt = now;
+            int lim = r + 1;
+            HITS.keySet().removeIf(p -> Math.abs((p.getX() >> 4) - pc.x()) > lim
+                || Math.abs((p.getZ() >> 4) - pc.z()) > lim);
+            scanned.keySet().removeIf(c -> Math.abs(c.x() - pc.x()) > lim
+                || Math.abs(c.z() - pc.z()) > lim);
+        }
         for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) {
             ChunkPos cp = new ChunkPos(pc.x() + dx, pc.z() + dz);
-            if (done.contains(cp) || !mc.level.hasChunk(cp.x(), cp.z())) continue;
-            done.add(cp);
+            Long t = scanned.get(cp);
+            if ((t != null && now - t < RESCAN_MS) || !mc.level.hasChunk(cp.x(), cp.z())) continue;
+            scanned.put(cp, now);
+            // rebuild this chunk's marks — mined chests must stop ghosting
+            HITS.keySet().removeIf(p -> (p.getX() >> 4) == cp.x() && (p.getZ() >> 4) == cp.z());
             var chunk = mc.level.getChunk(cp.x(), cp.z());
             for (var entry : chunk.getBlockEntities().entrySet()) {
                 var b = entry.getValue().getBlockState().getBlock();
@@ -51,7 +68,7 @@ public class StorageESP extends Module {
     }
 
     @Override
-    protected void onDisable() { HITS.clear(); done.clear(); }
+    protected void onDisable() { HITS.clear(); scanned.clear(); }
     @Override public String status() { return HITS.size() + " storage marks"; }
 
 }

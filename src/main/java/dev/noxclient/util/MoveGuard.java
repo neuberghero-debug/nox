@@ -35,6 +35,9 @@ public final class MoveGuard {
     private static volatile float appliedYaw, appliedPitch;
     private static volatile boolean appliedRot;
     private static boolean injecting;
+    private static volatile boolean ogPending, appliedOg;
+    private static volatile boolean pendOgVal;
+    private static volatile long pendOgAt;
 
     private MoveGuard() {}
 
@@ -42,8 +45,26 @@ public final class MoveGuard {
     public static void beginInject() { injecting = true; }
     public static void endInject()   { injecting = false; }
 
+    /** Forget window/queue/pending state — call when the connection drops so a
+     *  stale queued pos packet never releases into a fresh server. */
+    public static void reset() {
+        windowHasPos = false;
+        queuedPos = null;
+        pendingDy = 0; pendingAt = 0;
+        rotPending = false; pendRotAt = 0;
+        ogPending = false; pendOgAt = 0;
+        injecting = false;
+        trace("RESET");
+    }
+
     /** Offset the next outgoing position packet by dy (fresh for ~6 ticks). */
     public static void requestHop(double dy) { pendingDy = dy; pendingAt = System.nanoTime(); }
+
+    /** Force the onGround flag of the next outgoing move packet — NoFall-grade
+     *  spoofing without sending an extra move packet. */
+    public static void requestOnGround(boolean og) {
+        pendOgVal = og; pendOgAt = System.nanoTime(); ogPending = true;
+    }
 
     /**
      * Rewrite the rotation of outgoing move packets to (yaw, pitch) — silent
@@ -99,15 +120,21 @@ public final class MoveGuard {
         long now = System.nanoTime();
         boolean rot = rotPending && now - pendRotAt < PENDING_TTL_NS;
         if (!rot) rotPending = false;
+        boolean ogR = ogPending && now - pendOgAt < PENDING_TTL_NS;
+        if (!ogR) ogPending = false;
         appliedRot = false;
+        appliedOg = false;
 
         if (!p.hasPosition()) {
-            // Rot/StatusOnly — rewrite or upgrade the rotation so silent aim
-            // reaches the server on packets the client sends anyway
-            if (rot) {
-                rotPending = false;
-                appliedRot = true;
-                appliedYaw = pendYaw; appliedPitch = pendPitch;
+            // Rot/StatusOnly — rewrite or upgrade rotation/onGround so silent
+            // aim + nofall reach the server on packets the client sends anyway
+            if (rot || ogR) {
+                if (rot) {
+                    rotPending = false;
+                    appliedRot = true;
+                    appliedYaw = pendYaw; appliedPitch = pendPitch;
+                }
+                if (ogR) { ogPending = false; appliedOg = true; }
                 replaced++;
                 trace("WIRE-ROTSILENT " + p.getClass().getSimpleName());
                 return Verdict.REPLACE;
@@ -130,8 +157,9 @@ public final class MoveGuard {
         boolean hop = pendingDy != 0 && now - pendingAt < PENDING_TTL_NS;
         appliedDy = hop ? pendingDy : 0;
         pendingDy = 0;
-        if (hop || rot) {
+        if (hop || rot || ogR) {
             if (rot) { appliedRot = true; appliedYaw = pendYaw; appliedPitch = pendPitch; rotPending = false; }
+            if (ogR) { ogPending = false; appliedOg = true; }
             replaced++;
             trace("WIRE-REP " + cls + (hop ? " dy=" + appliedDy : "") + (appliedRot ? " rot" : "") + " rep=" + replaced);
             return Verdict.REPLACE;
@@ -154,11 +182,19 @@ public final class MoveGuard {
         if (mc.getConnection() != null) mc.getConnection().send(q);   // re-enters decide() → fills window
     }
 
-    /** Transformed copy of the packet just decided REPLACE (hop/rot applied). */
+    /** Transformed copy of the packet just decided REPLACE (hop/rot/og applied). */
     public static ServerboundMovePlayerPacket offsetCopy(ServerboundMovePlayerPacket p) {
-        boolean og = p.isOnGround(), hc = p.horizontalCollision();
-        if (!p.hasPosition())
-            return new ServerboundMovePlayerPacket.Rot(appliedYaw, appliedPitch, og, hc);
+        boolean og = appliedOg ? pendOgVal : p.isOnGround();
+        boolean hc = p.horizontalCollision();
+        if (!p.hasPosition()) {
+            if (appliedRot)
+                return new ServerboundMovePlayerPacket.Rot(appliedYaw, appliedPitch, og, hc);
+            // keep the original type — StatusOnly stays StatusOnly, Rot stays Rot
+            if (p instanceof ServerboundMovePlayerPacket.StatusOnly)
+                return new ServerboundMovePlayerPacket.StatusOnly(og, hc);
+            return new ServerboundMovePlayerPacket.Rot(
+                p.getYRot(0), p.getXRot(0), og, hc);
+        }
         double x = p.getX(0), y = p.getY(0) + appliedDy, z = p.getZ(0);
         if (appliedRot)
             return new ServerboundMovePlayerPacket.PosRot(x, y, z, appliedYaw, appliedPitch, og, hc);

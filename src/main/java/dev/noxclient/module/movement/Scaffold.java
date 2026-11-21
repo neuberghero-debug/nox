@@ -65,7 +65,13 @@ public class Scaffold extends Module {
                 if (support == null) return;
             }
             if (!Legitifier.ready(this, cps.get(), 0.2)) return;
-            inv.setSelectedSlot(slot);
+            if (inv.getSelectedSlot() != slot) {
+                // local select alone is invisible to the server — it places
+                // whatever it thinks is held
+                inv.setSelectedSlot(slot);
+                mc.player.connection.send(new net.minecraft.network.protocol.game
+                    .ServerboundSetCarriedItemPacket(slot));
+            }
             var hit = new BlockHitResult(Vec3.atCenterOf(support), face, support, false);
             mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
             mc.player.swing(InteractionHand.MAIN_HAND,

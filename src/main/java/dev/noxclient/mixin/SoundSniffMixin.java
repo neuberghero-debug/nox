@@ -26,29 +26,31 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(ClientPacketListener.class)
 public abstract class SoundSniffMixin {
+    // every tap is isolated — a module bug must never kill packet handling
+    // (an uncaught throw here would disconnect the client)
     @Inject(method = "handleBlockEvent", at = @At("TAIL"))
     private void nox$blockEvent(ClientboundBlockEventPacket p, CallbackInfo ci) {
-        SoundFind.onBlockEvent(p);
+        try { SoundFind.onBlockEvent(p); } catch (Throwable ignored) {}
     }
 
     @Inject(method = "handleLevelEvent", at = @At("TAIL"))
     private void nox$levelEvent(ClientboundLevelEventPacket p, CallbackInfo ci) {
-        SoundFind.onLevelEvent(p);
+        try { SoundFind.onLevelEvent(p); } catch (Throwable ignored) {}
     }
 
     @Inject(method = "handleSoundEvent", at = @At("TAIL"))
     private void nox$soundEvent(ClientboundSoundPacket p, CallbackInfo ci) {
-        SoundFind.onSound(p);
+        try { SoundFind.onSound(p); } catch (Throwable ignored) {}
     }
 
     @Inject(method = "handleSoundEntityEvent", at = @At("TAIL"))
     private void nox$entitySoundEvent(ClientboundSoundEntityPacket p, CallbackInfo ci) {
-        SoundFind.onEntitySound(p);
+        try { SoundFind.onEntitySound(p); } catch (Throwable ignored) {}
     }
 
     @Inject(method = "handleParticleEvent", at = @At("TAIL"))
     private void nox$particleEvent(ClientboundLevelParticlesPacket p, CallbackInfo ci) {
-        SoundFind.onParticles(p);
+        try { SoundFind.onParticles(p); } catch (Throwable ignored) {}
     }
 
     // ---- ActivityFind taps — HEAD for block changes so the OLD state is

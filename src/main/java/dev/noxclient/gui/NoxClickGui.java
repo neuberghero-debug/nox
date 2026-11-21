@@ -1425,6 +1425,10 @@ public class NoxClickGui extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent e, boolean dbl) {
         double mx = e.x(), my = e.y(); int btn = normButton(e.button());
+        // any click that isn't into a Str field releases text focus — the Str
+        // branch below re-arms it when the click lands inside its field.
+        // Without this, typing kept writing into a field you had long left
+        focusedStr = null;
         if (!introDone) { introDone = true; return true; }
         if (palette) {
             List<Module> hits = palHits();
@@ -1731,6 +1735,7 @@ public class NoxClickGui extends Screen {
     public void onClose() {
         NoxWindowScreen.winX = winX; NoxWindowScreen.winY = winY;
         NoxWindowScreen.winW = winW; NoxWindowScreen.winH = winH;
+        NoxClient.guiClosedAt = System.currentTimeMillis();
         NoxClient.INSTANCE.config.save();
         super.onClose();
     }

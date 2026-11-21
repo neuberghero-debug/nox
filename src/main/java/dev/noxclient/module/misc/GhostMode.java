@@ -14,7 +14,11 @@ public class GhostMode extends Module {
         "Hitboxes", "HudWidgets", "CustomSky", "Capes", "Cosmetics",
         "SpotifyHud", "LyricsHud", "Zoom",
         // passive detectors — send nothing, undetectable, keep watching
-        "SoundFind", "StashLogger", "AntiVanish", "VisualRange", "Tracers");
+        "SoundFind", "StashLogger", "AntiVanish", "VisualRange", "Tracers",
+        // the whole basefinding stack is read-only too
+        "ActivityFind", "EntityFind", "SusChunkFinder", "StorageESP",
+        "ArtificialLightFinder", "ChunkFinder", "AntiESPBypass", "OreSim",
+        "Waypoints", "Breadcrumbs");
 
     public GhostMode() { super("GhostMode", "Instant legit profile", Category.MISC); }
 

@@ -23,7 +23,10 @@ public class NoFall extends Module {
         if (mc.player.tickCount < 60 || mc.player.isPassenger() || mc.player.isDeadOrDying()) return;
         fired = true;
         if (mode.get().equals("Packet")) {
-            mc.getConnection().send(new ServerboundMovePlayerPacket.StatusOnly(true, false));
+            // zero extra packets: the next vanilla move packet carries
+            // onGround=true — an extra StatusOnly is a second move packet
+            // in the same tick window (Grim Timer flag)
+            dev.noxclient.util.MoveGuard.requestOnGround(true);
         }
         mc.player.resetFallDistance();
     }

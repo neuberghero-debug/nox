@@ -1059,6 +1059,7 @@ public class NoxWindowScreen extends Screen {
     public void onClose() {
         open = false;
         current = null;
+        NoxClient.guiClosedAt = System.currentTimeMillis();
         NoxClient.INSTANCE.config.save();
         super.onClose();
     }

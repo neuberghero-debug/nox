@@ -111,25 +111,37 @@ public final class StashIndex {
         } catch (Throwable ignored) {}
     }
 
+    private static boolean saving, dirty;
+
+    /** Snapshot under the caller's lock; serialize + write off the main
+     *  thread. Re-entrant calls during a write coalesce into one follow-up. */
     private static void saveAsync() {
-        JsonArray a = new JsonArray();
-        for (Hit h : hits) {
-            JsonObject o = new JsonObject();
-            o.addProperty("src", h.src); o.addProperty("cat", h.cat);
-            o.addProperty("dim", h.dim);
-            o.addProperty("x", h.x); o.addProperty("y", h.y); o.addProperty("z", h.z);
-            o.addProperty("ts", h.ts);
-            a.add(o);
-        }
-        String s = G.toJson(a);
-        new Thread(() -> {
+        if (saving) { dirty = true; return; }
+        saving = true;
+        List<Hit> snap = new ArrayList<>(hits);   // ref copy — records are immutable
+        Thread t = new Thread(() -> {
             try {
+                JsonArray a = new JsonArray();
+                for (Hit h : snap) {
+                    JsonObject o = new JsonObject();
+                    o.addProperty("src", h.src); o.addProperty("cat", h.cat);
+                    o.addProperty("dim", h.dim);
+                    o.addProperty("x", h.x); o.addProperty("y", h.y); o.addProperty("z", h.z);
+                    o.addProperty("ts", h.ts);
+                    a.add(o);
+                }
+                String s = G.toJson(a);
                 Path f = file();
                 Files.createDirectories(f.getParent());
                 Path tmp = f.resolveSibling("stash-index.tmp");
                 Files.writeString(tmp, s);
                 Files.move(tmp, f, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             } catch (Throwable ignored) {}
-        }, "nox-stash-index").start();
+            synchronized (StashIndex.class) {
+                saving = false;
+                if (dirty) { dirty = false; saveAsync(); }
+            }
+        }, "nox-stash-index");
+        t.setDaemon(true); t.start();
     }
 }
