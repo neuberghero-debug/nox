@@ -23,6 +23,7 @@ const {
 
 const config = require('./config.json');
 const community = require('./community.js');
+const guideData = require('./guide-data.js');
 // env overrides config.json — keeps secrets out of the repo
 config.token = process.env.DISCORD_TOKEN || config.token;
 config.guildId = process.env.GUILD_ID || config.guildId;
@@ -1062,6 +1063,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ content: has ? 'Notifications off.' : 'Notifications on.', flags: MessageFlags.Ephemeral });
       }
 
+      if (scope === 'guide' && action === 'search') {
+        const modal = new ModalBuilder().setCustomId('guide:searchmodal').setTitle('Search NOX modules');
+        modal.addComponents(new ActionRowBuilder().addComponents(
+          new TextInputBuilder().setCustomId('q').setLabel('Module name or keyword')
+            .setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(60)
+            .setPlaceholder('e.g. scout, aura, loot…'),
+        ));
+        return interaction.showModal(modal);
+      }
+
       if (scope === 'ticket' && action === 'claim') {
         const staff = await memberHasRole(interaction, config.roles.support)
           || interaction.memberPermissions?.has(PermissionFlagsBits.ManageChannels);
@@ -1159,6 +1170,36 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isStringSelectMenu() && interaction.customId === 'ticket:create') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       return createTicket(interaction, interaction.values[0]);
+    }
+
+    /* module guide — dropdown pick → ephemeral detail card */
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith('gmod:')) {
+      const mod = guideData.find((m) => m.name === interaction.values[0]);
+      if (!mod) return interaction.reply({ content: 'Unknown module.', flags: MessageFlags.Ephemeral });
+      const catLabel = mod.cat === 'DONUTSMP' ? 'DonutSMP'
+        : mod.cat.charAt(0) + mod.cat.slice(1).toLowerCase();
+      return interaction.reply({
+        embeds: [new EmbedBuilder()
+          .setTitle(`${mod.name}${mod.premium ? ' ★' : ''}`)
+          .setDescription(mod.desc)
+          .setColor(0x7a2be2)
+          .setFooter({ text: `${catLabel} category${mod.premium ? ' · Premium' : ''}` })],
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    /* module guide — free-text search → ephemeral match list */
+    if (interaction.isModalSubmit() && interaction.customId === 'guide:searchmodal') {
+      const q = interaction.fields.getTextInputValue('q').trim().toLowerCase();
+      const hits = guideData.filter((m) => m.name.toLowerCase().includes(q)
+        || m.desc.toLowerCase().includes(q) || m.cat.toLowerCase().includes(q)).slice(0, 15);
+      if (!hits.length)
+        return interaction.reply({ content: `No modules match **${q}**.`, flags: MessageFlags.Ephemeral });
+      return interaction.reply({
+        content: `**${hits.length}** match${hits.length === 1 ? '' : 'es'} for **${q}**\n`
+          + hits.map((m) => `**${m.name}**${m.premium ? ' ★' : ''} — ${m.desc}`).join('\n'),
+        flags: MessageFlags.Ephemeral,
+      });
     }
   } catch (err) {
     console.error(err);
