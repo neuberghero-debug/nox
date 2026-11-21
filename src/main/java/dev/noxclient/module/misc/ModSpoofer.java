@@ -2,20 +2,26 @@ package dev.noxclient.module.misc;
 
 import dev.noxclient.module.Category;
 import dev.noxclient.module.Module;
-import dev.noxclient.setting.Setting;
+import dev.noxclient.util.Opsec;
 
 /**
- * ModSpoofer — defeats server-side client fingerprinting (DonutSMP probes
- * minecraft:brand and other custom payloads to detect modded clients).
- *   Brand     → replies "vanilla" instead of "fabric"/"noxclient"
- *   Strip all → additionally drops every non-brand custom payload
- *               (Fabric handshake, mod channels) — aggressive, toggle-aware
+ * ModSpoofer — status wrapper for the always-on baseline spoof.
+ * Brand is ALWAYS answered "vanilla" and non-minecraft custom payloads are
+ * ALWAYS stripped (util/Opsec) — baseline can't be toggled off, it isn't a
+ * module setting anymore. The extra minecraft-payload hardening toggle
+ * lives in the Multiplexer screen.
  */
 public class ModSpoofer extends Module {
-    public final Setting.Bool stripAll = add(new Setting.Bool("Strip all payloads", false));
     public static volatile ModSpoofer INSTANCE;
 
-    public ModSpoofer() { super("ModSpoofer", "Hides the modded client", Category.MISC); INSTANCE = this; }
+    public ModSpoofer() { super("ModSpoofer", "Client fingerprint hidden (always on)", Category.MISC); INSTANCE = this; }
 
-    public static boolean active() { return INSTANCE != null && INSTANCE.isEnabled(); }
+    /** Kept for callers that asked "is the spoofer on" — it always is. */
+    public static boolean active() { return true; }
+
+    @Override protected void onEnable() { setEnabled(false); }   // status-only
+
+    @Override public String status() {
+        return "brand → vanilla · channels stripped" + (Opsec.stripAll ? " · full strip" : "");
+    }
 }

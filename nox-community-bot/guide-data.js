@@ -813,7 +813,7 @@ module.exports = [
   },
   {
     "name": "ModSpoofer",
-    "desc": "Hides the modded client",
+    "desc": "Client fingerprint hidden (always on)",
     "cat": "MISC",
     "premium": false
   },

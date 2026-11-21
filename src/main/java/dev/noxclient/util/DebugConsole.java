@@ -176,6 +176,9 @@ public final class DebugConsole {
                 dev.noxclient.module.misc.ReplayMod.openPlayback(
                     p.length > 1 ? java.nio.file.Path.of(p[1]) : null);
             }
+            case "modtest" -> {   // cycle EVERY module + setting once → nox_selftest.log
+                return ModuleSelfTest.run(mc);
+            }
             case "audit" -> {   // run the M29 self-check now, return findings
                 dev.noxclient.module.misc.SecurityAudit.run();
                 return "audit: " + (dev.noxclient.module.misc.SecurityAudit.lastFindings.isEmpty()

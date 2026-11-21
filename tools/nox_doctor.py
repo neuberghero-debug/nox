@@ -177,11 +177,27 @@ def check_assets():
         finding("WARN", f"only {len(frames)} sky frames")
 
 
+def check_module_audit():
+    """Delegate to module_audit.py — registration, setting ranges, dup names."""
+    print("== module audit ==")
+    r = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "module_audit.py")],
+                       capture_output=True, text=True)
+    for line in r.stdout.splitlines()[1:]:
+        line = line.strip()
+        if line.startswith("ERR"):
+            finding("ERR", "audit: " + line[4:])
+        elif line.startswith("warn"):
+            finding("WARN", "audit: " + line[5:])
+    if r.returncode == 0 and r.stdout:
+        print(" ", r.stdout.splitlines()[0])
+
+
 def main():
     print("NOX doctor —", os.path.abspath(ROOT))
     jar = merged_jar()
     check_mixins(jar)
     check_api_pitfalls()
+    check_module_audit()
     check_jar()
     check_assets()
     errs = sum(1 for s, _ in FINDINGS if s == "ERR")

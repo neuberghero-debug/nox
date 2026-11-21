@@ -49,6 +49,7 @@ public class ConfigManager {
             g.addProperty("tab", NoxWindowScreen.activeTab);
             g.addProperty("inviteShown", inviteShown);
             g.addProperty("guiV2", true);
+            g.addProperty("opsec_stripAll", dev.noxclient.util.Opsec.stripAll);
             g.addProperty("schema_version", ConfigMigrator.CURRENT);
             Files.writeString(globalFile, GSON.toJson(g));
             savePreset(currentServer()); // always persist the active profile too
@@ -67,6 +68,8 @@ public class ConfigManager {
                 NoxWindowScreen.winH = g.has("winH") ? g.get("winH").getAsInt() : 260;
                 NoxWindowScreen.activeTab = g.has("tab") ? g.get("tab").getAsInt() : 0;
                 inviteShown = g.has("inviteShown") && g.get("inviteShown").getAsBoolean();
+                dev.noxclient.util.Opsec.stripAll = !g.has("opsec_stripAll")
+                    || g.get("opsec_stripAll").getAsBoolean();
                 // first load of a pre-ClickGUI config → one-time migration toast
                 legacyGui = !g.has("guiV2");
             }

@@ -45,7 +45,7 @@ public class NoxWindowScreen extends Screen {
     private static final int TITLE_H = 40, TAB_H = 28, SEARCH_H = 28, FOOT_H = 34;
     private static final int MIN_W = 480, MIN_H = 240;
     private static final int GAP = 9;
-    private static final String[] FOOT = {"Discord", "Style", "Alts", "Report", "Suggest", "Share", "Import", "Shop", "PANIC"};
+    private static final String[] FOOT = {"Discord", "Style", "Alts", "Mplex", "Report", "Suggest", "Share", "Import", "Shop", "PANIC"};
 
     private final Map<Category, List<ModuleCard>> cards = new EnumMap<>(Category.class);
     private final Map<String, ModuleCard> byName = new java.util.HashMap<>();
@@ -856,12 +856,13 @@ public class NoxWindowScreen extends Screen {
                     }
                     case 1 -> minecraft.setScreenAndShow(new dev.noxclient.gui.CustomizeScreen(this));
                     case 2 -> minecraft.setScreenAndShow(new dev.noxclient.gui.AltManagerScreen(this));
-                    case 3 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ReportScreen(this, true));
-                    case 4 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ReportScreen(this, false));
-                    case 5 -> minecraft.setScreenAndShow(new dev.noxclient.gui.PresetScreen(this));
+                    case 3 -> minecraft.setScreenAndShow(new dev.noxclient.gui.MultiplexerScreen(this));
+                    case 4 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ReportScreen(this, true));
+                    case 5 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ReportScreen(this, false));
                     case 6 -> minecraft.setScreenAndShow(new dev.noxclient.gui.PresetScreen(this));
-                    case 7 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ShopScreen(this));
-                    case 8 -> {
+                    case 7 -> minecraft.setScreenAndShow(new dev.noxclient.gui.PresetScreen(this));
+                    case 8 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ShopScreen(this));
+                    case 9 -> {
                         NoxClient.INSTANCE.modules.get("GhostMode").setEnabled(true);
                         dev.noxclient.gui.Toasts.push("PANIC — all modules off", 0xFFFF5C7A);
                     }
