@@ -51,6 +51,8 @@ public class NoxOverlay implements HudElement {
         drawMarks(g, cp, mat, w, h, StorageESP.HITS);
         drawMarks(g, cp, mat, w, h, AntiESPBypass.MARKS);
         drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.OreESP.HITS);
+        drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.DebrisFinder.HITS);
+        drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.DebrisFinder.AREAS);
         float hs = dev.noxclient.gui.UICustom.hudScale;
         // auto-fit: on small logical screens (high vanilla GUI scale) the HUD
         // shrinks proportionally instead of overflowing; floor keeps it legible
@@ -68,6 +70,11 @@ public class NoxOverlay implements HudElement {
         drawStats(g, mc, sw, sh);
         drawScoreboard(g, mc, sw, sh);
         drawAuction(g, mc, sw, sh);
+        drawBaseFinder(g, mc, sw, sh);
+        drawRegionMap(g, mc, sw, sh);
+        drawDebrisPanel(g, mc, sw, sh);
+        drawBaseEspCards(g, mc, cam, cp, mat, sw, sh);
+        drawWheel(g, mc, sw, sh);
         if (hs != 1f) g.pose().popMatrix();
         var hm = NoxClient.INSTANCE.modules.get("HudWidgets");
         boolean compassOn = hm instanceof dev.noxclient.module.render.HudWidgets hw
@@ -1170,5 +1177,210 @@ public class NoxOverlay implements HudElement {
         for (int i = 0; i <= steps; i += 2)
             Gui.fill(g, x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps,
                 x1 + (x2 - x1) * i / steps + 1, y1 + (y2 - y1) * i / steps + 1, color);
+    }
+
+    // ------------------------------------------------------------------
+    // DonutSMP suite — BaseFinder list, region grid, debris counter,
+    // BaseESP cluster cards, radial wheel.
+
+    private static final String[] DIR8 = {"S", "SW", "W", "NW", "N", "NE", "E", "SE"};
+    private static String dir8(double dx, double dz) {
+        double ang = Math.atan2(dx, -dz);            // 0 = north(-z), cw
+        int i = (int) Math.round(ang / (Math.PI / 4)) & 7;
+        return DIR8[i];
+    }
+
+    /** BaseFinder — Prestige-style detection list, top-left. */
+    private void drawBaseFinder(GuiGraphicsExtractor g, Minecraft mc, int w, int h) {
+        var m = NoxClient.INSTANCE.modules.get("BaseFinder");
+        if (!(m instanceof dev.noxclient.module.donutsmp.BaseFinder bf)
+            || !bf.isEnabled() || !bf.showHud.on()) return;
+        var es = dev.noxclient.util.BaseIntel.top(mc.player.blockPosition(),
+            Math.max(bf.maxRows.intVal() + 1, 8));
+        int min = bf.minConf.intVal(), rows = bf.maxRows.intVal();
+        var list = new java.util.ArrayList<dev.noxclient.util.BaseIntel.Entry>();
+        int more = 0;
+        for (var e : es) {
+            if (e.pct < min) continue;
+            if (list.size() < rows) list.add(e); else more++;
+        }
+        int total = dev.noxclient.util.BaseIntel.entries().size();
+        int pw = 172, ph = 18 + list.size() * 26 + (more > 0 || list.isEmpty() ? 12 : 0);
+        float[] fp = HudLayout.get("basefinder");
+        int x = fp != null ? Math.clamp((int) (fp[0] * w), 2, Math.max(2, w - pw - 2)) : 4;
+        int y = fp != null ? Math.clamp((int) (fp[1] * h), 2, Math.max(2, h - ph - 2)) : 64;
+        rep("basefinder", x, y, pw, ph);
+        var t = dev.noxclient.gui.theme.Theme.current();
+
+        Gui.shadow(g, x, y, pw, ph, 8);
+        Gui.roundBorder(g, x, y, pw, ph, 8, t.accent() | 0x66000000, 0xE6141821);
+        Gui.textBold(g, mc.font, "BaseFinder", x + 8, y + 6, t.accent());
+        String cnt = total + " nearby";
+        Gui.text(g, mc.font, cnt, x + pw - 8 - Gui.width(mc.font, cnt), y + 7, 0xFF8A8A9E);
+
+        int ry = y + 18;
+        if (list.isEmpty())
+            Gui.text(g, mc.font, "scanning…", x + 8, ry + 2, 0xFF6A6A7E);
+        for (int i = 0; i < list.size(); i++) {
+            var e = list.get(i);
+            double dx = e.cp.getMiddleBlockX() - mc.player.getX();
+            double dz = e.cp.getMiddleBlockZ() - mc.player.getZ();
+            int dist = (int) Math.hypot(dx, dz);
+            int col = e.pct >= 70 ? 0xFF55DD66 : e.pct >= 40 ? 0xFFFFCC44 : 0xFFFF8844;
+            Gui.text(g, mc.font, String.valueOf(i + 1), x + 8, ry, 0xFF6A6A7E);
+            Gui.textBold(g, mc.font, e.type, x + 18, ry, 0xFFE8E8F2);
+            String pc2 = e.pct + "%";
+            Gui.textBold(g, mc.font, pc2, x + pw - 8 - Gui.width(mc.font, pc2), ry, col);
+            String sub = dir8(dx, dz) + " " + dist + "m  /  Y " + String.format("%.1f", e.avgY)
+                + "  /  " + e.sections + "/" + e.scanned + " sections";
+            Gui.text(g, mc.font, sub, x + 18, ry + 10, 0xFF8A8A9E);
+            int bw = pw - 18 - Gui.width(mc.font, pc2) - 26;
+            Gui.pill(g, x + 18, ry + 21, bw, 2, 0xFF2A2A38);
+            Gui.pill(g, x + 18, ry + 21, Math.max(2, bw * e.pct / 100), 2, col);
+            ry += 26;
+        }
+        if (more > 0)
+            Gui.text(g, mc.font, "+" + more + " more nearby", x + 8, ry + 2, 0xFF6A6A7E);
+    }
+
+    /** RegionMap — DonutSMP shard grid, top-right. */
+    private void drawRegionMap(GuiGraphicsExtractor g, Minecraft mc, int w, int h) {
+        var m = NoxClient.INSTANCE.modules.get("RegionMap");
+        if (!(m instanceof dev.noxclient.module.donutsmp.RegionMap rm) || !rm.isEnabled()
+            || !mc.level.dimension().toString().contains("overworld")) return;
+        int cols = rm.cols.intVal(), rows = rm.rows.intVal();
+        long cs = (long) (rm.cellSize.get() * 1000);
+        int cw = rm.cellPx.intVal();
+        int pw = cols * cw + 16, ph = rows * cw + 34;
+        float[] fp = HudLayout.get("regionmap");
+        int x = fp != null ? Math.clamp((int) (fp[0] * w), 2, Math.max(2, w - pw - 2)) : w - pw - 4;
+        int y = fp != null ? Math.clamp((int) (fp[1] * h), 2, Math.max(2, h - ph - 2)) : 4;
+        rep("regionmap", x, y, pw, ph);
+        var t = dev.noxclient.gui.theme.Theme.current();
+
+        double px = mc.player.getX(), pz = mc.player.getZ();
+        int cx = (int) Math.floor(px / cs) + cols / 2, cz = (int) Math.floor(pz / cs) + rows / 2;
+        int cur = rm.regionId(cx, cz);
+
+        Gui.shadow(g, x, y, pw, ph, 8);
+        Gui.roundBorder(g, x, y, pw, ph, 8, t.accent() | 0x66000000, 0xE6141821);
+        String head = "DONUT REGIONS";
+        Gui.textBold(g, mc.font, head, x + 8, y + 6, t.accent());
+        String cur2 = (cur >= 0 ? String.valueOf(cur) : "—") + " " + rm.clusterName(cx, cz);
+        Gui.text(g, mc.font, cur2, x + pw - 8 - Gui.width(mc.font, cur2), y + 7, 0xFF8A8A9E);
+
+        int gy = y + 16;
+        for (int r = 0; r < rows; r++) for (int c = 0; c < cols; c++) {
+            int id = rm.regionId(c - cols / 2, r - rows / 2);
+            int col = rm.clusterColor(c - cols / 2, r - rows / 2);
+            boolean here = (c - cols / 2) == cx && (r - rows / 2) == cz;
+            Gui.fill(g, x + 8 + c * cw, gy + r * cw, x + 8 + c * cw + cw - 1, gy + r * cw + cw - 1,
+                here ? col : (col & 0x00FFFFFF) | 0x99000000);
+            if (here) g.outline(x + 8 + c * cw - 1, gy + r * cw - 1, cw + 1, cw + 1, 0xFFFFFFFF);
+            if (id > 0 && cw >= 8) {
+                String s = String.valueOf(id);
+                Gui.text(g, mc.font, s,
+                    x + 8 + c * cw + (cw - Gui.width(mc.font, s)) / 2 - 1,
+                    gy + r * cw + (cw - 7) / 2, here ? 0xFF101018 : 0xCCFFFFFF);
+            }
+        }
+        String coords = "X:" + (int) px + " Z:" + (int) pz + "  " + rm.clusterName(cx, cz);
+        Gui.text(g, mc.font, coords, x + 8, y + ph - 10, 0xFF8A8A9E);
+    }
+
+    /** DebrisFinder — "AREAS n / BLOCKS m" counter card. */
+    private void drawDebrisPanel(GuiGraphicsExtractor g, Minecraft mc, int w, int h) {
+        var m = NoxClient.INSTANCE.modules.get("DebrisFinder");
+        if (!(m instanceof dev.noxclient.module.donutsmp.DebrisFinder df) || !df.isEnabled()) return;
+        int pw = 148, ph = 42;
+        float[] fp = HudLayout.get("debrisfinder");
+        int x = fp != null ? Math.clamp((int) (fp[0] * w), 2, Math.max(2, w - pw - 2)) : 4;
+        int y = fp != null ? Math.clamp((int) (fp[1] * h), 2, Math.max(2, h - ph - 2)) : h - ph - 40;
+        rep("debrisfinder", x, y, pw, ph);
+        var t = dev.noxclient.gui.theme.Theme.current();
+        Gui.shadow(g, x, y, pw, ph, 8);
+        Gui.roundBorder(g, x, y, pw, ph, 8, 0x66FFAA33, 0xE6141821);
+        Gui.textBold(g, mc.font, "ANCIENT DEBRIS", x + 8, y + 6, 0xFFFFAA33);
+        Gui.text(g, mc.font, "Areas " + df.areas(), x + 8, y + 17, 0xFFE8E8F2);
+        String bl = "Blocks " + df.blocks();
+        Gui.text(g, mc.font, bl, x + pw - 8 - Gui.width(mc.font, bl), y + 17, 0xFF55DD66);
+        Gui.text(g, mc.font, "Possible debris in outlined areas", x + 8, y + 28, 0xFF8A8A9E);
+    }
+
+    /** BaseESP — floating verdict cards over the hottest storage clusters. */
+    private void drawBaseEspCards(GuiGraphicsExtractor g, Minecraft mc,
+                                  net.minecraft.client.Camera cam, Vec3 cp, Matrix4f mat,
+                                  int w, int h) {
+        var m = NoxClient.INSTANCE.modules.get("StorageESP");
+        if (!(m instanceof dev.noxclient.module.donutsmp.StorageESP se) || !se.isEnabled()
+            || !se.cards.on()) return;
+        int shown = 0;
+        for (var cl : se.clusters()) {
+            if (++shown > 3) break;
+            double[] p = project(Vec3.atCenterOf(cl.pos), cp, mat, w, h);
+            if (p == null || p[2] < 6 || p[2] > 320) continue;
+            int cw2 = 128, ch2 = 40;
+            int cx2 = (int) p[0] - cw2 / 2, cy2 = (int) p[1] - ch2 - 10;
+            String dist = (int) p[2] + "m";
+            Gui.shadow(g, cx2, cy2, cw2, ch2, 7);
+            Gui.roundBorder(g, cx2, cy2, cw2, ch2, 7, 0x6655DD66, 0xE6141821);
+            Gui.textBold(g, mc.font, "BASE ESP", cx2 + 7, cy2 + 5, 0xFF55DD66);
+            Gui.text(g, mc.font, dist, cx2 + cw2 - 7 - Gui.width(mc.font, dist), cy2 + 6, 0xFF8A8A9E);
+            int vcol = cl.verdict() == 2 ? 0xFF55DD66 : cl.verdict() == 1 ? 0xFFFFCC44 : 0xFFFF8844;
+            Gui.textBold(g, mc.font, cl.verdictName(), cx2 + 7, cy2 + 14, vcol);
+            String sc = (int) cl.score + " score";
+            Gui.text(g, mc.font, sc, cx2 + cw2 - 7 - Gui.width(mc.font, sc), cy2 + 15, 0xFF8A8A9E);
+            Gui.text(g, mc.font, cl.containers + " containers, " + cl.hoppers + " hoppers",
+                cx2 + 7, cy2 + 24, 0xFFB8B8CC);
+            if (cl.verdict() == 0)
+                Gui.text(g, mc.font, "Not enough clear condition evidence", cx2 + 7, cy2 + 33, 0xFF6A6A7E);
+        }
+    }
+
+    /** DonutWheel — radial action menu, centered; selection follows cursor angle. */
+    private void drawWheel(GuiGraphicsExtractor g, Minecraft mc, int w, int h) {
+        var m = NoxClient.INSTANCE.modules.get("DonutWheel");
+        if (!(m instanceof dev.noxclient.module.donutsmp.DonutWheel dw) || !dw.isEnabled()) return;
+        var acts = dw.actions();
+        if (acts.isEmpty()) return;
+        dw.vw = w; dw.vh = h;
+        var t = dev.noxclient.gui.theme.Theme.current();
+        int cx = w / 2, cy = h / 2, rIn = 34, rOut = 86;
+        int sel = dw.selected(mc, w, h);
+        long now = System.currentTimeMillis();
+        float in = UICustom.reducedMotion ? 1 : Math.min(1f, (now - dw.openedAt) / 160f);
+        float ease = 1f - (1f - in) * (1f - in);
+        int n = acts.size();
+        for (int i = 0; i < n; i++) {
+            double a0 = -Math.PI / 2 + i * (Math.PI * 2 / n);
+            double a1 = a0 + Math.PI * 2 / n;
+            double am = (a0 + a1) / 2;
+            int seg = 48;
+            int col = i == sel ? (t.accent() & 0x00FFFFFF) | 0xDD000000 : 0xD8141821;
+            for (int sgi = 0; sgi <= seg; sgi++) {
+                double a = a0 + (a1 - a0) * sgi / seg;
+                int x1 = cx + (int) (Math.cos(a) * rIn * ease), y1 = cy + (int) (Math.sin(a) * rIn * ease);
+                int x2 = cx + (int) (Math.cos(a) * rOut * ease), y2 = cy + (int) (Math.sin(a) * rOut * ease);
+                // radial spokes ~1px apart at the outer edge fill the sector
+                for (int r = 0; r <= rOut - rIn; r += 2) {
+                    int xr = x1 + (x2 - x1) * r / (rOut - rIn);
+                    int yr = y1 + (y2 - y1) * r / (rOut - rIn);
+                    Gui.fill(g, xr, yr, xr + 2, yr + 2, col);
+                }
+            }
+            // gap between sectors
+            double ga = a1;
+            line(g, cx + (int) (Math.cos(ga) * rIn * ease), cy + (int) (Math.sin(ga) * rIn * ease),
+                cx + (int) (Math.cos(ga) * rOut * ease), cy + (int) (Math.sin(ga) * rOut * ease), 0xFF0A0C12);
+            int lx = cx + (int) (Math.cos(am) * ((rIn + rOut) / 2f * ease));
+            int ly = cy + (int) (Math.sin(am) * ((rIn + rOut) / 2f * ease));
+            String lbl = acts.get(i).name();
+            Gui.textCenter(g, mc.font, lbl.length() > 12 ? lbl.substring(0, 11) + "…" : lbl,
+                lx, ly - 3, i == sel ? 0xFFFFFFFF : 0xFFB8B8CC);
+        }
+        Gui.circle(g, cx, cy, (int) (rIn * ease) - 2, 0xF0141821);
+        g.outline(cx - (int) (rIn * ease) + 2, cy - (int) (rIn * ease) + 2,
+            ((int) (rIn * ease) - 2) * 2, ((int) (rIn * ease) - 2) * 2, 0xFF2A2A38);
+        Gui.textCenterBold(g, mc.font, sel >= 0 ? acts.get(sel).name() : "wheel", cx, cy - 4, t.accent());
     }
 }

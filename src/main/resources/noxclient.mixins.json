@@ -45,6 +45,11 @@
     "OreSimBlockMixin",
     "SoundSniffMixin",
     "ScoreboardMixin",
+    "EntityCullMixin",
+    "ParticleCullMixin",
+    "SoundSpamMixin",
+    "PistonSkipMixin",
+    "RedstoneCullMixin",
     "BrandMixin"
   ],
   "injectors": {

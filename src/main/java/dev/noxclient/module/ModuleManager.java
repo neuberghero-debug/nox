@@ -46,6 +46,13 @@ public class ModuleManager {
         reg(new SoundFind());
         reg(new ActivityFind());
         reg(new EntityFind());
+        reg(new BaseFinder());
+        reg(new DebrisFinder());
+        reg(new RegionMap());
+        reg(new DigDown());
+        reg(new ElytraHunt());
+        reg(new FarmOptimizer());
+        reg(new DonutWheel());
         // Combat
         reg(new KillAura());
         reg(new AutoTotem());

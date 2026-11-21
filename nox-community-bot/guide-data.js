@@ -518,6 +518,12 @@ module.exports = [
     "premium": false
   },
   {
+    "name": "BaseFinder",
+    "desc": "Marks chunks with signs of player activity",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
     "name": "BountyTracker",
     "desc": "Parses bounty announcements + self-alarm",
     "cat": "DONUTSMP",
@@ -536,14 +542,44 @@ module.exports = [
     "premium": false
   },
   {
+    "name": "DebrisFinder",
+    "desc": "Ancient debris areas + confirmed blocks",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
+    "name": "DigDown",
+    "desc": "Digs straight down to a set Y level",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
+    "name": "DonutWheel",
+    "desc": "Radial quick-action wheel",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
     "name": "DropPartyAlert",
     "desc": "Alerts on mass drops nearby",
     "cat": "DONUTSMP",
     "premium": false
   },
   {
+    "name": "ElytraHunt",
+    "desc": "Flies and digs to search for bases",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
     "name": "EntityFind",
     "desc": "Entity radar — named mobs, stands, frames, tamed, cart farms",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
+    "name": "FarmOptimizer",
+    "desc": "Reduces lag around farms",
     "cat": "DONUTSMP",
     "premium": false
   },
@@ -592,6 +628,12 @@ module.exports = [
   {
     "name": "Refill",
     "desc": "Refills hotbar stacks",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
+    "name": "RegionMap",
+    "desc": "DonutSMP shard grid map",
     "cat": "DONUTSMP",
     "premium": false
   },
