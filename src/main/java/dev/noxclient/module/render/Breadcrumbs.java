@@ -2,7 +2,7 @@ package dev.noxclient.module.render;
 
 import dev.noxclient.module.Category;
 import dev.noxclient.module.Module;
-import dev.noxclient.module.donutsmp.AntiESPBypass;
+import dev.noxclient.util.EspMarks;
 import dev.noxclient.setting.Setting;
 import net.minecraft.core.BlockPos;
 
@@ -21,13 +21,13 @@ public class Breadcrumbs extends Module {
         if (last != null && p.distSqr(last) < spacing.get() * spacing.get()) return;
         last = p.immutable();
         trail.addLast(last);
-        AntiESPBypass.MARKS.put(last, 0xFFFFD870);
+        EspMarks.MARKS.put(last, 0xFFFFD870);
         while (trail.size() > maxPoints.intVal())
-            AntiESPBypass.MARKS.remove(trail.pollFirst());
+            EspMarks.MARKS.remove(trail.pollFirst());
     }
 
     @Override public void onDisable() {
-        for (var p : trail) AntiESPBypass.MARKS.remove(p);
+        for (var p : trail) EspMarks.MARKS.remove(p);
         trail.clear(); last = null;
     }
 }

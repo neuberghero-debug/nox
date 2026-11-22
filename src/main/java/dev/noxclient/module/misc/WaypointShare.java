@@ -40,7 +40,7 @@ public class WaypointShare extends Module {
         try {
             var pos = new net.minecraft.core.BlockPos(
                 Integer.parseInt(f[2]), Integer.parseInt(f[3]), Integer.parseInt(f[4]));
-            dev.noxclient.module.donutsmp.AntiESPBypass.MARKS.put(pos, 0xFF40E080);
+            dev.noxclient.util.EspMarks.MARKS.put(pos, 0xFF40E080);
             dev.noxclient.gui.Toasts.push("Waypoint " + f[1] + " @ " + pos.toShortString(),
                 0xFF66FF99);
             return true;

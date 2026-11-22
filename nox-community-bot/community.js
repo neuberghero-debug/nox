@@ -5,13 +5,35 @@
  * embed, live alerts. Wired into index.js via community.commands /
  * community.handle / community.onMessage / community.startCron.
  *
- * Env: NOX_LICENSE_URL (default http://127.0.0.1:8787),
- *      NOX_ANALYTICS_URL, NOX_ANALYTICS_KEY,
- *      NOX_ADMIN_KEY (license admin endpoints).
+ * Env: NOX_ANALYTICS_URL, NOX_ANALYTICS_KEY
+ *      (licenses verified locally via Ed25519 — no license server needed).
  */
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
+const crypto = require('crypto');
 
-const LICENSE_URL = process.env.NOX_LICENSE_URL || 'http://127.0.0.1:8787';
+/* Local Ed25519 license verify — the old 127.0.0.1:8787 license server is
+ * dead; the client verifies NOX1.<payload>.<sig> offline anyway, so the bot
+ * does the same. Public key mirrors LicenseManager.PUB_DER. */
+const LICENSE_PUB = crypto.createPublicKey({
+  key: Buffer.concat([
+    Buffer.from('302a300506032b6570032100', 'hex'),
+    Buffer.from('wAoUOK5sP+q9eqjoXY7V4C//P+v4hel4AMNvP2H8/qE=', 'base64'),
+  ]), format: 'der', type: 'spki',
+});
+
+function verifyLicense(raw) {
+  const m = /^NOX1\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/.exec(String(raw).trim());
+  if (!m) return { ok: false, why: 'format (NOX1.…)' };
+  if (!crypto.verify(null, Buffer.from(m[1]), LICENSE_PUB, Buffer.from(m[2], 'base64url')))
+    return { ok: false, why: 'signature' };
+  let p;
+  try { p = JSON.parse(Buffer.from(m[1], 'base64url').toString('utf8')); }
+  catch { return { ok: false, why: 'payload' }; }
+  if (p.exp && p.exp < Date.now()) return { ok: false, why: 'expired' };
+  return { ok: true, payload: p };
+}
+
+const LICENSE_URL = process.env.NOX_LICENSE_URL || '';
 const ANALYTICS_URL = process.env.NOX_ANALYTICS_URL || '';
 const ANALYTICS_KEY = process.env.NOX_ANALYTICS_KEY || '';
 const ADMIN_KEY = process.env.NOX_ADMIN_KEY || '';
@@ -102,12 +124,16 @@ async function handle(interaction, ctx) {
     tries.push(now); attempts.set(interaction.user.id, tries);
 
     const key = interaction.options.getString('key').trim();
-    // hwid: discord-bound — prevents the same key jumping across machines/accounts
-    const r = await post(`${LICENSE_URL}/validate`, { key, hwid: `discord:${interaction.user.id}` });
-    if (r.status !== 200 || !r.json.ok) {
-      await audit(interaction, config, `❌ license activate failed — <@${interaction.user.id}>`);
-      return interaction.reply({ content: `Key not accepted (${r.json.why ?? r.status}).`, flags: MessageFlags.Ephemeral });
+    const v = verifyLicense(key);
+    // payload.sub binds the license to the buyer's discord id — a key minted
+    // for someone else can't be activated here
+    const bound = v.ok && (!v.payload.sub || v.payload.sub === interaction.user.id);
+    if (!v.ok || !bound) {
+      await audit(interaction, config, `❌ license activate failed — <@${interaction.user.id}> (${v.ok ? 'bound to another account' : v.why})`);
+      return interaction.reply({ content: `Key not accepted (${v.ok ? 'bound to another account' : v.why}).`, flags: MessageFlags.Ephemeral });
     }
+    state.licenses = state.licenses || {};
+    state.licenses[interaction.user.id] = { lid: v.payload.lid, tier: v.payload.tier, boundAt: Date.now() };
     const role = interaction.guild.roles.cache.find((x) => x.name === 'Premium')
       || interaction.guild.roles.cache.get(config.roles.verified);
     if (role) await interaction.member.roles.add(role).catch(() => {});
@@ -124,8 +150,7 @@ async function handle(interaction, ctx) {
     const member = await interaction.guild.members.fetch(user.id).catch(() => null);
     const role = interaction.guild.roles.cache.find((x) => x.name === 'Premium');
     if (member && role) await member.roles.remove(role).catch(() => {});
-    if (ADMIN_KEY)
-      await post(`${LICENSE_URL}/admin/revoke`, { hwid: `discord:${user.id}` }, { 'x-admin-key': ADMIN_KEY });
+    if (state.licenses) delete state.licenses[user.id];
     await audit(interaction, config, `🔻 premium revoked — <@${user.id}> by <@${interaction.user.id}>`);
     return interaction.reply({ content: `Premium revoked for <@${user.id}>.`, flags: MessageFlags.Ephemeral });
   }

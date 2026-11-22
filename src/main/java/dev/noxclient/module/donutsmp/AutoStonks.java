@@ -68,7 +68,7 @@ public class AutoStonks extends Module {
         for (var slot : menu.slots) {
             ItemStack st = slot.getItem();
             if (st.isEmpty()) continue;
-            Double p = AHSniper.lorePrice(st);
+            Double p = dev.noxclient.util.LorePrice.of(st);
             if (p == null) continue;
             String name = st.getHoverName().getString();
             double[] s = stats.computeIfAbsent(name, k -> new double[]{0, 0, Double.MAX_VALUE});

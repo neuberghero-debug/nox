@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NOX — DonutSMP Client</title>
-<meta name="description" content="NOX — open-source Fabric client for DonutSMP. Early alpha coming soon.">
+<meta name="description" content="NOX — open-source Fabric client for DonutSMP. Public beta: 157 modules, custom GUI, black-hole menu sky.">
 <style>
   :root{--bg:#0D0F14;--panel:#141821;--card:#1C222E;--accent:#8B5CF6;--accent2:#A78BFA;--text:#E8E8F0;--dim:#9AA3B8}
   *{margin:0;padding:0;box-sizing:border-box}
@@ -15,27 +15,36 @@
   .badge{display:inline-block;margin-top:26px;padding:6px 16px;border-radius:999px;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.35);color:var(--accent2);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
   p.soon{margin-top:22px;color:var(--dim);font-size:14px;line-height:1.7}
   p.soon b{color:var(--text)}
-  .cta{display:inline-flex;align-items:center;gap:10px;margin-top:30px;padding:14px 28px;border-radius:12px;background:linear-gradient(120deg,var(--accent),#6D28D9);color:#fff;font-weight:600;text-decoration:none;font-size:15px;transition:transform .15s,box-shadow .15s}
+  .row{display:flex;gap:12px;justify-content:center;margin-top:30px;flex-wrap:wrap}
+  .cta{display:inline-flex;align-items:center;gap:10px;padding:14px 28px;border-radius:12px;background:linear-gradient(120deg,var(--accent),#6D28D9);color:#fff;font-weight:600;text-decoration:none;font-size:15px;transition:transform .15s,box-shadow .15s}
   .cta:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(139,92,246,.35)}
+  .cta.ghost{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:var(--text)}
   .feat{display:flex;gap:10px;justify-content:center;margin-top:34px;flex-wrap:wrap}
   .feat span{font-size:12px;color:var(--dim);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 12px}
-  footer{margin-top:36px;font-size:12px;color:#5b6478}
+  footer{margin-top:36px;font-size:12px;color:#5b6478;line-height:1.8}
   a{color:var(--accent2)}
+  code{background:rgba(255,255,255,.06);border-radius:6px;padding:2px 7px;font-size:12px}
 </style>
 </head>
 <body>
   <div class="card">
     <div class="logo">NOX</div>
     <div class="tag">Fabric client for DonutSMP &middot; Minecraft 26.3</div>
-    <div class="badge">Early Alpha &middot; Coming Soon</div>
-    <p class="soon">Our full website is on the way — <b>j6ilbrk.is-a.dev</b> is being registered and will land here soon.<br>
-    In the meantime, grab the early alpha and hang out with us on Discord:</p>
-    <a class="cta" href="https://discord.gg/tewtZTsZf5">&#9889; Join the Discord</a>
-    <div class="feat">
-      <span>140+ modules</span><span>Custom ClickGUI</span><span>Animated sky</span>
-      <span>Discord RPC</span><span>Open source (MIT)</span><span>Free</span>
+    <div class="badge">Public Beta &middot; v0.1.0-beta</div>
+    <p class="soon">Open-source client, built for DonutSMP — usable anywhere.<br>
+    Drop <code>nox-*.jar</code> into your <code>mods/</code> folder with Fabric Loader 0.20.1+.</p>
+    <div class="row">
+      <a class="cta" href="https://github.com/neuberghero-debug/nox/releases/latest">&#11015; Download beta</a>
+      <a class="cta ghost" href="https://discord.gg/tewtZTsZf5">&#9889; Discord</a>
     </div>
-    <footer>MIT licensed &middot; contribute on <a href="https://github.com/a0yark/patch-devin">GitHub</a> &middot; discord.gg/tewtZTsZf5</footer>
+    <div class="feat">
+      <span>157 modules</span><span>ClickGUI + WindowGUI</span><span>Black-hole menu sky</span>
+      <span>Preset hotkeys</span><span>HUD editor</span><span>Open source (GPL-3.0)</span>
+    </div>
+    <footer>
+      Don&rsquo;t trust the jar? <a href="https://github.com/neuberghero-debug/nox/blob/main/BUILDING.md">Build it yourself</a> &middot;
+      <a href="https://github.com/neuberghero-debug/nox">GitHub</a> &middot; discord.gg/tewtZTsZf5
+    </footer>
   </div>
 </body>
 </html>

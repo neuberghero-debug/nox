@@ -8,7 +8,7 @@ public class DiscordRPCModule extends Module {
     public DiscordRPCModule() { super("DiscordRPC", "Discord Rich Presence", Category.MISC); }
 
     @Override
-    protected void onEnable() { NoxClient.INSTANCE.rpc.setEnabled(true); }
+    protected void onEnable() { if (NoxClient.INSTANCE.rpc != null) NoxClient.INSTANCE.rpc.setEnabled(true); }
     @Override
-    protected void onDisable() { NoxClient.INSTANCE.rpc.setEnabled(false); }
+    protected void onDisable() { if (NoxClient.INSTANCE.rpc != null) NoxClient.INSTANCE.rpc.setEnabled(false); }
 }

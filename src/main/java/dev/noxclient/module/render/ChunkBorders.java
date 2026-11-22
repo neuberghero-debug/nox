@@ -3,7 +3,7 @@ package dev.noxclient.module.render;
 import dev.noxclient.module.Category;
 import dev.noxclient.module.Module;
 import dev.noxclient.setting.Setting;
-import dev.noxclient.module.donutsmp.AntiESPBypass;
+import dev.noxclient.util.EspMarks;
 import net.minecraft.core.BlockPos;
 
 /** Marks the corners of your current chunk — claim/perimeter work. */
@@ -16,7 +16,7 @@ public class ChunkBorders extends Module {
 
     @Override public void onTick() {
         if (mc.player == null) return;
-        for (var p : shown) AntiESPBypass.MARKS.remove(p);
+        for (var p : shown) EspMarks.MARKS.remove(p);
         shown.clear();
         int cx = mc.player.getBlockX() >> 4, cz = mc.player.getBlockZ() >> 4;
         int y = mc.player.getBlockY() - 1, R = chunks.intVal(), step = density.intVal();
@@ -26,14 +26,14 @@ public class ChunkBorders extends Module {
                 for (int[] c : new int[][]{{0, i}, {15, i}, {i, 0}, {i, 15}}) {
                     var p = new BlockPos((bx << 4) + c[0], y, (bz << 4) + c[1]);
                     shown.add(p);
-                    AntiESPBypass.MARKS.put(p, ox == 0 && oz == 0 ? 0xFF40C8FF : 0x8040C8FF);
+                    EspMarks.MARKS.put(p, ox == 0 && oz == 0 ? 0xFF40C8FF : 0x8040C8FF);
                 }
             }
         }
     }
 
     @Override public void onDisable() {
-        for (var p : shown) AntiESPBypass.MARKS.remove(p);
+        for (var p : shown) EspMarks.MARKS.remove(p);
         shown.clear();
     }
 }

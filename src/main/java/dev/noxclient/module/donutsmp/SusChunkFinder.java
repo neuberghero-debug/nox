@@ -132,7 +132,7 @@ public class SusChunkFinder extends Module {
                 "§7[NOX] §dSus chunk §f" + mid.x() + " " + mid.z() + " §7score §e" + (int) score
                 + (instant.contains(cp) ? " §c(instant-hit)" : "")));
         // world pin at the merged flag so it's visible while flying
-        AntiESPBypass.MARKS.put(
+        dev.noxclient.util.EspMarks.MARKS.put(
             new net.minecraft.core.BlockPos(mid.getMiddleBlockX(), 80, mid.getMiddleBlockZ()),
             0xFF7A2BE2);
         dev.noxclient.util.StashLogger.log("baseradar",

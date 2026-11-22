@@ -13,6 +13,16 @@ java {
     targetCompatibility = JavaVersion.VERSION_25
 }
 
+// Premium split — premium sources compile into main output so they ride the
+// normal loom remap pass, then stripPremium carves them out of the finished
+// jar into the AES-256-GCM pack (assets/noxclient/premium.nxp). The shipped
+// free jar physically lacks the premium bytecode — a signed license is the
+// only decryption key. (Invariant: src/main must never import premium classes
+// — they're absent at runtime; shared state goes through util buses.)
+sourceSets {
+    main.java.srcDir 'src/premium/java'
+}
+
 repositories {
     maven { url = 'https://maven.fabricmc.net/' }
     mavenCentral()
@@ -48,6 +58,80 @@ tasks.withType(JavaCompile).configureEach {
     it.options.release = 25
 }
 
+// ---- premium pack: carve premium classes out of the remapped jar ----
+// jar → stripPremium → noxJarSig (sig hashes the STRIPPED free jar).
+// The pack key is derived exactly like PremiumVault does at runtime:
+// AES key = SHA-256("NOX-PREM-1" || base64url-decode(k)); file = nonce||ct.
+def stripPremium = tasks.register('stripPremium') {
+    def jarFile = layout.buildDirectory.file("libs/nox-${project.version}.jar")
+    inputs.file(jarFile)
+    dependsOn 'jar'
+    doLast {
+        def jarPath = jarFile.get().asFile
+        // premium class-path prefixes from the source tree (can't drift)
+        // premium sources are private (gitignored) — a public clone has none
+        // and builds a FREE-only client (no pack embedded)
+        def premRoots = fileTree('src/premium/java').matching { include '**/*.java' }
+            .files.collect { f ->
+                def rel = file('src/premium/java').toPath().relativize(f.toPath()).toString()
+                rel.replace(File.separatorChar, '/' as char) - '.java'
+            }
+        if (premRoots.isEmpty()) {
+            println 'premium split -> no src/premium sources — building FREE client'
+            return
+        }
+        def isPrem = { String n ->
+            premRoots.any { r -> n == r + '.class' || n.startsWith(r + '$') }
+        }
+        def premEntries = [:], keepEntries = []
+        new java.util.zip.ZipFile(jarPath).withCloseable { z ->
+            z.stream().each { e ->
+                if (!e.directory && isPrem(e.name))
+                    premEntries[e.name] = z.getInputStream(e).bytes
+                else
+                    keepEntries.add(e)
+            }
+        }
+        if (premEntries.isEmpty()) throw new GradleException('stripPremium: no premium classes found in jar')
+        // pack jar (plain zip of premium classes) → AES-256-GCM
+        // NOX_PACK_KEY env → gitignored nox-bot/keys/pack.key → dev fallback.
+        // The bot embeds the same value as "k" in signed license payloads.
+        def keyFile = file('nox-bot/keys/pack.key')
+        def k64 = providers.environmentVariable('NOX_PACK_KEY')
+            .orElse(providers.gradleProperty('noxPackKey'))
+            .orElse(providers.provider { keyFile.exists() ? keyFile.text.trim() : 'nox-dev-pack-key-unset' })
+        byte[] kb
+        try { kb = Base64.urlDecoder.decode(k64.get()) }
+        catch (Exception e) { kb = k64.get().getBytes('UTF-8') }
+        def md = java.security.MessageDigest.getInstance('SHA-256')
+        md.update('NOX-PREM-1'.getBytes('UTF-8')); md.update(kb)
+        def key = new javax.crypto.spec.SecretKeySpec(md.digest(), 'AES')
+        byte[] nonce = new byte[12]; new java.security.SecureRandom().nextBytes(nonce)
+        def c = javax.crypto.Cipher.getInstance('AES/GCM/NoPadding')
+        c.init(javax.crypto.Cipher.ENCRYPT_MODE, key, new javax.crypto.spec.GCMParameterSpec(128, nonce))
+        def baos = new ByteArrayOutputStream()
+        new java.util.zip.ZipOutputStream(baos).withCloseable { pz ->
+            premEntries.each { n, b -> pz.putNextEntry(new java.util.zip.ZipEntry(n)); pz.write(b); pz.closeEntry() }
+        }
+        byte[] ct = c.doFinal(baos.toByteArray())
+        // rewrite the free jar: drop premium classes, embed the sealed pack
+        def tmp = new File(jarPath.parentFile, jarPath.name + '.premtmp')
+        new java.util.zip.ZipFile(jarPath).withCloseable { z ->
+            new java.util.zip.ZipOutputStream(new FileOutputStream(tmp)).withCloseable { zos ->
+                keepEntries.each { e ->
+                    zos.putNextEntry(new java.util.zip.ZipEntry(e))
+                    if (!e.directory) zos.write(z.getInputStream(e).bytes)
+                    zos.closeEntry()
+                }
+                zos.putNextEntry(new java.util.zip.ZipEntry('assets/noxclient/premium.nxp'))
+                zos.write(nonce); zos.write(ct); zos.closeEntry()
+            }
+        }
+        if (!tmp.renameTo(jarPath)) throw new GradleException('stripPremium rewrite failed')
+        println "premium split -> ${premEntries.size()} classes sealed into premium.nxp (${ct.length}B)"
+    }
+}
+
 tasks.register('physicsCheck', JavaExec) {
     dependsOn 'testClasses'
     classpath = sourceSets.test.runtimeClasspath
@@ -62,7 +146,7 @@ tasks.named('check') { dependsOn 'physicsCheck' }
 def noxJarSig = tasks.register('noxJarSig') {
     def jarFile = layout.buildDirectory.file("libs/nox-${project.version}.jar")
     inputs.file(jarFile)
-    dependsOn 'jar'
+    dependsOn 'stripPremium'   // sign the STRIPPED jar (premium classes absent)
     doLast {
         def jarPath = jarFile.get().asFile
         def tmp = new File(jarPath.parentFile, jarPath.name + '.sigtmp')

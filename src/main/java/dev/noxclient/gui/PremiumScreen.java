@@ -37,11 +37,11 @@ public class PremiumScreen extends Screen {
         }));
         if (LicenseManager.premium())
             addRenderableWidget(new NoxButton(cx - 120, top + 166, 118, 16, "Deactivate",
-                () -> { LicenseManager.deactivate(); status = "License deactivated"; statusColor = 0xFFFFCC55; }));
+                () -> { dev.noxclient.premium.PremiumVault.unload(); LicenseManager.deactivate(); status = "License deactivated"; statusColor = 0xFFFFCC55; }));
         addRenderableWidget(new NoxButton(cx - 120, top + 166, LicenseManager.premium() ? 118 : 240, 16,
             LicenseManager.premium() ? "Deactivate" : "Close",
             LicenseManager.premium()
-                ? () -> { LicenseManager.deactivate(); status = "License deactivated"; statusColor = 0xFFFFCC55; }
+                ? () -> { dev.noxclient.premium.PremiumVault.unload(); LicenseManager.deactivate(); status = "License deactivated"; statusColor = 0xFFFFCC55; }
                 : this::onClose));
         if (LicenseManager.premium())
             addRenderableWidget(new NoxButton(cx + 2, top + 166, 118, 16, "Close", this::onClose));
@@ -49,7 +49,17 @@ public class PremiumScreen extends Screen {
 
     private void activate() {
         switch (LicenseManager.unlock(keyBox.getValue())) {
-            case OK -> { status = "License activated — welcome to NOX Premium"; statusColor = 0xFF66FF99; }
+            case OK -> {
+                dev.noxclient.premium.PremiumVault.load();
+                if (dev.noxclient.premium.PremiumVault.loaded()) {
+                    dev.noxclient.NoxClient.INSTANCE.config.load();
+                    status = "License activated — " + dev.noxclient.premium.PremiumVault.modules().size()
+                        + " premium modules unlocked";
+                } else {
+                    status = "License activated — welcome to NOX Premium";
+                }
+                statusColor = 0xFF66FF99;
+            }
             case EXPIRED -> { status = "Key expired"; statusColor = 0xFFFF6666; }
             case BAD_SIGNATURE -> { status = "Invalid signature — key not issued by NOX"; statusColor = 0xFFFF6666; }
             default -> { status = "Invalid key format (NOX1.…)"; statusColor = 0xFFFF6666; }

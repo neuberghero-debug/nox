@@ -28,14 +28,7 @@ public class ModuleManager {
         reg(new SessionStats());
         reg(new Auction());
         // DonutSMP premium
-        reg(new AHSniper());
-        reg(new AutoFlip());
         reg(new BountyTracker());
-        reg(new TunnelBaseFinder());
-        reg(new RTPBaseFinder());
-        reg(new AntiESPBypass());
-        reg(new AntiVanish());
-        reg(new AutoTotemOrder());
         reg(new AutoCommander());
         reg(new AutoHarvest());
         reg(new SellWand());
@@ -60,23 +53,18 @@ public class ModuleManager {
         reg(new AutoTotem());
         reg(new Criticals());
         reg(new Velocity());
-        reg(new AntiTrap());
         reg(new Triggerbot());
         reg(new SprintReset());
-        reg(new AutoMace());
         reg(new ShieldBreak());
-        reg(new AutoWeb());
         reg(new AutoPearl());
         reg(new AutoArmor());
         // Movement
         reg(new Speed());
         reg(new Flight());
-        reg(new FlyBypass());
         reg(new NoFall());
         reg(new ElytraGlide());
         reg(new NoSlow());
         reg(new InventoryMove());
-        reg(new Blink());
         reg(new AutoSprint());
         reg(new StepAssist());
         // Render
@@ -100,7 +88,6 @@ public class ModuleManager {
         reg(new StaffNotifier());
         reg(new dev.noxclient.module.donutsmp.StaffLive());
         reg(new TamperWarner());
-        reg(new FriendSync());
         reg(new AntiAFK());
         // CombatLog merged into AutoLog (was a strict duplicate)
         reg(new AutoReconnect());
@@ -108,7 +95,6 @@ public class ModuleManager {
         reg(new ModSpoofer());
         reg(new AutoTP());
                 reg(new WTap());
-        reg(new AutoPot());
         reg(new BunnyHop());
         reg(new AutoWalk());
         reg(new AutoMine());
@@ -168,7 +154,6 @@ public class ModuleManager {
         reg(new dev.noxclient.module.render.ChatTriggers());
         reg(new dev.noxclient.module.misc.ClipMarker());
         reg(new dev.noxclient.module.misc.CoordFinder());
-        reg(new dev.noxclient.module.misc.PvpCoach());
         reg(new dev.noxclient.module.misc.ReplayMod());
         reg(new dev.noxclient.module.misc.SecurityAudit());
         reg(new dev.noxclient.module.misc.SkinChanger());
@@ -183,6 +168,13 @@ public class ModuleManager {
     private void reg(Module m) { all.add(m); }
     /** Late registration for ExtraModules — keeps cross-session edits out of registerAll(). */
     public void register(Module m) { reg(m); }
+    /** Unload a dynamically registered module (premium pack drop). */
+    public boolean remove(String name) {
+        Module m = get(name);
+        if (m == null) return false;
+        if (m.isEnabled()) m.restore(false);
+        return all.remove(m);
+    }
     public List<Module> all() { return all; }
     public List<Module> by(Category c) { return all.stream().filter(m -> m.category == c).toList(); }
     public Module get(String name) {

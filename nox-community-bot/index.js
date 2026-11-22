@@ -1,5 +1,21 @@
 'use strict';
 
+// permanent crash trap — last-resort diagnostics to /data/boot.log so a
+// silent exit (bad token, missing env, syntax in a required file) is never
+// invisible on the host
+{
+  const log = (kind, e) => {
+    try {
+      require('node:fs').appendFileSync('/data/boot.log',
+        `[${kind} ${new Date().toISOString()}] ${(e && e.stack) || e}\n`);
+    } catch { /* /data may not exist locally */ }
+  };
+  process.on('uncaughtException', (e) => { log('uncaught', e); });
+  process.on('unhandledRejection', (e) => { log('rejection', e); });
+  process.on('exit', (code) => { log('exit', `code ${code}`); });
+  log('boot', `index.js ${new Date().toISOString()}`);
+}
+
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -29,6 +45,7 @@ config.token = process.env.DISCORD_TOKEN || config.token;
 config.guildId = process.env.GUILD_ID || config.guildId;
 if (!config.token) {
   console.error('[fatal] no bot token — set DISCORD_TOKEN in .env or the environment');
+  try { fs.appendFileSync('/data/boot.log', `[fatal ${new Date().toISOString()}] no DISCORD_TOKEN\n`); } catch {}
   process.exit(1);
 }
 
@@ -242,6 +259,10 @@ function licenseFor(order) {
     lid: order.id,
     exp: isCape ? 0 : Date.now() + 10 * 365.25 * 86400e3,
     sub: order.userId,
+    // "k" = premium pack key (base64url) — LicenseManager.packKey() decodes it
+    // to decrypt assets/noxclient/premium.nxp. Same value as the NOX_PACK_KEY
+    // env used at jar build time.
+    k: process.env.NOX_PACK_KEY || '',
   })).toString('base64url');
   const seed = process.env.NOX_LICENSE_KEY;
   if (seed) {
@@ -1168,12 +1189,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ content: 'Unknown order.', flags: MessageFlags.Ephemeral });
       }
       order.txRef = interaction.fields.getTextInputValue('txref').slice(0, 200);
+      // one TXID must not pay for two orders — flag re-use to staff
+      const dupe = Object.values(state.orders).find(
+        (o) => o.id !== order.id && o.txRef && o.txRef === order.txRef);
       order.status = 'review';
       save();
       await interaction.reply({ content: `${ce('noxcheck')}Payment proof submitted — staff will verify on-chain and mark the order paid.`, flags: MessageFlags.Ephemeral });
       await interaction.channel.send({
         content: `<@&${config.roles.support}>`,
-        embeds: [orderEmbed(order, `🔎 **Payment proof submitted** by <@${order.userId}> — verify on-chain, then press **Mark paid**.`)],
+        embeds: [orderEmbed(order,
+          (dupe ? `⚠️ **TXID already used on order \`${dupe.id}\`** — do NOT mark paid without on-chain check.\n\n` : '') +
+          `🔎 **Payment proof submitted** by <@${order.userId}> — verify on-chain, then press **Mark paid**.`)],
         components: orderRows(order),
       });
       return;

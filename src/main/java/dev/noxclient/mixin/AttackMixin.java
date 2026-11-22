@@ -15,7 +15,7 @@ public abstract class AttackMixin {
     private void nox$onHit(Player player, Entity target, CallbackInfo ci) {
         if (player == net.minecraft.client.Minecraft.getInstance().player) {
             dev.noxclient.stats.Stats.onHit(target);
-            dev.noxclient.module.misc.PvpCoach.onHitEntity(target);
+            dev.noxclient.util.PvpHooks.onHitEntity(target);
             if (player.isSprinting()) { SprintReset.onHit(); dev.noxclient.module.combat.WTap.onHit(); }
         }
     }

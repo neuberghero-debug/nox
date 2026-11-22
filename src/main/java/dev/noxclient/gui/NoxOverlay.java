@@ -3,7 +3,7 @@ package dev.noxclient.gui;
 import dev.noxclient.NoxClient;
 import dev.noxclient.gui.ds.DS;
 import dev.noxclient.gui.nvg.NvgOverlay;
-import dev.noxclient.module.donutsmp.AntiESPBypass;
+import dev.noxclient.util.EspMarks;
 import dev.noxclient.module.donutsmp.Auction;
 import dev.noxclient.module.donutsmp.StorageESP;
 import dev.noxclient.module.render.ESP;
@@ -49,7 +49,7 @@ public class NoxOverlay implements HudElement {
         }
         // finder markers
         drawMarks(g, cp, mat, w, h, StorageESP.HITS);
-        drawMarks(g, cp, mat, w, h, AntiESPBypass.MARKS);
+        drawMarks(g, cp, mat, w, h, EspMarks.MARKS);
         drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.OreESP.HITS);
         drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.DebrisFinder.HITS);
         drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.DebrisFinder.AREAS);

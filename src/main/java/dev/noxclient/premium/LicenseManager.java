@@ -66,6 +66,7 @@ public final class LicenseManager {
      * A plain `premium=true` field set (or license file copied off another
      * PC) leaves nonceOk()=false → every gate stays closed. ---- */
     private static volatile byte[] sigPayload, sigBlob;
+    private static volatile String packKey;          // "k" from the signed payload — premium pack secret
     private static volatile long nonce;
     private static volatile long lastReverify;      // lazy native re-verify cooldown
     private static volatile boolean suspect;
@@ -132,6 +133,15 @@ public final class LicenseManager {
 
     /** Configured license API base ("" if unset). */
     public static String api() { return API; }
+
+    /** Premium-pack key bytes (b64url "k" from the signed payload).
+     *  Null without a verified premium license — the pack literally cannot
+     *  be decrypted without a real key, so stripping the gate yields nothing. */
+    public static byte[] packKey() {
+        if (!premium() || packKey == null) return null;
+        try { return Base64.getUrlDecoder().decode(packKey); }
+        catch (Exception e) { return null; }
+    }
 
     public static void init() {
         try {
@@ -264,6 +274,7 @@ public final class LicenseManager {
             expires = exp;
             // retain verified bytes + hwid nonce → premium() stays unforgable
             sigPayload = payload; sigBlob = sig;
+            packKey = o.has("k") ? o.get("k").getAsString() : null;
             nonce = nonceOf(payload, hwidStr());
             return Result.OK;
         } catch (Exception e) { return Result.BAD_FORMAT; }
@@ -308,7 +319,7 @@ public final class LicenseManager {
             Files.deleteIfExists(keyFile());
         } catch (Exception ignored) {}
         premium = false; licenseId = ""; expires = 0; lastValid = 0;
-        sigPayload = null; sigBlob = null; nonce = 0;
+        sigPayload = null; sigBlob = null; packKey = null; nonce = 0;
         saveState();
     }
     /** Days left on the active license, 0 when none/expired. */

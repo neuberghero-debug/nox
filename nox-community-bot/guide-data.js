@@ -2,12 +2,6 @@
 // REGENERATE: python3 tools/gen_guide.py (runs in devloop)
 module.exports = [
   {
-    "name": "AntiTrap",
-    "desc": "Escapes box traps (teleport = AC flag risk)",
-    "cat": "COMBAT",
-    "premium": true
-  },
-  {
     "name": "AutoArmor",
     "desc": "Equips best armor",
     "cat": "COMBAT",
@@ -20,22 +14,10 @@ module.exports = [
     "premium": false
   },
   {
-    "name": "AutoMace",
-    "desc": "Wind-charge mace combo",
-    "cat": "COMBAT",
-    "premium": true
-  },
-  {
     "name": "AutoPearl",
     "desc": "Emergency pearl escape",
     "cat": "COMBAT",
     "premium": false
-  },
-  {
-    "name": "AutoPot",
-    "desc": "Splash-heals when low HP",
-    "cat": "COMBAT",
-    "premium": true
   },
   {
     "name": "AutoSword",
@@ -48,12 +30,6 @@ module.exports = [
     "desc": "Restocks offhand totem",
     "cat": "COMBAT",
     "premium": false
-  },
-  {
-    "name": "AutoWeb",
-    "desc": "Webs enemies' feet",
-    "cat": "COMBAT",
-    "premium": true
   },
   {
     "name": "Criticals",
@@ -128,12 +104,6 @@ module.exports = [
     "premium": false
   },
   {
-    "name": "Blink",
-    "desc": "Buffer + dump packets",
-    "cat": "MOVEMENT",
-    "premium": true
-  },
-  {
     "name": "BunnyHop",
     "desc": "Auto-jump while moving",
     "cat": "MOVEMENT",
@@ -156,12 +126,6 @@ module.exports = [
     "desc": "Fly",
     "cat": "MOVEMENT",
     "premium": false
-  },
-  {
-    "name": "FlyBypass",
-    "desc": "Packet fly",
-    "cat": "MOVEMENT",
-    "premium": true
   },
   {
     "name": "HighJump",
@@ -374,28 +338,10 @@ module.exports = [
     "premium": false
   },
   {
-    "name": "AHSniper",
-    "desc": "Snipes underpriced AH items",
-    "cat": "DONUTSMP",
-    "premium": true
-  },
-  {
     "name": "AmethystBaseFinder",
     "desc": "Finds bases near amethyst",
     "cat": "DONUTSMP",
     "premium": false
-  },
-  {
-    "name": "AntiESPBypass",
-    "desc": "Sees through server anti-ESP",
-    "cat": "DONUTSMP",
-    "premium": true
-  },
-  {
-    "name": "AntiVanish",
-    "desc": "Detects vanished players",
-    "cat": "DONUTSMP",
-    "premium": true
   },
   {
     "name": "ArtificialLightFinder",
@@ -432,12 +378,6 @@ module.exports = [
     "desc": "Eats best food when hungry",
     "cat": "DONUTSMP",
     "premium": false
-  },
-  {
-    "name": "AutoFlip",
-    "desc": "Relists sniped AH items at market price",
-    "cat": "DONUTSMP",
-    "premium": true
   },
   {
     "name": "AutoHarvest",
@@ -492,12 +432,6 @@ module.exports = [
     "desc": "Best tool for the block",
     "cat": "DONUTSMP",
     "premium": false
-  },
-  {
-    "name": "AutoTotemOrder",
-    "desc": "Flips totems for profit",
-    "cat": "DONUTSMP",
-    "premium": true
   },
   {
     "name": "AutoTP",
@@ -638,12 +572,6 @@ module.exports = [
     "premium": false
   },
   {
-    "name": "RTPBaseFinder",
-    "desc": "RTP + chunk scan loop",
-    "cat": "DONUTSMP",
-    "premium": true
-  },
-  {
     "name": "SellWand",
     "desc": "Auto sell-wand chests",
     "cat": "DONUTSMP",
@@ -690,12 +618,6 @@ module.exports = [
     "desc": "Values trades against your price book",
     "cat": "DONUTSMP",
     "premium": false
-  },
-  {
-    "name": "TunnelBaseFinder",
-    "desc": "Digs tunnels, finds bases",
-    "cat": "DONUTSMP",
-    "premium": true
   },
   {
     "name": "VisualRange",
@@ -794,12 +716,6 @@ module.exports = [
     "premium": false
   },
   {
-    "name": "FriendSync",
-    "desc": "Cross-client friend sync + presence",
-    "cat": "MISC",
-    "premium": true
-  },
-  {
     "name": "GhostMode",
     "desc": "Instant legit profile",
     "cat": "MISC",
@@ -846,12 +762,6 @@ module.exports = [
     "desc": "Disables all modules instantly",
     "cat": "MISC",
     "premium": false
-  },
-  {
-    "name": "PvpCoach",
-    "desc": "Rule-based post-fight coaching tips",
-    "cat": "MISC",
-    "premium": true
   },
   {
     "name": "Replay",

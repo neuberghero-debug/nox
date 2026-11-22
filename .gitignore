@@ -50,3 +50,6 @@ nox-license-server/.venv/
 nox-license-server/__pycache__/
 native/target/
 run/
+
+# premium module sources — PRIVATE, never pushed (encrypted pack only)
+src/premium/

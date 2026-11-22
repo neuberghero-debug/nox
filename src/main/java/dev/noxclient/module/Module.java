@@ -72,7 +72,14 @@ public abstract class Module {
         if (v && premium && !dev.noxclient.premium.LicenseManager.assertPremium()) return;
         if (v == enabled) return;
         enabled = v;
-        if (v) onEnable(); else onDisable();
+        // a module that dies in onEnable/onDisable must not kill client init —
+        // log + leave it off instead of aborting config restore
+        try { if (v) onEnable(); else onDisable(); }
+        catch (Throwable t) {
+            enabled = false;
+            System.err.println("[NOX] " + name + " failed to " + (v ? "enable" : "disable")
+                + " during config restore: " + t);
+        }
     }
     public void toggle() { setEnabled(!enabled); }
     /** True when enabling is blocked by the premium gate. */

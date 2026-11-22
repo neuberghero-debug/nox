@@ -29,7 +29,7 @@ public class StashLogger extends Module {
                 dev.noxclient.util.StashIndex.add("storage", "chest", m);   // Modul 7
             }
         }
-        for (var m : dev.noxclient.module.donutsmp.AntiESPBypass.MARKS.keySet()) {
+        for (var m : dev.noxclient.util.EspMarks.MARKS.keySet()) {
             String k = "mark:" + m.getX() + "," + m.getY() + "," + m.getZ();
             if (seen.add(k)) {
                 out.append(k).append("; ");

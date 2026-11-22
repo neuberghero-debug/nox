@@ -2,7 +2,7 @@ package dev.noxclient.module.render;
 
 import dev.noxclient.module.Category;
 import dev.noxclient.module.Module;
-import dev.noxclient.module.donutsmp.AntiESPBypass;
+import dev.noxclient.util.EspMarks;
 import dev.noxclient.setting.Setting;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.BlockHitResult;
@@ -17,11 +17,11 @@ public class BlockInfo extends Module {
 
     @Override public void onTick() {
         if (mc.player == null || mc.level == null) return;
-        if (last != null) { AntiESPBypass.MARKS.remove(last); last = null; }
+        if (last != null) { EspMarks.MARKS.remove(last); last = null; }
         if (mc.hitResult == null || mc.hitResult.getType() != HitResult.Type.BLOCK) return;
         var pos = ((BlockHitResult) mc.hitResult).getBlockPos();
         if (highlight.on()) {
-            AntiESPBypass.MARKS.put(pos, 0xFFFFFFFF);
+            EspMarks.MARKS.put(pos, 0xFFFFFFFF);
             last = pos;
         }
         if (chatName.on()) {

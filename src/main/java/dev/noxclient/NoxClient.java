@@ -34,13 +34,16 @@ public class NoxClient implements ClientModInitializer {
         modules = new ModuleManager();
         modules.registerAll();
         config = new ConfigManager();
-        config.load();
         rpc = new NoxRPC();
         rpc.start();
-        if (!dev.noxclient.util.TamperGuard.compromised())
+        if (!dev.noxclient.util.TamperGuard.compromised()) {
             dev.noxclient.premium.LicenseManager.init();
-        else
+            // encrypted premium pack — module classes aren't in the free jar;
+            // a valid signed license is the only way they ever exist in-memory
+            dev.noxclient.premium.PremiumVault.load();
+        } else {
             System.err.println("[NOX] license init skipped — jar failed integrity");
+        }
         dev.noxclient.alts.AltManager.load();
         dev.noxclient.util.TamperGuard.verifyAsync();  // keeps re-checking in bg
         dev.noxclient.security.CrashLoopGuard.init(
@@ -55,6 +58,11 @@ public class NoxClient implements ClientModInitializer {
                 .gameDirectory.toPath().resolve("nox"));
         dev.noxclient.module.ExtraModules.register(modules);
         dev.noxclient.security.CrashLoopGuard.enforce(modules.all());
+        // LAST: every service (rpc/alts/license) exists + all modules (incl.
+        // premium from the vault) are registered before saved state is applied —
+        // otherwise restores NPE on half-init services and premium/extra modules
+        // never get their saved enabled-state back.
+        config.load();
         HudElementRegistry.addLast(
             net.minecraft.resources.Identifier.fromNamespaceAndPath("noxclient", "overlay"),
             new NoxOverlay());
