@@ -176,6 +176,12 @@ public final class DebugConsole {
                 dev.noxclient.module.misc.ReplayMod.openPlayback(
                     p.length > 1 ? java.nio.file.Path.of(p[1]) : null);
             }
+            case "resource" -> {   // resource <id> — resolve via ResourceManager
+                var id = net.minecraft.resources.Identifier.parse(p[1]);
+                var r = mc.getResourceManager().getResource(id);
+                return id + " -> " + (r.isPresent() ? "FOUND " + r.get().sourcePackId()
+                    : "MISSING");
+            }
             case "modtest" -> {   // cycle EVERY module + setting once → nox_selftest.log
                 return ModuleSelfTest.run(mc, p.length > 1 && p[1].equalsIgnoreCase("full"));
             }

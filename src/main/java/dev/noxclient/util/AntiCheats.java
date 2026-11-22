@@ -43,10 +43,26 @@ public final class AntiCheats {
     private static final java.util.Map<String, String> HOST_AC = java.util.Map.of(
         "donutsmp", "Grim", "crazymc", "Polar", "minemen", "Minemen");
 
+    /** Where the current detection came from — for the AC info panel. */
+    private static String source = "none";
+
+    public static String source() { display(); return source; }
+    public static String brandOr(String dflt) {
+        display(); return brand == null || brand.isEmpty() ? dflt : brand;
+    }
+    /** What the client does about the detected AC — shown in the info panel. */
+    public static String advice() {
+        return switch (display()) {
+            case "Grim", "Polar" -> "Strict — packet-safe pacing";
+            case "None", "Vanilla" -> "Relaxed";
+            default -> "Cautious";
+        };
+    }
+
     private static String detect() {
         String b = brand == null ? "" : brand;
         String ac = matchAc(b);
-        if (ac != null) return ac;
+        if (ac != null) { source = "server brand"; return ac; }
 
         // scoreboard teams/objectives — several ACs register named teams
         try {
@@ -55,11 +71,11 @@ public final class AntiCheats {
                 var sb = lvl.getScoreboard();
                 for (var t : sb.getPlayerTeams()) {
                     ac = matchAc(t.getName().toLowerCase());
-                    if (ac != null) return ac;
+                    if (ac != null) { source = "scoreboard team"; return ac; }
                 }
                 for (String o : sb.getObjectiveNames()) {
                     ac = matchAc(o.toLowerCase());
-                    if (ac != null) return ac;
+                    if (ac != null) { source = "scoreboard objective"; return ac; }
                 }
             }
         } catch (Throwable ignored) {}
@@ -68,13 +84,16 @@ public final class AntiCheats {
         if (sd != null && sd.ip != null) {
             String ip = sd.ip.toLowerCase();
             for (var e : HOST_AC.entrySet())
-                if (ip.contains(e.getKey())) return e.getValue();
+                if (ip.contains(e.getKey())) { source = "hostname"; return e.getValue(); }
             ac = matchAc(ip);
-            if (ac != null) return ac;
+            if (ac != null) { source = "hostname"; return ac; }
         }
-        if (!b.isEmpty() && !b.equals("vanilla"))
+        if (!b.isEmpty() && !b.equals("vanilla")) {
+            source = "server brand";
             return b.contains("fabric") || b.contains("paper") || b.contains("purpur")
                 || b.contains("spigot") ? "Unknown" : cap(b);
+        }
+        source = "none";
         return Minecraft.getInstance().getCurrentServer() == null ? "None" : "Vanilla";
     }
 

@@ -73,6 +73,7 @@ public class NoxOverlay implements HudElement {
         drawBaseFinder(g, mc, sw, sh);
         drawRegionMap(g, mc, sw, sh);
         drawDebrisPanel(g, mc, sw, sh);
+        drawStaffLive(g, mc, sw, sh);
         drawBaseEspCards(g, mc, cam, cp, mat, sw, sh);
         drawWheel(g, mc, sw, sh);
         if (hs != 1f) g.pose().popMatrix();
@@ -1305,6 +1306,53 @@ public class NoxOverlay implements HudElement {
         String bl = "Blocks " + df.blocks();
         Gui.text(g, mc.font, bl, x + pw - 8 - Gui.width(mc.font, bl), y + 17, 0xFF55DD66);
         Gui.text(g, mc.font, "Possible debris in outlined areas", x + 8, y + 28, 0xFF8A8A9E);
+    }
+
+    /** StaffLive — "who of the staff list is online right now" card. */
+    private void drawStaffLive(GuiGraphicsExtractor g, Minecraft mc, int w, int h) {
+        var m = NoxClient.INSTANCE.modules.get("StaffLive");
+        if (!(m instanceof dev.noxclient.module.donutsmp.StaffLive sl) || !sl.isEnabled()
+            || !sl.panel.on()) return;
+        var online = dev.noxclient.module.donutsmp.StaffLive.online();
+        java.util.List<String> wanted = new java.util.ArrayList<>();
+        for (String n : sl.staff.get().split(",")) {
+            String t = n.trim().toLowerCase(java.util.Locale.ROOT);
+            if (!t.isEmpty() && !wanted.contains(t)) wanted.add(t);
+        }
+        java.util.List<String> off = new java.util.ArrayList<>();
+        if (sl.showOffline.on())
+            for (String s : wanted) if (!online.containsKey(s)) off.add(s);
+        int rows = online.size() + off.size();
+        int pw = 150, ph = 20 + Math.max(1, rows) * 12;
+        float[] fp = HudLayout.get("stafflive");
+        int x = fp != null ? Math.clamp((int) (fp[0] * w), 2, Math.max(2, w - pw - 2)) : w - pw - 4;
+        int y = fp != null ? Math.clamp((int) (fp[1] * h), 2, Math.max(2, h - ph - 2)) : h - ph - 60;
+        rep("stafflive", x, y, pw, ph);
+        var t = dev.noxclient.gui.theme.Theme.current();
+        int edge = online.isEmpty() ? 0x668A8A9E : 0x66FF5555;
+        Gui.shadow(g, x, y, pw, ph, 8);
+        Gui.roundBorder(g, x, y, pw, ph, 8, edge, 0xE6141821);
+        Gui.textBold(g, mc.font, "STAFF", x + 8, y + 6,
+            online.isEmpty() ? 0xFF8A8A9E : 0xFFFF5555);
+        String cnt = online.size() + " online";
+        Gui.text(g, mc.font, cnt, x + pw - 8 - Gui.width(mc.font, cnt), y + 7, 0xFF8A8A9E);
+        int ry = y + 20;
+        if (rows == 0) {
+            Gui.text(g, mc.font, "none listed", x + 8, ry, 0xFF6A6A7E); return; }
+        long now = System.currentTimeMillis();
+        for (var e : online.entrySet()) {
+            long dur = (now - e.getValue()) / 60000;
+            String durS = dur < 1 ? "now" : dur < 60 ? dur + "m" : dur / 60 + "h" + dur % 60 + "m";
+            Gui.text(g, mc.font, "●", x + 8, ry, 0xFF55DD66);
+            Gui.text(g, mc.font, e.getKey(), x + 16, ry, 0xFFE8E8F2);
+            Gui.text(g, mc.font, durS, x + pw - 8 - Gui.width(mc.font, durS), ry, 0xFF8A8A9E);
+            ry += 12;
+        }
+        for (String s : off) {
+            Gui.text(g, mc.font, "○", x + 8, ry, 0xFF5A5A6E);
+            Gui.text(g, mc.font, s, x + 16, ry, 0xFF5A5A6E);
+            ry += 12;
+        }
     }
 
     /** BaseESP — floating verdict cards over the hottest storage clusters. */

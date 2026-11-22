@@ -50,13 +50,23 @@ public class ConfigManager {
             g.addProperty("inviteShown", inviteShown);
             g.addProperty("guiV2", true);
             g.addProperty("opsec_stripAll", dev.noxclient.util.Opsec.stripAll);
+            JsonObject pk = new JsonObject();
+            for (var e : presetKeys.entrySet()) pk.addProperty(String.valueOf(e.getKey()), e.getValue());
+            g.add("presetKeys", pk);
             g.addProperty("schema_version", ConfigMigrator.CURRENT);
             Files.writeString(globalFile, GSON.toJson(g));
             savePreset(currentServer()); // always persist the active profile too
         } catch (IOException ignored) {}
     }
 
+    /** Visible starter set — a fresh install must look like NOX immediately,
+     *  not vanilla. Only applied when no config exists (first launch ever). */
+    private static final String[] FIRST_RUN = {
+        "Interface", "CustomSky", "StatsHud", "HudWidgets",
+        "Scoreboard", "Fullbright", "Cosmetics", "DiscordRPC"};
+
     public void load() {
+        boolean firstRun = !Files.exists(globalFile);
         try {
             if (Files.exists(globalFile)) {
                 JsonObject g = loadMigrated(globalFile);
@@ -70,11 +80,91 @@ public class ConfigManager {
                 inviteShown = g.has("inviteShown") && g.get("inviteShown").getAsBoolean();
                 dev.noxclient.util.Opsec.stripAll = !g.has("opsec_stripAll")
                     || g.get("opsec_stripAll").getAsBoolean();
+                if (g.has("presetKeys"))
+                    for (var e : g.getAsJsonObject("presetKeys").entrySet()) {
+                        try { presetKeys.put(Integer.parseInt(e.getKey()), e.getValue().getAsString()); }
+                        catch (NumberFormatException ignored) {}
+                    }
                 // first load of a pre-ClickGUI config → one-time migration toast
                 legacyGui = !g.has("guiV2");
             }
             loadPreset(currentServer());
         } catch (Exception ignored) {}
+        if (firstRun) {
+            for (String n : FIRST_RUN) {
+                Module m = NoxClient.INSTANCE.modules.get(n);
+                if (m != null) m.restore(true);
+            }
+            ensureDefaultPresets();
+        }
+    }
+
+    // ---------- preset hotkeys ----------
+    /** keycode → preset file stem. Polled each tick; edge-detect loads it. */
+    public final java.util.Map<Integer, String> presetKeys = new java.util.LinkedHashMap<>();
+    private final java.util.Map<Integer, Boolean> presetKeyDown = new java.util.HashMap<>();
+
+    /** All preset names on disk (file stem, sorted). */
+    public java.util.List<String> presets() {
+        try (var s = Files.list(presetDir)) {
+            return s.map(p -> p.getFileName().toString())
+                .filter(n -> n.endsWith(".json") && !n.contains(".bak"))
+                .map(n -> n.substring(0, n.length() - 5)).sorted().toList();
+        } catch (IOException e) { return java.util.List.of(); }
+    }
+
+    /** Called from ModuleManager.tick — bound key edge-loads the preset. */
+    public void tickPresetKeys() {
+        if (presetKeys.isEmpty()) return;
+        for (var e : presetKeys.entrySet()) {
+            boolean down = com.mojang.blaze3d.platform.InputConstants.isKeyDown(e.getKey())
+                || dev.noxclient.module.ModuleManager.FAKE_KEYS.contains(e.getKey());
+            Boolean was = presetKeyDown.put(e.getKey(), down);
+            if (down && was != Boolean.TRUE) {
+                loadPreset(e.getValue());
+                chat("§7[NOX] preset §f" + e.getValue() + " §7loaded");
+            }
+        }
+    }
+
+    /** Curated starter presets — written once on first launch so the preset
+     *  list isn't empty and each profile actually does something visible. */
+    private void ensureDefaultPresets() {
+        writePresetIfMissing("donutsmp",
+            "Interface", "CustomSky", "StatsHud", "Scoreboard", "Fullbright",
+            "Cosmetics", "DiscordRPC", "StaffLive", "StaffNotifier",
+            "StorageESP", "BaseFinder", "RegionMap", "AutoEat", "Zoom");
+        writePresetIfMissing("pvp",
+            "Interface", "StatsHud", "Scoreboard", "Fullbright", "TargetHUD",
+            "Hitboxes", "LowTotemAlert", "DurabilityAlert", "PvpCoach", "Zoom");
+        writePresetIfMissing("legit",
+            "Interface", "StatsHud", "Scoreboard", "Fullbright", "Cosmetics");
+        writePresetIfMissing("showcase",
+            "Interface", "CustomSky", "HudWidgets", "StatsHud", "Scoreboard",
+            "Cosmetics", "KillEffects", "Breadcrumbs", "Particles", "SpotifyHud",
+            "LyricsSky", "DiscordRPC", "Animations", "TimeChanger", "StreamerMode");
+    }
+
+    private void writePresetIfMissing(String name, String... enabled) {
+        Path p = presetDir.resolve(name + ".json");
+        if (Files.exists(p)) return;
+        JsonObject root = new JsonObject();
+        java.util.Set<String> on = new java.util.HashSet<>(java.util.Arrays.asList(enabled));
+        for (Module m : NoxClient.INSTANCE.modules.all()) {
+            if (m.name.equals("TamperWarning") || m.name.equals("GhostMode")
+                || m.name.equals("SelfDestruct") || m.name.equals("Panic")) continue;
+            JsonObject o = new JsonObject();
+            o.addProperty("enabled", on.contains(m.name));
+            JsonObject s = new JsonObject();
+            for (Setting<?> st : m.settings) s.addProperty(st.name, String.valueOf(st.get()));
+            o.add("settings", s);
+            root.add(m.name, o);
+        }
+        root.addProperty("schema_version", ConfigMigrator.CURRENT);
+        try {
+            Files.createDirectories(presetDir);
+            Files.writeString(p, GSON.toJson(root));
+        } catch (IOException ignored) {}
     }
 
     // ---------- per-server presets ----------

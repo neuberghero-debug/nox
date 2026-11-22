@@ -46,6 +46,12 @@ public abstract class TitleScreenMixin {
             cfg.save();
             Minecraft.getInstance().setScreenAndShow(
                 new dev.noxclient.gui.NoxInviteScreen((TitleScreen) (Object) this));
+            return;
+        }
+        // second first-run prompt: telemetry opt-in — PrivacyScreen records the
+        // choice to nox/privacy.json and never asks again
+        if (!dev.noxclient.telemetry.Telemetry.asked()) {
+            Minecraft.getInstance().setScreenAndShow(new dev.noxclient.gui.PrivacyScreen());
         }
     }
 }

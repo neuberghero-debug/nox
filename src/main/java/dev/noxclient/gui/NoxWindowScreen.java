@@ -45,8 +45,9 @@ public class NoxWindowScreen extends Screen {
     private static final int TITLE_H = 40, TAB_H = 28, SEARCH_H = 28, FOOT_H = 34;
     private static final int MIN_W = 480, MIN_H = 240;
     private static final int GAP = 9;
-    private static final String[] FOOT = {"Discord", "Style", "Alts", "Mplex", "Report", "Suggest", "Share", "Import", "Shop", "PANIC"};
+    private static final String[] FOOT = {"Discord", "Style", "Alts", "Mplex", "Report", "Suggest", "Share", "Import", "Shop", "GUI", "PANIC"};
 
+    private long panicArmedAt;
     private final Map<Category, List<ModuleCard>> cards = new EnumMap<>(Category.class);
     private final Map<String, ModuleCard> byName = new java.util.HashMap<>();
     private final List<int[]> footRects = new ArrayList<>();
@@ -863,8 +864,19 @@ public class NoxWindowScreen extends Screen {
                     case 7 -> minecraft.setScreenAndShow(new dev.noxclient.gui.PresetScreen(this));
                     case 8 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ShopScreen(this));
                     case 9 -> {
-                        NoxClient.INSTANCE.modules.get("GhostMode").setEnabled(true);
-                        dev.noxclient.gui.Toasts.push("PANIC — all modules off", 0xFFFF5C7A);
+                        dev.noxclient.gui.UICustom.clickStyle = "Studio";
+                        if (NoxClient.INSTANCE.config != null) NoxClient.INSTANCE.config.save();
+                        minecraft.setScreenAndShow(new dev.noxclient.gui.NoxClickGui());
+                    }
+                    case 10 -> {
+                        if (System.currentTimeMillis() - panicArmedAt < 2500) {
+                            Module p = NoxClient.INSTANCE.modules.get("Panic");
+                            if (p != null) p.setEnabled(true);
+                            panicArmedAt = 0;
+                        } else {
+                            panicArmedAt = System.currentTimeMillis();
+                            dev.noxclient.gui.Toasts.push("PANIC — click again to confirm", 0xFFFF5C7A);
+                        }
                     }
                 }
                 return true;

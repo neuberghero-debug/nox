@@ -662,6 +662,12 @@ module.exports = [
     "premium": false
   },
   {
+    "name": "StaffLive",
+    "desc": "Shows which staff are online",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
     "name": "StaffNotifier",
     "desc": "Alerts when staff are online",
     "cat": "DONUTSMP",

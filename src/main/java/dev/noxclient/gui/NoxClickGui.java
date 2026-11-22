@@ -135,6 +135,10 @@ public class NoxClickGui extends Screen {
     private int scrollOff, listContentH;
     /** Live tooltip text (rail buttons etc.) — drawn last, above content. */
     private String tipText;
+    private Module tipModule;
+    private long panicArmedAt;
+    private boolean acInfo;
+    private float[] acPillRect;
     /** Keyboard-selection index into filtered() — ↑↓ moves, Enter toggles. */
     private int selIdx = -1;
 
@@ -239,6 +243,10 @@ public class NoxClickGui extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float dt) {
         Charts.tickSample();
+        if (dev.noxclient.util.DebugConsole.hoverX >= 0) {
+            mx = (int) dev.noxclient.util.DebugConsole.hoverX;
+            my = (int) dev.noxclient.util.DebugConsole.hoverY;
+        }
         fmx = mx; fmy = my; fdt = dt;
         // clamp the window fully on-screen (saved pos may come from a bigger display)
         winW = Math.min(winW, width - 20); winH = Math.min(winH, height - 20);
@@ -251,13 +259,15 @@ public class NoxClickGui extends Screen {
         scroll.viewH = listH();
         scrollOff = scroll.tick(dt);
         rows.clear(); settingRows.clear(); dRows.clear(); ctrlRects.clear(); ghs.clear();
-        tipText = null;
+        tipText = null; tipModule = null;
         if (designTab) {
             dScroll.viewH = listH();
             int dOff = dScroll.tick(dt);
             int dy = listY() - dOff, dch = 0;
             for (Object o : designItems()) {
-                int h = o instanceof String ? 24 : settingH((Setting<?>) o) + 6;
+                int h = o instanceof String ? 24
+                    : o instanceof PresetRow ? 34
+                    : settingH((Setting<?>) o) + 6;
                 if (dy + h >= listY() && dy <= listY() + listH())
                     dRows.add(new DItem(o, dy, h));
                 dy += h; dch += h;
@@ -339,6 +349,7 @@ public class NoxClickGui extends Screen {
         Nvg.insetHi(c, st, winX + 2, winY, winW - 4, wr - 2, 0x14FFFFFF);
 
         titlebar(c, st, mx, my);
+        if (acInfo && acPillRect != null) acPanel(c, st);
         rail(c, st, mx, my);
         searchBar(c, st, mx, my);
         if (designTab) designPage(c, st);
@@ -363,6 +374,7 @@ public class NoxClickGui extends Screen {
     /** Hover tooltip — dark card anchored right-below the cursor, clamped
      *  to the window. text measured in the same font it is drawn with. */
     private void drawTooltip(long c, MemoryStack st, int mx, int my) {
+        if (tipModule != null) { moduleCard(c, st, mx, my, tipModule); return; }
         if (tipText == null || tipText.isEmpty()) return;
         float tw = Nvg.textW(c, "inter", 10f, tipText) + 16;
         float tx = Math.min(mx + 12, winX + winW - tw - 6);
@@ -372,6 +384,39 @@ public class NoxClickGui extends Screen {
         Nvg.roundB(c, st, tx, ty, tw, 20, 7, 0x00FFFFFF, DS.line());
         Nvg.text(c, st, "inter", 10f, tx + 8, ty + 10, tipText, DS.text(),
             org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+    }
+
+    /** Rich hover card for a module row — name + status line + description +
+     *  category/key/settings meta + the click hints, all live. */
+    private void moduleCard(long c, MemoryStack st, int mx, int my, Module m) {
+        float tw = 236, th = 92;
+        float tx = Math.min(mx + 14, winX + winW - tw - 8);
+        float ty = Math.min(my + 16, winY + winH - th - 8);
+        Nvg.shadow(c, st, tx, ty + 2, tw, th, 9, 10, 0x55000000);
+        Nvg.round(c, st, tx, ty, tw, th, 9, Nvg.fade(DS.lighten(DS.surface(), .05f), .985f));
+        Nvg.roundB(c, st, tx, ty, tw, th, 9, 0x00FFFFFF,
+            Nvg.fade(DS.accent(), .5f));
+        // icon chip + name + status dot
+        Nvg.round(c, st, tx + 8, ty + 8, 22, 22, 6,
+            Nvg.fade(DS.lighten(DS.surface(), .06f), .9f));
+        drawIcon(c, st, m, tx + 19, ty + 19, 13,
+            m.isEnabled() ? DS.cardAccent() : DS.secondary(), .8f);
+        Nvg.text(c, st, "inter_b", 11.5f, tx + 36, ty + 14, m.name
+            + (m.premium ? " ★" : ""), DS.text(),
+            org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+        String stat = m.isEnabled() ? (m.status() == null ? "active" : m.status()) : "idle";
+        Nvg.circle(c, st, tx + 39, ty + 28, 2.4f, m.isEnabled() ? DS.success() : DS.muted());
+        Nvg.text(c, st, "inter", 9.5f, tx + 46, ty + 28, stat, DS.muted(),
+            org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+        Nvg.text(c, st, "inter", 10, tx + 12, ty + 44, m.description, DS.secondary(),
+            org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+        String meta = m.category.label.toLowerCase(java.util.Locale.US)
+            + "  ·  " + (m.keybind() > 0 ? "key " + m.keybind() : "unbound")
+            + "  ·  " + m.settings.size() + " settings";
+        Nvg.text(c, st, "mono", 9, tx + 12, ty + 60, meta, DS.muted(),
+            org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+        Nvg.text(c, st, "inter", 9, tx + 12, ty + 76, "LMB toggle · RMB settings · MMB pin",
+            Nvg.fade(DS.muted(), .8f), org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
     }
 
     /** Per-season particles — real MC particle sprites. Winter snow falls
@@ -548,8 +593,16 @@ public class NoxClickGui extends Screen {
             }
         }
         if (!byName.isEmpty()) { design.add("More"); design.addAll(byName.values()); }
+        // Presets group — profile files with hotkey binding (LMB load, MMB bind)
+        design.add("Presets");
+        for (String p : NoxClient.INSTANCE.config.presets()) design.add(new PresetRow(p));
+        design.add(new PresetRow(null));   // "+ save current as preset"
         return design;
     }
+
+    /** Design-page preset row — name=null renders the "save current" action. */
+    private record PresetRow(String name) {}
+    private String presetBindFor;   // preset name waiting for a keypress
 
     private void designPage(long c, MemoryStack st) {
         int lw = listW();
@@ -559,6 +612,29 @@ public class NoxClickGui extends Screen {
                 Nvg.textL(c, st, "inter_b", 9, contentX() + 4, it.y + it.h / 2f,
                     hdr.toUpperCase(java.util.Locale.US), DS.cardAccent(), 1.6f,
                     org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+            } else if (it.o instanceof PresetRow pr) {
+                Nvg.vgrad(c, st, contentX(), it.y, lw, it.h - 4, 10,
+                    Nvg.fade(DS.lighten(DS.surfaceAlt(), .04f), .7f), Nvg.fade(DS.surface(), .7f));
+                Nvg.insetHi(c, st, contentX() + 2, it.y, lw - 4, 8, 0x0CFFFFFF);
+                float cy = it.y + it.h / 2f;
+                if (pr.name() == null) {
+                    Nvg.text(c, st, "inter_sb", 11, contentX() + 14, cy, "+ save current as preset",
+                        DS.cardAccent(), org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+                } else {
+                    boolean arming = pr.name().equals(presetBindFor);
+                    Nvg.circle(c, st, contentX() + 16, cy, 3f, DS.cardAccent());
+                    Nvg.text(c, st, "inter_sb", 11, contentX() + 28, cy, pr.name(), DS.text(),
+                        org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+                    String bound = null;
+                    for (var e : NoxClient.INSTANCE.config.presetKeys.entrySet())
+                        if (e.getValue().equals(pr.name())) bound = keyName(e.getKey());
+                    String right = arming ? "press a key… (esc clears)"
+                        : bound != null ? "[" + bound + "]"
+                        : "LMB load · MMB bind key";
+                    Nvg.text(c, st, "mono", 9, contentX() + lw - 14, cy, right,
+                        arming ? DS.cardAccent() : DS.muted(),
+                        org.lwjgl.nanovg.NanoVG.NVG_ALIGN_RIGHT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+                }
             } else {
                 Setting<?> s = (Setting<?>) it.o;
                 Nvg.vgrad(c, st, contentX(), it.y, lw, it.h - 4, 10,
@@ -603,17 +679,11 @@ public class NoxClickGui extends Screen {
             if (dh) tipText = dotTips[i];
         }
 
-        // centered brand — black-hole mark + letterspaced caps over mono subline
+        // centered brand — mini black-hole mark + letterspaced caps + subline
         float lmx = winX + winW / 2f - 58, lmy = winY + 15;
-        org.lwjgl.nanovg.NanoVG.nvgSave(c);
-        org.lwjgl.nanovg.NanoVG.nvgTranslate(c, lmx, lmy);
-        org.lwjgl.nanovg.NanoVG.nvgScale(c, 1f, .52f);
-        org.lwjgl.nanovg.NanoVG.nvgTranslate(c, -lmx, -lmy);
-        Nvg.ring(c, st, lmx, lmy, 8.5f, 1.2f, Nvg.fade(DS.accent2(), .85f));
-        org.lwjgl.nanovg.NanoVG.nvgRestore(c);
-        Nvg.circle(c, st, lmx, lmy, 5, 0xFF0B0C10);
-        Nvg.arc(c, st, lmx, lmy - .5f, 6.5f, 1.3f, -.6f, 2.2f,
-            Nvg.fade(DS.accent(), .9f));
+        Nvg.circle(c, st, lmx, lmy, 6.4f, 0xFF05060A);
+        Nvg.ring(c, st, lmx, lmy, 6.4f, 1.1f, Nvg.fade(DS.accent(), .9f));
+        Nvg.arc(c, st, lmx, lmy, 7.6f, 1.1f, -1.1f, 1.5f, Nvg.fade(DS.accent2(), .95f));
         Nvg.textL(c, st, "inter_b", 15, winX + winW / 2f + 12, winY + 8, "N O X",
             DS.text(), 2.2f, org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP);
         String ver = "v" + dev.noxclient.update.UpdateManager.currentVersion()
@@ -626,10 +696,14 @@ public class NoxClickGui extends Screen {
         // so the right side never collides with the centered brand
         titleBtns.clear();
         float rx = winX + winW - 14;
-        float pw = Nvg.textW(c, "inter_b", 10.5f, "PANIC") + 18;
-        Nvg.round(c, st, rx - pw, winY + 10, pw, 20, 10, DS.danger());
+        boolean armed = System.currentTimeMillis() - panicArmedAt < 2500;
+        String pLbl = armed ? "SURE?" : "PANIC";
+        float pw = Nvg.textW(c, "inter_b", 10.5f, pLbl) + 18;
+        int pBg = armed ? 0xFFFF3333 : DS.danger();
+        Nvg.round(c, st, rx - pw, winY + 10, pw, 20, 10, pBg);
+        if (armed) Nvg.roundB(c, st, rx - pw, winY + 10, pw, 20, 10, 0x66FFFFFF, 0xCCFFFFFF);
         Nvg.insetHi(c, st, rx - pw + 2, winY + 10, pw - 4, 8, 0x2EFFFFFF);
-        Nvg.text(c, st, "inter_b", 10.5f, rx - pw / 2, winY + 15, "PANIC", 0xFFFFFFFF,
+        Nvg.text(c, st, "inter_b", 10.5f, rx - pw / 2, winY + 15, pLbl, 0xFFFFFFFF,
             org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
         titleBtns.add(new float[]{rx - pw, pw, 0});
         rx -= pw + 10;
@@ -646,6 +720,10 @@ public class NoxClickGui extends Screen {
         Nvg.insetHi(c, st, rx - aw + 2, winY + 10, aw - 4, 8, 0x40FFFFFF);
         Nvg.text(c, st, "inter_b", 10.5f, rx - aw / 2, winY + 15, ac, 0xFF1A1A1F,
             org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+        titleBtns.add(new float[]{rx - aw, aw, 2});
+        acPillRect = new float[]{rx - aw, winY + 10, aw, 20};
+        if (rx - aw <= mx && mx < rx && my >= winY + 8 && my < winY + 32)
+            tipText = "Detected anti-cheat — click for details";
         rx -= aw + 8;
         // shop entry — accent outline pill (quieter than PANIC, same row)
         float shw = Nvg.textW(c, "inter_b", 10.5f, "SHOP") + 18;
@@ -655,15 +733,60 @@ public class NoxClickGui extends Screen {
             DS.accent(), org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER
                 | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
         titleBtns.add(new float[]{rx - shw, shw, 1});
+        rx -= shw + 8;
+        // gui-mode switch — jump to the window/card GUI without hunting the design tab
+        String guiLbl = "WINDOW";
+        float gw = Nvg.textW(c, "inter_b", 10.5f, guiLbl) + 16;
+        boolean gh = rx - gw <= mx && mx < rx && my >= winY + 8 && my < winY + 32;
+        Nvg.roundB(c, st, rx - gw, winY + 10, gw, 20, 10,
+            gh ? Nvg.fade(DS.text(), .14f) : Nvg.fade(DS.text(), .07f), Nvg.fade(DS.text(), .35f));
+        Nvg.text(c, st, "inter_b", 10.5f, rx - gw / 2, winY + 15, guiLbl,
+            DS.secondary(), org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER
+                | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+        titleBtns.add(new float[]{rx - gw, gw, 3});
+        if (gh) tipText = "Switch to the window GUI (saved)";
 
         Nvg.rect(c, st, winX + 1, winY + TITLE - 1, winW - 2, 1, DS.line());
-        // animated accent hairline — a bright dash drifts along the separator
+        // animated accent hairline — a bright dash drifts along the separator;
+        // scissored to the window so the 140px gradient never overshoots the edge
         if (!UICustom.reducedMotion) {
             float t = (System.currentTimeMillis() % 5200L) / 5200f;
-            float hx = winX + t * winW;
+            float hx = winX - 70 + t * (winW + 140);
+            Nvg.scissor(c, winX, winY + TITLE - 1, winW, 1);
             Nvg.hgrad(c, st, hx - 70, winY + TITLE - 1, 140, 1, 0,
                 0x00FFFFFF, Nvg.fade(DS.accent2(), .6f));
+            Nvg.unScissor(c);
         }
+    }
+
+    /* ---------- ac info dropdown ---------- */
+    /** Detail card under the AC pill — what was detected and how. */
+    private void acPanel(long c, MemoryStack st) {
+        float px = Math.min(acPillRect[0] + acPillRect[2] - 230, winX + winW - 244);
+        float py = acPillRect[1] + acPillRect[3] + 6, pw = 230, ph = 118;
+        Nvg.shadow(c, st, px, py + 3, pw, ph, 10, 10, 0x60000000);
+        Nvg.round(c, st, px, py, pw, ph, 10, Nvg.fade(DS.lighten(DS.surface(), .03f), .98f));
+        Nvg.roundB(c, st, px, py, pw, ph, 10, 0x00FFFFFF, DS.line());
+        Nvg.text(c, st, "inter_b", 11, px + 12, py + 12, "Anti-cheat detection", DS.text(),
+            org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+        Nvg.rect(c, st, px + 12, py + 24, pw - 24, 1, DS.line());
+        String[][] rows = {
+            {"Detected", AntiCheats.display()},
+            {"Source", AntiCheats.source()},
+            {"Brand", AntiCheats.brandOr("—")},
+            {"Profile", AntiCheats.advice()},
+        };
+        float ry = py + 36;
+        for (String[] r : rows) {
+            Nvg.text(c, st, "inter", 10, px + 12, ry, r[0], DS.muted(),
+                org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+            Nvg.text(c, st, "mono", 10, px + 82, ry, r[1], DS.secondary(),
+                org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+            ry += 16;
+        }
+        Nvg.text(c, st, "inter", 9.5f, px + 12, ry + 4,
+            "High-risk modules pace themselves on grim.", DS.muted(),
+            org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
     }
 
     /* ---------- left icon rail ---------- */
@@ -762,6 +885,24 @@ public class NoxClickGui extends Screen {
             org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
         if (dhov && tipText == null) tipText = "Design — accent, backdrop, density";
         railRects.add(new float[]{bx, dy, bw, bh, -2});
+
+        // HUD editor — frame glyph rail button under STYLE
+        float hy = dy + bh + 8;
+        boolean hHov = mx >= bx && mx < bx + bw && my >= hy && my < hy + bh;
+        if (hHov) Nvg.well(c, st, bx, hy, bw, bh, 11, DS.lighten(DS.surface(), .09f));
+        float fcx = bx + bw / 2f, fcy = hy + 18;
+        int hcol = hHov ? DS.text() : DS.secondary();
+        for (int i = 0; i < 4; i++) {   // four corner brackets = layout frame
+            float sx = i % 2 == 0 ? -1 : 1, sy = i < 2 ? -1 : 1;
+            float ox = fcx + sx * 6.4f, oy = fcy + sy * 5f;
+            Nvg.line(c, st, ox, oy, ox - sx * 4.2f, oy, 1.4f, hcol);
+            Nvg.line(c, st, ox, oy, ox, oy - sy * 3.4f, 1.4f, hcol);
+        }
+        Nvg.text(c, st, "inter_b", 6.8f, fcx, hy + 32, "HUD",
+            hHov ? DS.text() : DS.muted(),
+            org.lwjgl.nanovg.NanoVG.NVG_ALIGN_CENTER | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
+        if (hHov && tipText == null) tipText = "HUD editor — drag elements, snap";
+        railRects.add(new float[]{bx, hy, bw, bh, -3});
     }
 
     /** Vector cog — ring + 6 spokes. */
@@ -859,6 +1000,7 @@ public class NoxClickGui extends Screen {
         boolean on = m.isEnabled();
         int rh = ROW();
         boolean hov = mx >= x && mx < x + w && my >= y && my < y + rh;
+        if (hov && expanded == null) tipModule = m;
         String cs = UICustom.cardStyle;
 
         // card body — Clean = flat strip + hairline, single accent edge when on
@@ -1047,6 +1189,7 @@ public class NoxClickGui extends Screen {
         if (n.contains("aura") || n.contains("aim") || n.contains("trigger")) return "crosshair";
         if (n.contains("kill") || n.contains("sword") || n.contains("wtap") || n.contains("crit")) return "sword";
         if (n.contains("speed") || n.contains("sprint") || n.contains("timer") || n.contains("zoom")) return "bolt";
+        if (n.contains("velo") || n.contains("knock")) return "wings";
         if (n.contains("esp") || n.contains("finder") || n.contains("tracer") || n.contains("search") || n.contains("xray")) return "eye";
         if (n.contains("fly") || n.contains("elytra") || n.contains("jetpack") || n.contains("glide")) return "wings";
         if (n.contains("crystal") || n.contains("bed") || n.contains("anchor")) return "diamond";
@@ -1344,6 +1487,8 @@ public class NoxClickGui extends Screen {
                 float cxx = x + pw / 2, cyy = py + 13;
                 Nvg.line(c, st, cxx - 4, cyy, cxx + 4, cyy, 1.6f, DS.muted());
                 Nvg.line(c, st, cxx, cyy - 4, cxx, cyy + 4, 1.6f, DS.muted());
+                if (hov && tipModule == null && tipText == null)
+                    tipText = "Pin slot — click, then pick a module";
             }
             x += pw + 8;
         }
@@ -1456,10 +1601,21 @@ public class NoxClickGui extends Screen {
             for (float[] b : titleBtns) {
                 if (mx >= b[0] && mx < b[0] + b[1]) {
                     if (b[2] == 0) {
-                        Module p = NoxClient.INSTANCE.modules.get("Panic");
-                        if (p != null) p.setEnabled(!p.isEnabled());
+                        // two-step confirm — an accidental click must not kill
+                        // the whole setup; pill reads "SURE?" for 2.5s
+                        if (System.currentTimeMillis() - panicArmedAt < 2500) {
+                            Module p = NoxClient.INSTANCE.modules.get("Panic");
+                            if (p != null) p.setEnabled(true);
+                            panicArmedAt = 0;
+                        } else panicArmedAt = System.currentTimeMillis();
                     } else if (b[2] == 1) {
                         minecraft.setScreenAndShow(new dev.noxclient.gui.ShopScreen(this));
+                    } else if (b[2] == 2) {
+                        acInfo = !acInfo;
+                    } else if (b[2] == 3) {
+                        UICustom.clickStyle = "Cards";
+                        if (NoxClient.INSTANCE.config != null) NoxClient.INSTANCE.config.save();
+                        minecraft.setScreenAndShow(new NoxWindowScreen());
                     }
                     return true;
                 }
@@ -1474,6 +1630,8 @@ public class NoxClickGui extends Screen {
             if (mx >= r[0] && mx < r[0] + r[2] && my >= r[1] && my < r[1] + r[3]) {
                 if (r[4] == -2f) { designTab = true; dScroll.target = 0;
                     listAt = System.currentTimeMillis(); return true; }
+                if (r[4] == -3f) {
+                    minecraft.setScreenAndShow(new HudEditorScreen(this)); return true; }
                 int k = (int) r[4] + 1;
                 tab = k == 0 ? null : Category.values()[k - 1];
                 designTab = false; selIdx = -1;
@@ -1491,7 +1649,7 @@ public class NoxClickGui extends Screen {
         if (designTab) {
             if (mx >= contentX() && mx < contentX() + listW()
                 && my >= listY() && my < listY() + listH()) {
-                designHit(mx, my); return true;
+                designHit(mx, my, btn); return true;
             }
             return true;
         }
@@ -1545,15 +1703,45 @@ public class NoxClickGui extends Screen {
         return false;
     }
 
-    private boolean designHit(double mx, double my) {
+    private boolean designHit(double mx, double my, int btn) {
         int x = contentX() + 12, w = listW() - 24;
         for (DItem it : dRows) {
+            if (it.o instanceof PresetRow pr) {
+                if (my < it.y || my >= it.y + it.h) continue;
+                presetClick(pr, btn);
+                return true;
+            }
             if (!(it.o instanceof Setting<?> s)) continue;
             int sh = it.h - 4, ry = it.y + 2;
             if (my < ry || my >= ry + sh) continue;
             return hitOne(s, x, w, mx, my, ry, sh);
         }
         return false;
+    }
+
+    /** LMB loads the preset · MMB arms the keybind capture · "+save" writes
+     *  the current module state to a new preset file. */
+    private void presetClick(PresetRow pr, int btn) {
+        if (pr.name() == null) {
+            String n = "preset" + (NoxClient.INSTANCE.config.presets().size() + 1);
+            NoxClient.INSTANCE.config.savePreset(n);
+            design = null;   // rebuild item list so the new file shows up
+            return;
+        }
+        if (btn == 2) { presetBindFor = pr.name(); return; }   // MMB = arm keybind
+        NoxClient.INSTANCE.config.loadPreset(pr.name());
+    }
+
+    /** SDL keycode → short display name for preset chips. */
+    private static String keyName(int k) {
+        return switch (k) {
+            case 41 -> "ESC"; case 40 -> "RET"; case 42 -> "BKSP"; case 43 -> "TAB";
+            case 44 -> "SPC"; case 79 -> "RIGHT"; case 80 -> "LEFT";
+            case 81 -> "DOWN"; case 82 -> "UP"; case 225 -> "LSHIFT"; case 229 -> "RSHIFT";
+            case 224 -> "LCTRL"; case 228 -> "RCTRL"; case 226 -> "LALT"; case 230 -> "RALT";
+            default -> k >= 58 && k <= 69 ? "F" + (k - 57)
+                : Character.toString((char) k).toUpperCase(java.util.Locale.ROOT);
+        };
     }
 
     /** Widget click dispatch shared by accordion settings + design page. */
@@ -1671,6 +1859,14 @@ public class NoxClickGui extends Screen {
                 if (s instanceof Setting.Bind b && b.get() == -2) {
                     b.set(key == InputConstants.KEY_ESCAPE ? -1 : key); return true;
                 }
+        if (presetBindFor != null) {
+            var keys = NoxClient.INSTANCE.config.presetKeys;
+            keys.values().removeIf(presetBindFor::equals);
+            if (key != InputConstants.KEY_ESCAPE) keys.put(key, presetBindFor);
+            presetBindFor = null;
+            NoxClient.INSTANCE.config.save();
+            return true;
+        }
         if (designTab)
             for (Object o : designItems())
                 if (o instanceof Setting.Bind b && b.get() == -2) {

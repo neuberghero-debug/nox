@@ -294,11 +294,17 @@ public final class Nvg {
         float u = s / 12f, x0 = cx - s / 2f, y0 = cy - s / 2f;
         float lw = Math.max(1.2f, 1.5f * u);
         switch (name) {
-            case "sword" -> { // diagonal blade + guard + grip
-                line(c, st, x0 + 3 * u, y0 + 9 * u, x0 + 9 * u, y0 + 3 * u, lw, argb);
-                line(c, st, x0 + 7.2f * u, y0 + 3.4f * u, x0 + 8.6f * u, y0 + 4.8f * u, lw, argb);
-                line(c, st, x0 + 2.4f * u, y0 + 7 * u, x0 + 5 * u, y0 + 9.6f * u, lw, argb);
-                line(c, st, x0 + 1.8f * u, y0 + 10.2f * u, x0 + 3.2f * u, y0 + 8.8f * u, lw, argb);
+            case "sword" -> { // stroked 45° sword — reads cleanly at 11px
+                // blade: hilt → tip (top-right), slightly thicker than other strokes
+                line(c, st, x0 + 4.8f * u, y0 + 7.2f * u, x0 + 10.3f * u, y0 + 1.7f * u, lw * 1.9f, argb);
+                // crossguard: perpendicular bar across the hilt
+                line(c, st, x0 + 3.4f * u, y0 + 6.2f * u, x0 + 6.2f * u, y0 + 9.0f * u, lw * 1.7f, argb);
+                // grip continuing down-left past the guard
+                line(c, st, x0 + 4.6f * u, y0 + 8.4f * u, x0 + 2.7f * u, y0 + 10.3f * u, lw * 1.5f, argb);
+                // pommel dot
+                nvgBeginPath(c);
+                nvgCircle(c, x0 + 2.1f * u, y0 + 10.7f * u, 1.05f * u);
+                nvgFillColor(c, col(st, argb)); nvgFill(c);
             }
             case "crosshair" -> {
                 ring(c, st, cx, cy, 4 * u, lw, argb);

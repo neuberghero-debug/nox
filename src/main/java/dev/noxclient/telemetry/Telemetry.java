@@ -26,8 +26,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * Endpoint empty → buffer only, nothing leaves the machine.
  */
 public final class Telemetry {
-    private static final String ENDPOINT = System.getProperty("nox.telemetry.url",
-        System.getenv().getOrDefault("NOX_TELEMETRY_URL", ""));
+    /** Transport, resolved once at class load, in order:
+     *  1) -Dnox.telemetry.url  2) $NOX_TELEMETRY_URL  3) nox/telemetry.url file.
+     *  Point it at any JSON POST endpoint (Discord webhook works — payloads
+     *  are wrapped as `content` automatically). Empty → buffer only. */
+    private static final String ENDPOINT = endpoint();
     private static final String SECRET = System.getProperty("nox.telemetry.hmac",
         System.getenv().getOrDefault("NOX_TELEMETRY_HMAC", ""));
     private static final long FLUSH_MS = 5 * 60_000L;
@@ -112,7 +115,15 @@ public final class Telemetry {
             body.addProperty("mc", Minecraft.getInstance().getLaunchedVersion());
             body.addProperty("os", System.getProperty("os.name", "?"));
             body.add("events", batch);
-            byte[] bytes = body.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            // discord webhooks only surface `content` — wrap the batch so the
+            // payload is actually readable in the channel
+            String raw = body.toString();
+            if (ENDPOINT.contains("discord.com/api/webhooks") || ENDPOINT.contains("discordapp.com/api/webhooks")) {
+                if (raw.length() > 1800) raw = raw.substring(0, 1800) + "…";
+                raw = "{\"content\":\"```json\\n" + raw.replace("\\", "\\\\")
+                    .replace("\"", "\\\"").replace("\n", "\\n") + "\\n```\"}";
+            }
+            byte[] bytes = raw.getBytes(java.nio.charset.StandardCharsets.UTF_8);
             HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(ENDPOINT))
                 .header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(6))
@@ -121,6 +132,17 @@ public final class Telemetry {
                 b.header("x-nox-sig", hmac(bytes, SECRET));
             HTTP.send(b.build(), HttpResponse.BodyHandlers.discarding());
         } catch (Throwable ignored) {}
+    }
+
+    private static String endpoint() {
+        String e = System.getProperty("nox.telemetry.url",
+            System.getenv().getOrDefault("NOX_TELEMETRY_URL", "")).trim();
+        if (!e.isEmpty()) return e;
+        try {
+            var f = Minecraft.getInstance().gameDirectory.toPath().resolve("nox/telemetry.url");
+            if (Files.exists(f)) return Files.readString(f).trim();
+        } catch (Throwable ignored) {}
+        return "";
     }
 
     private static String hmac(byte[] data, String secret) throws Exception {

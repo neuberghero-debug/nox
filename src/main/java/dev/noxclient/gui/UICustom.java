@@ -63,7 +63,7 @@ public final class UICustom {
     /* ---- ClickGUI (NVG) full customization — read every frame ---- */
     public static int guiBg      = 0xFF0F0F12;   // window body color
     public static int accent2    = 0xFFFF8AD5;   // gradient end (active tab, sparkline)
-    public static float winOpacity = 0.97f;      // window bg alpha 0.5–1
+    public static float winOpacity = 1.0f;       // window bg alpha 0.5–1 (Solid = opaque)
     public static float glow       = 1f;         // shadow/glow intensity 0–2
     public static float animSpeed  = 1f;         // multiplier on anim durations
     public static float fontScale  = 1f;         // NVG text scale 0.8–1.4

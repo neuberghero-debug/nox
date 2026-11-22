@@ -1,0 +1,2745 @@
+{
+ "meta": {
+  "guild_id": "1570135653826433086",
+  "name": "NOX client",
+  "at": "2026-11-21T09:50:35.170587"
+ },
+ "settings": {
+  "verification_level": 2,
+  "default_message_notifications": 1,
+  "explicit_content_filter": 2,
+  "mfa_level": 0,
+  "afk_channel_id": "1570449788040912997",
+  "afk_timeout": 300,
+  "system_channel_id": "1570449433114575001",
+  "rules_channel_id": "1570449387153522790",
+  "preferred_locale": "en-US",
+  "features": [
+   "GUILD_ONBOARDING_EVER_ENABLED",
+   "COMMUNITY",
+   "NEWS",
+   "GUILD_ONBOARDING",
+   "AUTO_MODERATION",
+   "GUILD_ONBOARDING_HAS_PROMPTS"
+  ],
+  "premium_tier": 0,
+  "icon": "7fbb7d36cf1de589736680352a5fcd75",
+  "banner": null,
+  "splash": null,
+  "description": "NOX — a Client for DonutSMP. Clips, competitions and direct support."
+ },
+ "roles": [
+  {
+   "id": "1570446584628650024",
+   "name": "NOX",
+   "color": 0,
+   "hoist": false,
+   "position": 24,
+   "permissions": "8",
+   "managed": true,
+   "mentionable": false
+  },
+  {
+   "id": "1570449256064487505",
+   "name": "Owner",
+   "color": 15189611,
+   "hoist": true,
+   "position": 23,
+   "permissions": "8",
+   "managed": false,
+   "mentionable": false
+  },
+  {
+   "id": "1570449259923251271",
+   "name": "Admin",
+   "color": 15029067,
+   "hoist": true,
+   "position": 22,
+   "permissions": "8",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449264939770067",
+   "name": "Moderator",
+   "color": 15246141,
+   "hoist": true,
+   "position": 21,
+   "permissions": "1119002684630",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449269033410702",
+   "name": "Support",
+   "color": 6000111,
+   "hoist": true,
+   "position": 20,
+   "permissions": "2147609664",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449274297385186",
+   "name": "Developer",
+   "color": 10980346,
+   "hoist": true,
+   "position": 19,
+   "permissions": "117824",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449279078637700",
+   "name": "Designer",
+   "color": 16020150,
+   "hoist": false,
+   "position": 18,
+   "permissions": "117824",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449283306754291",
+   "name": "Clipper",
+   "color": 3462041,
+   "hoist": false,
+   "position": 17,
+   "permissions": "117824",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449287911968909",
+   "name": "Partner",
+   "color": 3003583,
+   "hoist": true,
+   "position": 16,
+   "permissions": "66560",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449291825123348",
+   "name": "VIP",
+   "color": 16498468,
+   "hoist": true,
+   "position": 15,
+   "permissions": "66560",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449295814033608",
+   "name": "Booster",
+   "color": 16741370,
+   "hoist": true,
+   "position": 14,
+   "permissions": "66560",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449300171919373",
+   "name": "Champion",
+   "color": 16436245,
+   "hoist": false,
+   "position": 13,
+   "permissions": "66560",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449305045831720",
+   "name": "Verified",
+   "color": 3908957,
+   "hoist": false,
+   "position": 12,
+   "permissions": "2147601472",
+   "managed": false,
+   "mentionable": false
+  },
+  {
+   "id": "1570449310879973437",
+   "name": "Member",
+   "color": 10725037,
+   "hoist": true,
+   "position": 11,
+   "permissions": "2251411008",
+   "managed": false,
+   "mentionable": false
+  },
+  {
+   "id": "1570449315275735080",
+   "name": "Announcements",
+   "color": 7041664,
+   "hoist": false,
+   "position": 10,
+   "permissions": "0",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449319641751582",
+   "name": "Giveaways",
+   "color": 7041664,
+   "hoist": false,
+   "position": 9,
+   "permissions": "0",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449323429462046",
+   "name": "Clips",
+   "color": 7041664,
+   "hoist": false,
+   "position": 8,
+   "permissions": "0",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449327564914689",
+   "name": "Events",
+   "color": 7041664,
+   "hoist": false,
+   "position": 7,
+   "permissions": "0",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449331545186426",
+   "name": "LFG",
+   "color": 7041664,
+   "hoist": false,
+   "position": 6,
+   "permissions": "0",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570449336498655332",
+   "name": "PC",
+   "color": 7041664,
+   "hoist": false,
+   "position": 5,
+   "permissions": "0",
+   "managed": false,
+   "mentionable": false
+  },
+  {
+   "id": "1570449341867360338",
+   "name": "PlayStation",
+   "color": 7041664,
+   "hoist": false,
+   "position": 4,
+   "permissions": "0",
+   "managed": false,
+   "mentionable": false
+  },
+  {
+   "id": "1570449345680113804",
+   "name": "Xbox",
+   "color": 7041664,
+   "hoist": false,
+   "position": 3,
+   "permissions": "0",
+   "managed": false,
+   "mentionable": false
+  },
+  {
+   "id": "1570449349345939456",
+   "name": "Switch",
+   "color": 7041664,
+   "hoist": false,
+   "position": 2,
+   "permissions": "0",
+   "managed": false,
+   "mentionable": false
+  },
+  {
+   "id": "1570449353104035876",
+   "name": "Mobile",
+   "color": 7041664,
+   "hoist": false,
+   "position": 1,
+   "permissions": "0",
+   "managed": false,
+   "mentionable": false
+  },
+  {
+   "id": "1570901728721772758",
+   "name": "Invite Tracker",
+   "color": 0,
+   "hoist": false,
+   "position": 1,
+   "permissions": "2253277551389822",
+   "managed": true,
+   "mentionable": false
+  },
+  {
+   "id": "1570901875656753286",
+   "name": "carl-bot",
+   "color": 0,
+   "hoist": false,
+   "position": 1,
+   "permissions": "10191898143991",
+   "managed": true,
+   "mentionable": false
+  },
+  {
+   "id": "1571119098421706803",
+   "name": "Bug Hunter",
+   "color": 16753920,
+   "hoist": false,
+   "position": 1,
+   "permissions": "1373090411302465",
+   "managed": false,
+   "mentionable": true
+  },
+  {
+   "id": "1570135653826433086",
+   "name": "@everyone",
+   "color": 0,
+   "hoist": false,
+   "position": 0,
+   "permissions": "1373090411302465",
+   "managed": false,
+   "mentionable": false
+  }
+ ],
+ "channels": [
+  {
+   "id": "1570449371542196225",
+   "name": "✦ ɪᴍᴘᴏʀᴛᴀɴᴛ",
+   "type": 4,
+   "parent_id": null,
+   "position": 0,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449377007239300",
+   "name": "✦👋・ᴡᴇʟᴄᴏᴍᴇ",
+   "type": 0,
+   "parent_id": "1570449371542196225",
+   "position": 1,
+   "topic": "NOX for DonutSMP — start here.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449387153522790",
+   "name": "✦📜・ʀᴜʟᴇꜱ",
+   "type": 0,
+   "parent_id": "1570449371542196225",
+   "position": 2,
+   "topic": "Ten rules. Read once, follow always.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449394778513469",
+   "name": "✦📢・ᴀɴɴᴏᴜɴᴄᴇᴍᴇɴᴛꜱ",
+   "type": 5,
+   "parent_id": "1570449371542196225",
+   "position": 3,
+   "topic": "Releases, fixes and events.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449400428236921",
+   "name": "✦🔄・ᴄʜᴀɴɢᴇʟᴏɢ",
+   "type": 5,
+   "parent_id": "1570449371542196225",
+   "position": 4,
+   "topic": "Every NOX build, documented.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449406069710918",
+   "name": "✦✅・ᴠᴇʀɪꜰʏ",
+   "type": 0,
+   "parent_id": "1570449371542196225",
+   "position": 5,
+   "topic": "Chat is open. The button only adds a role.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449416093962341",
+   "name": "✦🔗・ꜱᴏᴄɪᴀʟꜱ",
+   "type": 0,
+   "parent_id": "1570449371542196225",
+   "position": 6,
+   "topic": "Official links only.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449428303716362",
+   "name": "✦ ᴄᴏᴍᴍᴜɴɪᴛʏ",
+   "type": 4,
+   "parent_id": null,
+   "position": 8,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449433114575001",
+   "name": "✦💬・ɢᴇɴᴇʀᴀʟ",
+   "type": 0,
+   "parent_id": "1570449428303716362",
+   "position": 9,
+   "topic": "Main chat. Keep it civil.",
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449438407790672",
+   "name": "✦🗣️・ᴏꜰꜰ-ᴛᴏᴘɪᴄ",
+   "type": 0,
+   "parent_id": "1570449428303716362",
+   "position": 10,
+   "topic": "Everything else.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "1024",
+     "deny": "0"
+    }
+   ]
+  },
+  {
+   "id": "1570449443541753957",
+   "name": "✦😂・ᴍᴇᴍᴇꜱ",
+   "type": 0,
+   "parent_id": "1570449428303716362",
+   "position": 11,
+   "topic": "Quality is optional.",
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449448981766356",
+   "name": "✦🖼️・ᴍᴇᴅɪᴀ",
+   "type": 0,
+   "parent_id": "1570449428303716362",
+   "position": 12,
+   "topic": "Screenshots, edits, artwork.",
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449474780921986",
+   "name": "✦ ᴄʟɪᴘꜱ",
+   "type": 4,
+   "parent_id": null,
+   "position": 15,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449479621021869",
+   "name": "✦🎬・ᴄʟɪᴘꜱ",
+   "type": 0,
+   "parent_id": "1570449474780921986",
+   "position": 16,
+   "topic": "Your best moments on DonutSMP.",
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449485052510228",
+   "name": "✦⭐・ʙᴇꜱᴛ-ᴄʟɪᴘꜱ",
+   "type": 0,
+   "parent_id": "1570449474780921986",
+   "position": 17,
+   "topic": "The monthly selection.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124096"
+    }
+   ]
+  },
+  {
+   "id": "1570449489762844733",
+   "name": "✦📮・ꜱᴜʙᴍɪꜱꜱɪᴏɴꜱ",
+   "type": 15,
+   "parent_id": "1570449474780921986",
+   "position": 18,
+   "topic": "One post per clip. Link and description.",
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449494502543441",
+   "name": "✦🎞️・ᴄʟɪᴘ-ᴠᴏᴛɪɴɢ",
+   "type": 0,
+   "parent_id": "1570449474780921986",
+   "position": 19,
+   "topic": "Vote for clip of the month.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124096"
+    }
+   ]
+  },
+  {
+   "id": "1570449519492202556",
+   "name": "✦ ᴄᴏᴍᴘᴇᴛɪᴛɪᴏɴꜱ",
+   "type": 4,
+   "parent_id": null,
+   "position": 20,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449524319715408",
+   "name": "✦🏆・ᴄᴏᴍᴘᴇᴛɪᴛɪᴏɴꜱ",
+   "type": 0,
+   "parent_id": "1570449519492202556",
+   "position": 21,
+   "topic": "Current competitions, rules and prizes.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449528803299399",
+   "name": "✦📝・ꜱɪɢɴ-ᴜᴘ",
+   "type": 0,
+   "parent_id": "1570449519492202556",
+   "position": 22,
+   "topic": "Enter here.",
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449544972476436",
+   "name": "✦📅・ᴇᴠᴇɴᴛꜱ",
+   "type": 0,
+   "parent_id": "1570449519492202556",
+   "position": 23,
+   "topic": "Calendar: tournaments and game nights.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449550777258095",
+   "name": "✦🎉・ɢɪᴠᴇᴀᴡᴀʏꜱ",
+   "type": 0,
+   "parent_id": "1570449519492202556",
+   "position": 24,
+   "topic": "React to enter.",
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449562106073142",
+   "name": "✦ ᴄʟɪᴇɴᴛ",
+   "type": 4,
+   "parent_id": null,
+   "position": 25,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449567361532014",
+   "name": "✦📥・ᴅᴏᴡɴʟᴏᴀᴅ",
+   "type": 0,
+   "parent_id": "1570449562106073142",
+   "position": 26,
+   "topic": "The only official build.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449588148764803",
+   "name": "✦🛠️・ɪɴꜱᴛᴀʟʟᴀᴛɪᴏɴ",
+   "type": 0,
+   "parent_id": "1570449562106073142",
+   "position": 27,
+   "topic": "Setup in five steps.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449593403969586",
+   "name": "✦🔑・ʜᴡɪᴅ-ʀᴇꜱᴇᴛ",
+   "type": 0,
+   "parent_id": "1570449562106073142",
+   "position": 28,
+   "topic": "New hardware? Request a reset.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449598877667540",
+   "name": "✦❓・ꜰᴀᴏ",
+   "type": 0,
+   "parent_id": "1570449562106073142",
+   "position": 29,
+   "topic": "Asked often, answered once.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449603931799573",
+   "name": "✦🐛・ᴋɴᴏᴡɴ-ɪꜱꜱᴜᴇꜱ",
+   "type": 0,
+   "parent_id": "1570449562106073142",
+   "position": 30,
+   "topic": "Bugs and workarounds.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449619962564608",
+   "name": "✦ ꜱᴛᴀᴛꜱ",
+   "type": 4,
+   "parent_id": null,
+   "position": 31,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449624781561947",
+   "name": "✦📊・ꜱᴇʀᴠᴇʀ-ꜱᴛᴀᴛꜱ",
+   "type": 0,
+   "parent_id": "1570449619962564608",
+   "position": 32,
+   "topic": "Live numbers.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449629768589533",
+   "name": "✦📈・ᴅᴏᴡɴʟᴏᴀᴅꜱ",
+   "type": 0,
+   "parent_id": "1570449619962564608",
+   "position": 33,
+   "topic": "Downloads and active keys.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449641714221086",
+   "name": "✦👥・ᴍᴇᴍʙᴇʀꜱ: 118",
+   "type": 2,
+   "parent_id": "1570449619962564608",
+   "position": 34,
+   "topic": null,
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "1048576"
+    }
+   ]
+  },
+  {
+   "id": "1570449649259511848",
+   "name": "✦🟢・ᴏɴʟɪɴᴇ: 18",
+   "type": 2,
+   "parent_id": "1570449619962564608",
+   "position": 35,
+   "topic": null,
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "1048576"
+    }
+   ]
+  },
+  {
+   "id": "1570449664451547268",
+   "name": "✦💎・ʙᴏᴏꜱᴛꜱ: 0",
+   "type": 2,
+   "parent_id": "1570449619962564608",
+   "position": 36,
+   "topic": null,
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "1048576"
+    }
+   ]
+  },
+  {
+   "id": "1570449670067458129",
+   "name": "✦ ꜱᴛᴏʀᴇ",
+   "type": 4,
+   "parent_id": null,
+   "position": 37,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449675738423448",
+   "name": "✦🛒・ꜱᴛᴏʀᴇ",
+   "type": 0,
+   "parent_id": "1570449670067458129",
+   "position": 38,
+   "topic": "Products at a glance.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449680939356270",
+   "name": "✦💳・ᴘʀɪᴄɪɴɢ",
+   "type": 0,
+   "parent_id": "1570449670067458129",
+   "position": 39,
+   "topic": "Prices and payment methods.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449685842235482",
+   "name": "✦🧾・ᴠᴏᴜᴄʜᴇꜱ",
+   "type": 0,
+   "parent_id": "1570449670067458129",
+   "position": 40,
+   "topic": "Real vouches only.",
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449720302903487",
+   "name": "✦🤝・ᴘᴀʀᴛɴᴇʀꜱ",
+   "type": 0,
+   "parent_id": "1570449371542196225",
+   "position": 7,
+   "topic": "Our partners.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449734202687509",
+   "name": "✦🔍・ʟꜰɢ",
+   "type": 0,
+   "parent_id": "1570449428303716362",
+   "position": 13,
+   "topic": "Find people to play with.",
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449738757832845",
+   "name": "✦⛏️・ᴍɪɴᴇᴄʀᴀꜰᴛ",
+   "type": 0,
+   "parent_id": "1570449428303716362",
+   "position": 14,
+   "topic": "DonutSMP and everything around it.",
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449749629214730",
+   "name": "✦ ᴠᴏɪᴄᴇ",
+   "type": 4,
+   "parent_id": null,
+   "position": 41,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449759565521037",
+   "name": "✦🔈・ᴅᴜᴏ",
+   "type": 2,
+   "parent_id": "1570449749629214730",
+   "position": 42,
+   "topic": null,
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449764393295965",
+   "name": "✦🔈・ᴛʀɪᴏ",
+   "type": 2,
+   "parent_id": "1570449749629214730",
+   "position": 43,
+   "topic": null,
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449769212674149",
+   "name": "✦🔈・ꜱᴏᴜᴀᴅ",
+   "type": 2,
+   "parent_id": "1570449749629214730",
+   "position": 44,
+   "topic": null,
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449788040912997",
+   "name": "✦💤・ᴀꜰᴋ",
+   "type": 2,
+   "parent_id": "1570449749629214730",
+   "position": 45,
+   "topic": null,
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "1115136",
+     "deny": "2097152"
+    }
+   ]
+  },
+  {
+   "id": "1570449793229000845",
+   "name": "✦➕・ᴄʀᴇᴀᴛᴇ ᴅᴜᴏ",
+   "type": 2,
+   "parent_id": "1570449749629214730",
+   "position": 46,
+   "topic": null,
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449797771698316",
+   "name": "✦➕・ᴄʀᴇᴀᴛᴇ ᴛʀɪᴏ",
+   "type": 2,
+   "parent_id": "1570449749629214730",
+   "position": 47,
+   "topic": null,
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449815014219776",
+   "name": "✦➕・ᴄʀᴇᴀᴛᴇ ꜱᴏᴜᴀᴅ",
+   "type": 2,
+   "parent_id": "1570449749629214730",
+   "position": 48,
+   "topic": null,
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449828415012955",
+   "name": "✦ ꜱᴜᴘᴘᴏʀᴛ",
+   "type": 4,
+   "parent_id": null,
+   "position": 49,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449832496074956",
+   "name": "✦🎫・ᴏᴘᴇɴ-ᴛɪᴄᴋᴇᴛ",
+   "type": 0,
+   "parent_id": "1570449828415012955",
+   "position": 50,
+   "topic": "Support, reports, purchases, appeals.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449842822447244",
+   "name": "✦📋・ᴛɪᴄᴋᴇᴛ-ʟᴏɢꜱ",
+   "type": 0,
+   "parent_id": "1570449828415012955",
+   "position": 51,
+   "topic": "Ticket log.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570449264939770067",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570449259923251271",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "0",
+     "deny": "1024"
+    },
+    {
+     "id": "1570449256064487505",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    }
+   ]
+  },
+  {
+   "id": "1570449847562141806",
+   "name": "✦ ꜱᴛᴀꜰꜰ",
+   "type": 4,
+   "parent_id": null,
+   "position": 52,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": [
+    {
+     "id": "1570449264939770067",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570449259923251271",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "0",
+     "deny": "1024"
+    },
+    {
+     "id": "1570449256064487505",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    }
+   ]
+  },
+  {
+   "id": "1570449853660799146",
+   "name": "✦👑・ꜱᴛᴀꜰꜰ-ᴄʜᴀᴛ",
+   "type": 0,
+   "parent_id": "1570449847562141806",
+   "position": 53,
+   "topic": "Internal.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570449274297385186",
+     "type": 0,
+     "allow": "3072",
+     "deny": "0"
+    },
+    {
+     "id": "1570449269033410702",
+     "type": 0,
+     "allow": "3072",
+     "deny": "0"
+    },
+    {
+     "id": "1570449259923251271",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "0",
+     "deny": "1024"
+    },
+    {
+     "id": "1570449264939770067",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570449256064487505",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    }
+   ]
+  },
+  {
+   "id": "1570449859394146365",
+   "name": "✦🗂️・ꜱᴛᴀꜰꜰ-ʟᴏɢꜱ",
+   "type": 0,
+   "parent_id": "1570449847562141806",
+   "position": 54,
+   "topic": "Team log.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570449264939770067",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570449259923251271",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "0",
+     "deny": "1024"
+    },
+    {
+     "id": "1570449256064487505",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    }
+   ]
+  },
+  {
+   "id": "1570449864893141155",
+   "name": "✦⚠️・ʀᴇᴘᴏʀᴛꜱ",
+   "type": 0,
+   "parent_id": "1570449847562141806",
+   "position": 55,
+   "topic": "Reports from tickets.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "0",
+     "deny": "1024"
+    },
+    {
+     "id": "1570449259923251271",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570449264939770067",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570449256064487505",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    }
+   ]
+  },
+  {
+   "id": "1570449870899380416",
+   "name": "✦📄・ᴀᴘᴘ-ʀᴇᴠɪᴇᴡ",
+   "type": 0,
+   "parent_id": "1570449847562141806",
+   "position": 56,
+   "topic": "Incoming applications.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570449264939770067",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570449259923251271",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "0",
+     "deny": "1024"
+    },
+    {
+     "id": "1570449256064487505",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    }
+   ]
+  },
+  {
+   "id": "1570449876385402890",
+   "name": "✦🔨・ᴍᴏᴅ-ʟᴏɢꜱ",
+   "type": 0,
+   "parent_id": "1570449847562141806",
+   "position": 57,
+   "topic": "Bans, kicks, timeouts.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "0",
+     "deny": "1024"
+    },
+    {
+     "id": "1570449259923251271",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570449264939770067",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570449256064487505",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    }
+   ]
+  },
+  {
+   "id": "1570449891153420359",
+   "name": "✦🗃️・ᴛʀᴀɴꜱᴄʀɪᴘᴛꜱ",
+   "type": 0,
+   "parent_id": "1570449847562141806",
+   "position": 58,
+   "topic": "Closed ticket transcripts.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570449264939770067",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570449259923251271",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "0",
+     "deny": "1024"
+    },
+    {
+     "id": "1570449256064487505",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    }
+   ]
+  },
+  {
+   "id": "1570449900276154408",
+   "name": "✦ ꜱᴇᴛᴛɪɴɢꜱ",
+   "type": 4,
+   "parent_id": null,
+   "position": 59,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1570449909210026026",
+   "name": "✦🎭・ʀᴏʟᴇꜱ",
+   "type": 0,
+   "parent_id": "1570449900276154408",
+   "position": 60,
+   "topic": "Pick your roles.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124096"
+    }
+   ]
+  },
+  {
+   "id": "1570449924422639818",
+   "name": "✦🔔・ᴘɪɴɢꜱ",
+   "type": 0,
+   "parent_id": "1570449900276154408",
+   "position": 61,
+   "topic": "Only what you need.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124096"
+    }
+   ]
+  },
+  {
+   "id": "1570449934006747237",
+   "name": "✦⚖️・ᴛᴇʀᴍꜱ",
+   "type": 0,
+   "parent_id": "1570449900276154408",
+   "position": 62,
+   "topic": "Terms and privacy.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  },
+  {
+   "id": "1570449938398322708",
+   "name": "✦ ᴛɪᴄᴋᴇᴛꜱ",
+   "type": 4,
+   "parent_id": null,
+   "position": 63,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "0",
+     "deny": "1024"
+    },
+    {
+     "id": "1570449259923251271",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570449264939770067",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    },
+    {
+     "id": "1570449256064487505",
+     "type": 0,
+     "allow": "126016",
+     "deny": "0"
+    }
+   ]
+  },
+  {
+   "id": "1571052895196020826",
+   "name": "✦📖・ᴏᴜʀ-ᴀᴅ",
+   "type": 0,
+   "parent_id": "1570449371542196225",
+   "position": 63,
+   "topic": null,
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1571067253137342576",
+   "name": "↳-other-itisdanylol",
+   "type": 0,
+   "parent_id": "1570449938398322708",
+   "position": 64,
+   "topic": "Other · itisdanylol · 1475359605713408053",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570449269033410702",
+     "type": 0,
+     "allow": "125952",
+     "deny": "0"
+    },
+    {
+     "id": "1475359605713408053",
+     "type": 1,
+     "allow": "117824",
+     "deny": "0"
+    },
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "0",
+     "deny": "1024"
+    }
+   ]
+  },
+  {
+   "id": "1571069011720937472",
+   "name": "✦✅・ᴠᴏᴜᴄʜᴇꜱ",
+   "type": 0,
+   "parent_id": "1570449428303716362",
+   "position": 65,
+   "topic": null,
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1571100774040076318",
+   "name": "✦📋・ᴀᴘᴘʟɪᴄᴀᴛɪᴏɴꜱ",
+   "type": 0,
+   "parent_id": "1570449428303716362",
+   "position": 66,
+   "topic": "Apply for the NOX team — designer, developer, bug hunter",
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1571142656644620418",
+   "name": "✦📜・ᴄʜᴀɴɢᴇʟᴏɢꜱ",
+   "type": 0,
+   "parent_id": "1570449371542196225",
+   "position": 67,
+   "topic": "Automated NOX changelogs — one entry per shipped build.",
+   "nsfw": false,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1571224570864865368",
+   "name": "server-hub",
+   "type": 20,
+   "parent_id": null,
+   "position": 0,
+   "topic": null,
+   "nsfw": null,
+   "permission_overwrites": []
+  },
+  {
+   "id": "1571513271234597027",
+   "name": "↳-other-elliottukj234463",
+   "type": 0,
+   "parent_id": "1570449938398322708",
+   "position": 70,
+   "topic": "Other · elliottukj234_46313 · 1363240484818128926",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570449269033410702",
+     "type": 0,
+     "allow": "125952",
+     "deny": "0"
+    },
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "0",
+     "deny": "1024"
+    }
+   ]
+  },
+  {
+   "id": "1573598682669129759",
+   "name": "✦📖・ᴄʟɪᴇɴᴛ-ɢᴜɪᴅᴇ",
+   "type": 0,
+   "parent_id": "1570449562106073142",
+   "position": 71,
+   "topic": "How to use the NOX client — GUI, modules, binds, workflows.",
+   "nsfw": false,
+   "permission_overwrites": [
+    {
+     "id": "1570135653826433086",
+     "type": 0,
+     "allow": "66560",
+     "deny": "377957124160"
+    }
+   ]
+  }
+ ],
+ "emojis": [
+  {
+   "id": "1570460621240008775",
+   "name": "nox",
+   "animated": true
+  },
+  {
+   "id": "1570460628127322274",
+   "name": "noxdot",
+   "animated": true
+  },
+  {
+   "id": "1570460634489823289",
+   "name": "noxspark",
+   "animated": true
+  },
+  {
+   "id": "1570460642048213102",
+   "name": "noxarrow",
+   "animated": true
+  },
+  {
+   "id": "1570460648435884032",
+   "name": "noxcheck",
+   "animated": true
+  },
+  {
+   "id": "1570465882784931971",
+   "name": "noxw",
+   "animated": true
+  },
+  {
+   "id": "1570465889223188562",
+   "name": "noxl",
+   "animated": true
+  },
+  {
+   "id": "1570465898366771385",
+   "name": "noxgg",
+   "animated": true
+  },
+  {
+   "id": "1570465904414687323",
+   "name": "noxez",
+   "animated": true
+  },
+  {
+   "id": "1570465910068875359",
+   "name": "noxeyes",
+   "animated": true
+  },
+  {
+   "id": "1570465916670578789",
+   "name": "noxspin",
+   "animated": true
+  },
+  {
+   "id": "1570465927537885337",
+   "name": "noxglow",
+   "animated": true
+  },
+  {
+   "id": "1570465933770760243",
+   "name": "noxlock",
+   "animated": false
+  },
+  {
+   "id": "1570465940053692527",
+   "name": "noxbolt",
+   "animated": false
+  },
+  {
+   "id": "1570465946651598888",
+   "name": "noxstar",
+   "animated": false
+  },
+  {
+   "id": "1570465956432445502",
+   "name": "noxrip",
+   "animated": false
+  },
+  {
+   "id": "1570465962988150815",
+   "name": "noxkey",
+   "animated": false
+  }
+ ],
+ "stickers": [
+  {
+   "id": "1570461277082624050",
+   "name": "nox"
+  },
+  {
+   "id": "1570461284124598433",
+   "name": "gg"
+  },
+  {
+   "id": "1570461291477344322",
+   "name": "noxw"
+  },
+  {
+   "id": "1570461298263597108",
+   "name": "clip"
+  },
+  {
+   "id": "1570461304748253224",
+   "name": "key"
+  }
+ ],
+ "member_snapshot": [
+  {
+   "id": "210021314407170048",
+   "name": "jobreaker38",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:48.406000+00:00"
+  },
+  {
+   "id": "219576649505570817",
+   "name": "8x8g",
+   "nick": null,
+   "roles": [
+    "1570449336498655332",
+    "1570449305045831720",
+    "1570449315275735080",
+    "1570449283306754291",
+    "1570449310879973437"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T10:22:36.345000+00:00"
+  },
+  {
+   "id": "235148962103951360",
+   "name": "Carl-bot",
+   "nick": null,
+   "roles": [
+    "1570901875656753286"
+   ],
+   "bot": true,
+   "joined_at": "2026-11-13T20:43:13.212000+00:00"
+  },
+  {
+   "id": "312241649046781964",
+   "name": "elpanitaellince",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:50.750000+00:00"
+  },
+  {
+   "id": "598123111908507655",
+   "name": "mv7944",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:21.756000+00:00"
+  },
+  {
+   "id": "693631769496256621",
+   "name": "viniciuspintanel",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:52.759000+00:00"
+  },
+  {
+   "id": "713671514011992084",
+   "name": "mohithb07",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:25.109000+00:00"
+  },
+  {
+   "id": "720351927581278219",
+   "name": "Invite Tracker",
+   "nick": null,
+   "roles": [
+    "1570901728721772758"
+   ],
+   "bot": true,
+   "joined_at": "2026-11-13T20:42:38.125000+00:00"
+  },
+  {
+   "id": "722756388551524393",
+   "name": "gachaeray",
+   "nick": null,
+   "roles": [
+    "1570449274297385186",
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:32.852000+00:00"
+  },
+  {
+   "id": "776870088270676018",
+   "name": "albsnex",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:36.035000+00:00"
+  },
+  {
+   "id": "799996074063298570",
+   "name": "ismaeel2011",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:32.752000+00:00"
+  },
+  {
+   "id": "800363210792370176",
+   "name": "spent9mxtrust",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:54.901000+00:00"
+  },
+  {
+   "id": "890263375584571462",
+   "name": "hamim1238",
+   "nick": null,
+   "roles": [
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:41.922000+00:00"
+  },
+  {
+   "id": "931207592284397648",
+   "name": "brrrr92",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:59.450000+00:00"
+  },
+  {
+   "id": "932332879902556190",
+   "name": "ghostboy1302",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:56.911000+00:00"
+  },
+  {
+   "id": "933378111121285121",
+   "name": "pedofile767789",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:22.492000+00:00"
+  },
+  {
+   "id": "983664598836203541",
+   "name": "innottanqr",
+   "nick": null,
+   "roles": [
+    "1570449315275735080",
+    "1570449336498655332",
+    "1570449323429462046"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-13T20:47:28.602000+00:00"
+  },
+  {
+   "id": "1008695533721886784",
+   "name": "sung.jinwo0_",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:35.762000+00:00"
+  },
+  {
+   "id": "1025175903610884177",
+   "name": "cwzqv",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-13T20:43:12.074000+00:00"
+  },
+  {
+   "id": "1037884107465695292",
+   "name": "mkk_pt2",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:14.333000+00:00"
+  },
+  {
+   "id": "1046443373055189182",
+   "name": "lostsomewhe",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:53.334000+00:00"
+  },
+  {
+   "id": "1099159143975243777",
+   "name": "deathinvr_also_sora",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:14.496000+00:00"
+  },
+  {
+   "id": "1102147124260503562",
+   "name": "nczgamez",
+   "nick": null,
+   "roles": [
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:30.422000+00:00"
+  },
+  {
+   "id": "1131467574345994270",
+   "name": "silnt.hill",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:32.960000+00:00"
+  },
+  {
+   "id": "1146565891476172881",
+   "name": "waolie_",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:54.324000+00:00"
+  },
+  {
+   "id": "1167059228993794068",
+   "name": "typicallyome",
+   "nick": null,
+   "roles": [
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-20T06:08:43.108000+00:00"
+  },
+  {
+   "id": "1177909584128647221",
+   "name": "icedbarrel22_91929",
+   "nick": null,
+   "roles": [
+    "1570449327564914689",
+    "1570449274297385186",
+    "1570449353104035876",
+    "1570449315275735080",
+    "1570449323429462046"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-16T04:59:10.100000+00:00"
+  },
+  {
+   "id": "1184759742606880868",
+   "name": "d01085",
+   "nick": null,
+   "roles": [
+    "1570449315275735080",
+    "1570449274297385186",
+    "1570449353104035876",
+    "1570449323429462046"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:01.091000+00:00"
+  },
+  {
+   "id": "1207054993291612233",
+   "name": "slitzy",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:48.705000+00:00"
+  },
+  {
+   "id": "1215083310351650868",
+   "name": "thebuglesoundsatdawn",
+   "nick": null,
+   "roles": [
+    "1570449274297385186",
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:03.693000+00:00"
+  },
+  {
+   "id": "1248370469799858252",
+   "name": "billsmarketlap",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:43.593000+00:00"
+  },
+  {
+   "id": "1254795382429585539",
+   "name": "dxd12_13",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:30.983000+00:00"
+  },
+  {
+   "id": "1259976941545455711",
+   "name": "welster0190",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:25.178000+00:00"
+  },
+  {
+   "id": "1261215670788423732",
+   "name": "plaskynavarrette",
+   "nick": null,
+   "roles": [
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-16T20:42:21.048000+00:00"
+  },
+  {
+   "id": "1261798468033318953",
+   "name": "ath.218",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:29.204000+00:00"
+  },
+  {
+   "id": "1266117418015653889",
+   "name": "moonlight_reaper1",
+   "nick": null,
+   "roles": [
+    "1570449305045831720",
+    "1570449264939770067",
+    "1570449269033410702"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T15:27:49.072000+00:00"
+  },
+  {
+   "id": "1274422059547754536",
+   "name": "imapenguin_sowhat",
+   "nick": null,
+   "roles": [
+    "1570449327564914689",
+    "1570449353104035876"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:01.322000+00:00"
+  },
+  {
+   "id": "1288107959309566028",
+   "name": "ijjeuyu.",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:24:39.587000+00:00"
+  },
+  {
+   "id": "1288452265350398026",
+   "name": "daliborzajac",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:28.242000+00:00"
+  },
+  {
+   "id": "1289996173377277984",
+   "name": "amblack_povtaj",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:20.385000+00:00"
+  },
+  {
+   "id": "1291031503983214592",
+   "name": "xaker1488_55237",
+   "nick": null,
+   "roles": [
+    "1570449315275735080"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-15T13:32:12.664000+00:00"
+  },
+  {
+   "id": "1294605063179866190",
+   "name": "arj854",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:27.070000+00:00"
+  },
+  {
+   "id": "1311161212972826694",
+   "name": "62k2019_75063",
+   "nick": null,
+   "roles": [
+    "1570449305045831720",
+    "1570449310879973437"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-15T09:10:02+00:00"
+  },
+  {
+   "id": "1314272719298236449",
+   "name": "bigraga777_",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:08.114000+00:00"
+  },
+  {
+   "id": "1327108083281035325",
+   "name": "ziggyerest",
+   "nick": null,
+   "roles": [
+    "1570449305045831720",
+    "1570449336498655332",
+    "1570449310879973437"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:28.085000+00:00"
+  },
+  {
+   "id": "1330019755406528643",
+   "name": "star_struck_lighting",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:31.057000+00:00"
+  },
+  {
+   "id": "1330637402435223697",
+   "name": "chronos.x64",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:51.084000+00:00"
+  },
+  {
+   "id": "1343860397903446078",
+   "name": "cod0671_95794",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:08.058000+00:00"
+  },
+  {
+   "id": "1346944538156994688",
+   "name": "ayxx_01",
+   "nick": null,
+   "roles": [
+    "1570449341867360338"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:10.721000+00:00"
+  },
+  {
+   "id": "1363168895719968794",
+   "name": "maxyrien",
+   "nick": null,
+   "roles": [
+    "1570449327564914689",
+    "1570449274297385186",
+    "1570449336498655332",
+    "1570449279078637700",
+    "1570449315275735080",
+    "1570449283306754291",
+    "1570449323429462046"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-18T14:33:25.899000+00:00"
+  },
+  {
+   "id": "1367230819566878854",
+   "name": "elliottuk10_47992",
+   "nick": null,
+   "roles": [
+    "1570449274297385186",
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-15T13:14:53.825000+00:00"
+  },
+  {
+   "id": "1372611713144193034",
+   "name": "abdeldu901_60723",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:22.220000+00:00"
+  },
+  {
+   "id": "1375859628360994978",
+   "name": "ajcbb4",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:29.177000+00:00"
+  },
+  {
+   "id": "1379172062970646559",
+   "name": "phantom.0553",
+   "nick": null,
+   "roles": [
+    "1570449341867360338",
+    "1570449283306754291",
+    "1570449323429462046"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:43.628000+00:00"
+  },
+  {
+   "id": "1379186565695275018",
+   "name": "rileydone_88418",
+   "nick": null,
+   "roles": [
+    "1570449305045831720",
+    "1570449283306754291",
+    "1570449336498655332",
+    "1570449310879973437"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-15T16:19:35.622000+00:00"
+  },
+  {
+   "id": "1383038968383410269",
+   "name": "derharami",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-19T16:26:21.261000+00:00"
+  },
+  {
+   "id": "1392190102071017483",
+   "name": "shadow_monarch188_60054",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-16T20:13:55.554000+00:00"
+  },
+  {
+   "id": "1396436664913629215",
+   "name": "anas003878",
+   "nick": null,
+   "roles": [
+    "1570449315275735080",
+    "1570449274297385186",
+    "1570449283306754291",
+    "1570449353104035876"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-20T16:29:51.077000+00:00"
+  },
+  {
+   "id": "1404212950620966933",
+   "name": "wmans67_",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:44.518000+00:00"
+  },
+  {
+   "id": "1407412423253688401",
+   "name": "delta19278",
+   "nick": null,
+   "roles": [
+    "1570449327564914689",
+    "1570449274297385186",
+    "1570449279078637700",
+    "1570449353104035876",
+    "1570449315275735080",
+    "1570449283306754291",
+    "1570449323429462046"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:30.810000+00:00"
+  },
+  {
+   "id": "1415239798146338857",
+   "name": "yayanabeel0",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T14:45:40.204000+00:00"
+  },
+  {
+   "id": "1415331077626527928",
+   "name": "narren.008",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:14.642000+00:00"
+  },
+  {
+   "id": "1421527627570876520",
+   "name": "_overcast.17_",
+   "nick": null,
+   "roles": [
+    "1570449315275735080",
+    "1570449274297385186",
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-16T14:39:57.546000+00:00"
+  },
+  {
+   "id": "1426753885514498161",
+   "name": "thedarkcat_1990",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-13T23:56:09.293000+00:00"
+  },
+  {
+   "id": "1435781118388604969",
+   "name": "vinicius_editing",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:23.685000+00:00"
+  },
+  {
+   "id": "1441763145969565740",
+   "name": "jbrked",
+   "nick": null,
+   "roles": [
+    "1570449305045831720",
+    "1570449256064487505",
+    "1570449315275735080",
+    "1570449310879973437"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-11T17:58:31.740000+00:00"
+  },
+  {
+   "id": "1455044836548677891",
+   "name": "lolli06",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:45.686000+00:00"
+  },
+  {
+   "id": "1457764548303130703",
+   "name": "unjversql",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:02.024000+00:00"
+  },
+  {
+   "id": "1460287124074008721",
+   "name": "8gnc55",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:24.949000+00:00"
+  },
+  {
+   "id": "1463996632881303719",
+   "name": "nabeel1243.",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-16T21:48:50.054000+00:00"
+  },
+  {
+   "id": "1464689592962912379",
+   "name": "fuhscared2",
+   "nick": null,
+   "roles": [
+    "1570449283306754291",
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:36.610000+00:00"
+  },
+  {
+   "id": "1465190042837319681",
+   "name": "weapon1ze",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:56.601000+00:00"
+  },
+  {
+   "id": "1465518513400840336",
+   "name": "yanbowng_13564",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:09.611000+00:00"
+  },
+  {
+   "id": "1468373505388187650",
+   "name": "ricky02920",
+   "nick": null,
+   "roles": [
+    "1570449315275735080",
+    "1570449279078637700",
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:23.053000+00:00"
+  },
+  {
+   "id": "1471271358833889302",
+   "name": "insizyazy",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:10.738000+00:00"
+  },
+  {
+   "id": "1472671604465995909",
+   "name": "nexiumdevs",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:55.846000+00:00"
+  },
+  {
+   "id": "1475359605713408053",
+   "name": "itisdanylol",
+   "nick": null,
+   "roles": [
+    "1570449274297385186",
+    "1570449305045831720",
+    "1570449269033410702",
+    "1571119098421706803",
+    "1570449291825123348",
+    "1570449310879973437"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-13T20:48:24.532000+00:00"
+  },
+  {
+   "id": "1481312087891509279",
+   "name": "jemmini0808",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:12:10.505000+00:00"
+  },
+  {
+   "id": "1483343366887440445",
+   "name": "daunuocmatvaotrong_06",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:01.184000+00:00"
+  },
+  {
+   "id": "1492646618254807251",
+   "name": "bananatikinn._19947",
+   "nick": null,
+   "roles": [
+    "1570449283306754291",
+    "1570449353104035876"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-19T05:11:08.965000+00:00"
+  },
+  {
+   "id": "1494019396996431873",
+   "name": "n3xus_1234",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:03.963000+00:00"
+  },
+  {
+   "id": "1494318460346437782",
+   "name": "somalina_abdi",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:36.846000+00:00"
+  },
+  {
+   "id": "1494715892209029121",
+   "name": "justin_mrsll",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:27.317000+00:00"
+  },
+  {
+   "id": "1494963513754652834",
+   "name": "charlie063385",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T15:56:22.279000+00:00"
+  },
+  {
+   "id": "1496249091368419428",
+   "name": "eau_vraiment_officiel",
+   "nick": null,
+   "roles": [
+    "1570449336498655332",
+    "1570449305045831720",
+    "1570449315275735080",
+    "1570449283306754291",
+    "1570449310879973437"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:12:15.905000+00:00"
+  },
+  {
+   "id": "1496954440480067758",
+   "name": "newyorkmafiagaming",
+   "nick": null,
+   "roles": [
+    "1570449327564914689",
+    "1570449336498655332",
+    "1570449279078637700",
+    "1570449305045831720",
+    "1570449315275735080",
+    "1570449283306754291",
+    "1570449310879973437"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T12:31:42.167000+00:00"
+  },
+  {
+   "id": "1500478401960480890",
+   "name": "lm.profs",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:59.599000+00:00"
+  },
+  {
+   "id": "1501292115907444766",
+   "name": "issahvb",
+   "nick": null,
+   "roles": [
+    "1570449305045831720",
+    "1570449310879973437",
+    "1570449259923251271"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T06:37:52.172000+00:00"
+  },
+  {
+   "id": "1510714731554406572",
+   "name": "themanofterror",
+   "nick": null,
+   "roles": [
+    "1570449283306754291",
+    "1570449345680113804"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:39.831000+00:00"
+  },
+  {
+   "id": "1511417609080410152",
+   "name": "astarikz",
+   "nick": null,
+   "roles": [
+    "1570449305045831720",
+    "1570449310879973437"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:38.503000+00:00"
+  },
+  {
+   "id": "1512154561517977881",
+   "name": "4p.8",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:41:09.862000+00:00"
+  },
+  {
+   "id": "1512250324964868160",
+   "name": "israelgotyou",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:57.716000+00:00"
+  },
+  {
+   "id": "1512756513423491083",
+   "name": "armanisbov_28319",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-15T18:34:24.613000+00:00"
+  },
+  {
+   "id": "1516008510389878876",
+   "name": "redzplow_14905",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:25.511000+00:00"
+  },
+  {
+   "id": "1519819155661000735",
+   "name": "tommy.6798",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:06:47.528000+00:00"
+  },
+  {
+   "id": "1521960769586069605",
+   "name": "deep877.",
+   "nick": null,
+   "roles": [
+    "1570449315275735080",
+    "1570449327564914689",
+    "1570449274297385186",
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-16T17:33:56.627000+00:00"
+  },
+  {
+   "id": "1528658045821915208",
+   "name": "glassbeachwawonfan",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:10:59.691000+00:00"
+  },
+  {
+   "id": "1529230419596283996",
+   "name": "scriptkiddie67",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:54.576000+00:00"
+  },
+  {
+   "id": "1532107190360473871",
+   "name": "optyx.m3",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:55.368000+00:00"
+  },
+  {
+   "id": "1532269046207221868",
+   "name": "hdnarith",
+   "nick": null,
+   "roles": [
+    "1570449283306754291",
+    "1570449336498655332",
+    "1570449323429462046"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-20T15:01:24.835000+00:00"
+  },
+  {
+   "id": "1534975618868056245",
+   "name": "ezkoala",
+   "nick": null,
+   "roles": [
+    "1570449305045831720",
+    "1570449310879973437"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:38.092000+00:00"
+  },
+  {
+   "id": "1537849066686521465",
+   "name": "fellexe",
+   "nick": null,
+   "roles": [
+    "1570449315275735080",
+    "1570449327564914689",
+    "1570449336498655332",
+    "1570449323429462046"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-16T16:50:44.964000+00:00"
+  },
+  {
+   "id": "1546948556164829325",
+   "name": "stixznotslicx",
+   "nick": null,
+   "roles": [
+    "1570449315275735080",
+    "1570449274297385186",
+    "1570449283306754291",
+    "1570449353104035876"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:05.174000+00:00"
+  },
+  {
+   "id": "1551722690736554035",
+   "name": "stealth06131",
+   "nick": null,
+   "roles": [
+    "1570449283306754291",
+    "1570449345680113804"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:07:15.149000+00:00"
+  },
+  {
+   "id": "1555401133487427747",
+   "name": "qapkextejso6kurjev",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-19T01:58:49.826000+00:00"
+  },
+  {
+   "id": "1557068976750731396",
+   "name": "ry0xxx",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-19T22:12:54.663000+00:00"
+  },
+  {
+   "id": "1557139717823402197",
+   "name": "naruto210449",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:08:12.520000+00:00"
+  },
+  {
+   "id": "1557452343472037922",
+   "name": "jl078569",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:25.587000+00:00"
+  },
+  {
+   "id": "1558087082197385280",
+   "name": "toast_57687",
+   "nick": null,
+   "roles": [
+    "1570449315275735080",
+    "1570449283306754291",
+    "1570449279078637700",
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-14T07:09:11.486000+00:00"
+  },
+  {
+   "id": "1558923578630471794",
+   "name": "adzzyk.",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:40.164000+00:00"
+  },
+  {
+   "id": "1561047559873761352",
+   "name": "ludmila_28",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:51.411000+00:00"
+  },
+  {
+   "id": "1562157784445751446",
+   "name": "tariqali_12_21437",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:12:05.138000+00:00"
+  },
+  {
+   "id": "1562452668566339656",
+   "name": "fiiinger",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T19:34:22.071000+00:00"
+  },
+  {
+   "id": "1565991197606944789",
+   "name": "rafay0.",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:47.057000+00:00"
+  },
+  {
+   "id": "1570144158696611860",
+   "name": "sigmaman223_38233",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-14T07:11:34.713000+00:00"
+  },
+  {
+   "id": "1570175537941454848",
+   "name": "NOX",
+   "nick": null,
+   "roles": [
+    "1570446584628650024"
+   ],
+   "bot": true,
+   "joined_at": "2026-11-12T14:34:03.282000+00:00"
+  },
+  {
+   "id": "1571981141328797708",
+   "name": "1c.o.b.r.a1",
+   "nick": null,
+   "roles": [],
+   "bot": false,
+   "joined_at": "2026-11-16T20:26:56.880000+00:00"
+  },
+  {
+   "id": "1573111310852563126",
+   "name": "voidtr0ne_81000",
+   "nick": null,
+   "roles": [
+    "1570449315275735080",
+    "1570449274297385186",
+    "1570449336498655332"
+   ],
+   "bot": false,
+   "joined_at": "2026-11-20T10:55:01.207000+00:00"
+  }
+ ]
+}

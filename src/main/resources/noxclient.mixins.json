@@ -3,6 +3,7 @@
   "package": "dev.noxclient.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
+    "ShaderSourceMixin",
     "ScreenMixin",
     "GuiSetScreenMixin",
     "TitleScreenMixin",

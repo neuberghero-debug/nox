@@ -47,8 +47,8 @@ public final class MenuSky {
 
     public static final RenderPipeline PIPELINE = RenderPipeline.builder()
         .withLocation(Identifier.fromNamespaceAndPath("noxclient", "pipeline/nox_menu_sky"))
-        .withVertexShader(Identifier.fromNamespaceAndPath("noxclient", "core/nox_menu_sky"))
-        .withFragmentShader(Identifier.fromNamespaceAndPath("noxclient", "core/nox_menu_sky"))
+        .withVertexShader(Identifier.fromNamespaceAndPath("minecraft", "core/nox_menu_sky"))
+        .withFragmentShader(Identifier.fromNamespaceAndPath("minecraft", "core/nox_menu_sky"))
         .withCull(false)
         .withVertexBinding(0, DefaultVertexFormat.POSITION)
         .withPrimitiveTopology(PrimitiveTopology.QUADS)

@@ -1,5 +1,7 @@
 package dev.noxclient.module;
 
+import dev.noxclient.NoxClient;
+
 import dev.noxclient.module.combat.*;
 import dev.noxclient.module.donutsmp.*;
 import dev.noxclient.module.misc.*;
@@ -96,6 +98,7 @@ public class ModuleManager {
         reg(new Panic());
         reg(new StreamerMode());
         reg(new StaffNotifier());
+        reg(new dev.noxclient.module.donutsmp.StaffLive());
         reg(new TamperWarner());
         reg(new FriendSync());
         reg(new AntiAFK());
@@ -186,6 +189,7 @@ public class ModuleManager {
         return all.stream().filter(m -> m.name.equalsIgnoreCase(name)).findFirst().orElse(null);
     }
     public void tick(Minecraft mc) {
+        NoxClient.INSTANCE.config.tickPresetKeys();
         for (Module m : all) {
             // keybind: edge-detect toggle, or track key state in hold mode.
             // pressed[] updates unconditionally — while the GUI is open only the
