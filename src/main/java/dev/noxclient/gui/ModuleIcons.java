@@ -1,10 +1,19 @@
 package dev.noxclient.gui;
 
+import dev.noxclient.gui.nvg.Nvg;
+import dev.noxclient.gui.nvg.NvgOverlay;
 import dev.noxclient.module.Category;
 import dev.noxclient.module.Module;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.Locale;
+
+import static org.lwjgl.nanovg.NanoVG.nvgBeginPath;
+import static org.lwjgl.nanovg.NanoVG.nvgClosePath;
+import static org.lwjgl.nanovg.NanoVG.nvgFill;
+import static org.lwjgl.nanovg.NanoVG.nvgFillColor;
+import static org.lwjgl.nanovg.NanoVG.nvgLineTo;
+import static org.lwjgl.nanovg.NanoVG.nvgMoveTo;
 
 /**
  * ModuleIcons — filled vector glyphs for every module, drawn from rounded
@@ -404,54 +413,32 @@ public final class ModuleIcons {
 
     // ---- primitives ----
 
-    /** Rounded stroke segment centered on (cx,cy), rotated by `ang` rad. */
+    /** Rounded stroke segment centered on (cx,cy), rotated by `ang` rad.
+     * NVG path — g.pose() doesn't transform queued NVG ops, so the rotation
+     * must be baked into the endpoints. */
     private static void seg(GuiGraphicsExtractor g, float cx, float cy,
                             float len, float thick, float ang, int col) {
-        g.pose().pushMatrix();
-        g.pose().translate(cx, cy);
-        g.pose().rotate(ang);
-        Gui.pill(g, -len / 2, -thick / 2, len, thick, col);
-        g.pose().popMatrix();
+        float dx = (float) Math.cos(ang) * len / 2f;
+        float dy = (float) Math.sin(ang) * len / 2f;
+        NvgOverlay.op((c, st) ->
+            Nvg.line(c, st, cx - dx, cy - dy, cx + dx, cy + dy, thick, col));
     }
 
-    /** Convex polygon from unit vertices (16px grid), filled via fan blits. */
+    /** Convex polygon from unit vertices (16px grid), filled NVG path —
+     * the old g.fill fan triangles landed in the vanilla batch under the
+     * NVG overlay and were invisible. */
     private static void path(GuiGraphicsExtractor g, float cx, float cy, int s,
                              int col, float[][] pts) {
         float u = s / 16f;
-        // simple triangulated fill: bounding fan from centroid — convex shapes only
-        float mx = 0, my = 0;
-        for (float[] p : pts) { mx += p[0]; my += p[1]; }
-        mx /= pts.length; my /= pts.length;
-        for (int i = 0; i < pts.length; i++) {
-            float[] a = pts[i], b = pts[(i + 1) % pts.length];
-            tri(g, cx + mx * u, cy + my * u, cx + a[0] * u, cy + a[1] * u,
-                cx + b[0] * u, cy + b[1] * u, col);
-        }
-    }
-
-    /** Filled triangle via GuiGraphicsExtractor's submitBlit-less polygon path —
-     * falls back to thin pills along the edges plus a centroid disc, which at
-     * icon size (12–16 px) reads as a solid silhouette. */
-    private static void tri(GuiGraphicsExtractor g, float x0, float y0,
-                            float x1, float y1, float x2, float y2, int col) {
-        // rasterize: fill the triangle with horizontal scanline pills
-        float ymin = Math.min(y0, Math.min(y1, y2)), ymax = Math.max(y0, Math.max(y1, y2));
-        for (float yy = ymin; yy <= ymax; yy += 0.9f) {
-            float xa = xAt(y0, x0, y1, x1, yy), xb = xAt(y1, x1, y2, x2, yy),
-                  xc = xAt(y2, x2, y0, x0, yy);
-            float lo = Float.MAX_VALUE, hi = -Float.MAX_VALUE;
-            for (float v : new float[]{xa, xb, xc})
-                if (!Float.isNaN(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-            if (hi > lo)
-                g.fill((int) lo, (int) yy, (int) Math.ceil(hi), (int) Math.ceil(yy + 0.9f), col);
-        }
-    }
-
-    private static float xAt(float ya, float xa, float yb, float xb, float y) {
-        if (yb == ya) return Float.NaN;
-        if (y >= Math.min(ya, yb) && y <= Math.max(ya, yb))
-            return xa + (y - ya) * (xb - xa) / (yb - ya);
-        return Float.NaN;
+        NvgOverlay.op((c, st) -> {
+            nvgBeginPath(c);
+            nvgMoveTo(c, cx + pts[0][0] * u, cy + pts[0][1] * u);
+            for (int i = 1; i < pts.length; i++)
+                nvgLineTo(c, cx + pts[i][0] * u, cy + pts[i][1] * u);
+            nvgClosePath(c);
+            nvgFillColor(c, Nvg.col(st, col));
+            nvgFill(c);
+        });
     }
 
     /** Arc approximated by small circles along the path — cheap, AA-clean. */
@@ -479,11 +466,14 @@ public final class ModuleIcons {
 
     private static void wing(GuiGraphicsExtractor g, float cx, float cy,
                              float u, int col, int side, float flap) {
-        g.pose().pushMatrix();
-        g.pose().translate(cx, cy);
-        g.pose().rotate(side * (0.35f + flap));
-        path(g, side * 4 * u, 0, (int) (16 * u), col, new float[][]{
-            {0, -4}, {side * 7, -2}, {side * 7, 2}, {side * 1, 4}, {0, 2}});
-        g.pose().popMatrix();
+        // rotate verts manually — g.pose() has no effect on queued NVG ops
+        float a = side * (0.35f + flap), co = (float) Math.cos(a), si = (float) Math.sin(a);
+        float[][] verts = {{0, -4}, {side * 7, -2}, {side * 7, 2}, {side * 1, 4}, {0, 2}};
+        for (float[] v : verts) {
+            float x = v[0], y = v[1];
+            v[0] = co * x - si * y + side * 4;
+            v[1] = si * x + co * y;
+        }
+        path(g, cx, cy, (int) (16 * u), col, verts);
     }
 }

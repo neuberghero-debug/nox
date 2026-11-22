@@ -62,9 +62,11 @@ public class ChunkFinder extends Module {
                 c.getPos().getMinBlockZ(), c.getPos().getMaxBlockX(), c.getMaxY(), c.getPos().getMaxBlockZ())) {
             var b = c.getBlockState(pos).getBlock();
             // NOTE: no OBSIDIAN/END_PORTAL_FRAME — ruined portals, lava pools
-            // and strongholds made those near-pure false positives
+            // and strongholds made those near-pure false positives.
+            // No SPAWNER either — dungeon spawners are natural; spawner
+            // context (mossy/cobwebs) is handled by SusChunkFinder.
             if (b == Blocks.CHEST || b == Blocks.BARREL || b == Blocks.FURNACE
-                || b == Blocks.BLAST_FURNACE || b == Blocks.BEACON || b == Blocks.SPAWNER) {
+                || b == Blocks.BLAST_FURNACE || b == Blocks.BEACON) {
                 if (++hits >= 4) return true;
             }
         }

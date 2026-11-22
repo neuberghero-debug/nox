@@ -244,14 +244,32 @@ public final class NvgOverlay {
         org.lwjgl.opengl.GL11.glClear(org.lwjgl.opengl.GL11.GL_STENCIL_BUFFER_BIT | org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT);
         // MC's pipeline may leave a PIXEL_UNPACK_BUFFER bound — NVG texture
         // uploads (font atlas, images) would then read PBO offsets = garbage.
+        // We MUST restore it afterwards: renderpearl's GlStateManager caches
+        // the binding and skips re-binding, so a stomped PBO makes the next
+        // copyBufferToTexture interpret an offset as a client pointer —
+        // glTexSubImage2D then reads garbage and segfaults inside Mesa.
         int pub = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL21.GL_PIXEL_UNPACK_BUFFER_BINDING);
         if (pub != 0) org.lwjgl.opengl.GL15.glBindBuffer(org.lwjgl.opengl.GL21.GL_PIXEL_UNPACK_BUFFER, 0);
+        int pab = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER_BINDING);
+        int peb = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL15.GL_ELEMENT_ARRAY_BUFFER_BINDING);
         // Renderpearl leaves sampler objects bound to texture units; those
         // samplers use *MIPMAP* min filters, which makes NVG's single-level
         // textures (font atlas, images) incomplete -> they sample (0,0,0,1).
-        // Detach samplers while we draw; the encoder re-binds per draw anyway.
+        // Detach samplers while we draw — and restore them, same desync risk.
+        int[] prevSamplers = new int[8];
+        int[] prevTex2D = new int[8];
+        int prevActiveTex = org.lwjgl.opengl.GL11.glGetInteger(
+            org.lwjgl.opengl.GL13.GL_ACTIVE_TEXTURE);
         try {
-            for (int u = 0; u < 8; u++) org.lwjgl.opengl.GL33.glBindSampler(u, 0);
+            for (int u = 0; u < 8; u++) {
+                prevSamplers[u] = org.lwjgl.opengl.GL33.glGetIntegeri(
+                    org.lwjgl.opengl.GL33.GL_SAMPLER_BINDING, u);
+                org.lwjgl.opengl.GL33.glBindSampler(u, 0);
+                org.lwjgl.opengl.GL13.glActiveTexture(
+                    org.lwjgl.opengl.GL13.GL_TEXTURE0 + u);
+                prevTex2D[u] = org.lwjgl.opengl.GL11.glGetInteger(
+                    org.lwjgl.opengl.GL11.GL_TEXTURE_BINDING_2D);
+            }
         } catch (Throwable ignored) {}
         drainPendingImages();
         nvgBeginFrame(ctx, guiW, guiH, ratio);
@@ -282,6 +300,21 @@ public final class NvgOverlay {
         }
         org.lwjgl.opengl.GL11.glViewport(prevVp[0], prevVp[1], prevVp[2], prevVp[3]);
         org.lwjgl.opengl.GL30.glBindFramebuffer(org.lwjgl.opengl.GL30.GL_FRAMEBUFFER, prevFbo);
+        // hand every touched binding back — renderpearl's state cache must
+        // see the same GL world it left, or it skips re-binds it "knows"
+        if (pub != 0) org.lwjgl.opengl.GL15.glBindBuffer(org.lwjgl.opengl.GL21.GL_PIXEL_UNPACK_BUFFER, pub);
+        org.lwjgl.opengl.GL15.glBindBuffer(org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER, pab);
+        org.lwjgl.opengl.GL15.glBindBuffer(org.lwjgl.opengl.GL15.GL_ELEMENT_ARRAY_BUFFER, peb);
+        try {
+            for (int u = 0; u < 8; u++) {
+                org.lwjgl.opengl.GL33.glBindSampler(u, prevSamplers[u]);
+                org.lwjgl.opengl.GL13.glActiveTexture(
+                    org.lwjgl.opengl.GL13.GL_TEXTURE0 + u);
+                org.lwjgl.opengl.GL11.glBindTexture(
+                    org.lwjgl.opengl.GL11.GL_TEXTURE_2D, prevTex2D[u]);
+            }
+            org.lwjgl.opengl.GL13.glActiveTexture(prevActiveTex);
+        } catch (Throwable ignored) {}
     }
 
     /** Execute one typed overlay op (queued via NvgOverlay.glow/sheen/...). */

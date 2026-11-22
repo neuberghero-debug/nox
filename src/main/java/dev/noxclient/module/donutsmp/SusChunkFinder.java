@@ -22,7 +22,7 @@ public class SusChunkFinder extends Module {
     private final Setting.Num minDist = add(new Setting.Num("Min dist from 0,0", 256, 0, 10000));
     private final Setting.Num merge = add(new Setting.Num("Merge radius (ch)", 3, 0, 10));
     private final Setting.Num settleTicks = add(new Setting.Num("Settle ticks", 40, 0, 400));
-    private final Setting.Num minScore = add(new Setting.Num("Min score", 6, 1, 50));
+    private final Setting.Num minScore = add(new Setting.Num("Min score", 8, 1, 50));
     private final Setting.Bool shulkerHit = add(new Setting.Bool("Shulker instant-hit", true));
     private final Setting.Bool crafterHit = add(new Setting.Bool("Crafter instant-hit", true));
     private final Setting.Bool notify = add(new Setting.Bool("Chat notify", true));
@@ -90,7 +90,11 @@ public class SusChunkFinder extends Module {
             else if (be instanceof ChestBlockEntity) { s += 2; trialOnly = false; }
             else if (be instanceof BarrelBlockEntity) { s += 2; trialOnly = false; }
             else if (be instanceof HopperBlockEntity) { s += 1.5; trialOnly = false; }
-            else if (be instanceof net.minecraft.world.level.block.entity.SpawnerBlockEntity) { s += 4; trialOnly = false; }
+            else if (be instanceof net.minecraft.world.level.block.entity.SpawnerBlockEntity) {
+                // natural spawners sit in cobweb/mossy-cobble rooms — a
+                // dungeon + its 2 loot chests used to cross minScore alone.
+                if (!naturalSpawner(be.getBlockPos())) { s += 4; trialOnly = false; }
+            }
             else if (be instanceof net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity) { s += 0; }   // trial chambers → ignored
             else if (be instanceof BeehiveBlockEntity) {
                 // 67Client signal: a FULL honey hive means an active, tended farm
@@ -102,11 +106,13 @@ public class SusChunkFinder extends Module {
                     else if (lvl > 0) { s += 1.5; trialOnly = false; }
                 } catch (Exception ignored) { s += 1; }
             }
-            else if (be instanceof BellBlockEntity) { s += 2; trialOnly = false; }
+            else if (be instanceof BellBlockEntity) { return 0; }   // village — consistent with BaseIntel/ChunkFinder
             else if (be instanceof LecternBlockEntity) { s += 1.5; trialOnly = false; }
             else if (be instanceof BeaconBlockEntity) { s += 5; trialOnly = false; }
             else { s += 0.5; }   // misc tile-entity density
         }
+        // natural-spawner check: dungeon rooms = mossy cobblestone walls,
+        // mineshaft spawners sit inside cobwebs. ~12 probes, cheap.
         if (trialOnly) return 0;   // pure trial-chamber content is natural
         // cross-signals: ChunkFinder flag + live activity + entity hits
         var cf = dev.noxclient.NoxClient.INSTANCE.modules.get("ChunkFinder");
@@ -115,6 +121,19 @@ public class SusChunkFinder extends Module {
         if (ActivityFind.flagged().contains(ck)) s += 8;
         if (EntityFind.flagged().contains(ck)) s += 12;
         return s;
+    }
+
+    /** True when a spawner is surrounded by mossy cobblestone or cobwebs —
+     *  the dungeon/mineshaft signature, not a base. */
+    private boolean naturalSpawner(net.minecraft.core.BlockPos pos) {
+        if (mc.level == null) return false;
+        for (int dx = -2; dx <= 2; dx++) for (int dy = -2; dy <= 2; dy++) for (int dz = -2; dz <= 2; dz++) {
+            if (dx == 0 && dy == 0 && dz == 0) continue;
+            var b = mc.level.getBlockState(pos.offset(dx, dy, dz)).getBlock();
+            if (b == net.minecraft.world.level.block.Blocks.MOSSY_COBBLESTONE
+                || b == net.minecraft.world.level.block.Blocks.COBWEB) return true;
+        }
+        return false;
     }
 
     private void flag(ChunkPos cp, double score) {

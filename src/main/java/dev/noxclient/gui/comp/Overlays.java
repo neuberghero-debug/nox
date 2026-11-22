@@ -55,7 +55,10 @@ public final class Overlays {
         /** dt smoothing — call per frame. Returns the y offset to subtract. */
         public int tick(float dt) {
             target = Math.max(0, Math.min(maxScroll(), target));
-            scroll = DS.approach(scroll, target, 14f, dt);
+            scroll = Math.min(maxScroll(), scroll);
+            scroll = dev.noxclient.gui.UICustom.reducedMotion ? target
+                : scroll + (target - scroll) * (float) -Math.expm1(-14f * dt);
+            if (Math.abs(scroll - target) < 0.25f) scroll = target;
             return Math.round(scroll);
         }
 

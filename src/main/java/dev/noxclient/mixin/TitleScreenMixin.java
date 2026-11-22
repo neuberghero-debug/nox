@@ -27,7 +27,7 @@ public abstract class TitleScreenMixin {
         if (!dev.noxclient.render.MenuSky.render(g, s.width, s.height)
             && !dev.noxclient.gui.AnimatedSky.render(g, s.width, s.height))
             Gargantua.render(g, s.width, s.height);
-        g.fill(0, 0, s.width, s.height, 0x50000000);
+        g.fill(0, 0, s.width, s.height, 0x28050810);
         var inst = NoxClient.INSTANCE;
         if (inst == null || inst.modules == null) return;
         var lm = inst.modules.get("LyricsSky");
@@ -51,7 +51,8 @@ public abstract class TitleScreenMixin {
         // second first-run prompt: telemetry opt-in — PrivacyScreen records the
         // choice to nox/privacy.json and never asks again
         if (!dev.noxclient.telemetry.Telemetry.asked()) {
-            Minecraft.getInstance().setScreenAndShow(new dev.noxclient.gui.PrivacyScreen());
+            Minecraft.getInstance().setScreenAndShow(
+                new dev.noxclient.gui.PrivacyScreen((TitleScreen) (Object) this));
         }
     }
 }

@@ -1,5 +1,8 @@
 package dev.noxclient.gui;
 
+import dev.noxclient.NoxClient;
+import dev.noxclient.module.render.Interface;
+
 /**
  * Live GUI customization — written by the Interface module's settings,
  * read by the theme + screens every frame. Zero-cost when untouched.
@@ -22,9 +25,17 @@ public final class UICustom {
     public static int textMute     = 0xFF5A5A6E;
     public static int radius = 12;
     public static int cardH  = 80;            // density → card height
-    public static String density = "Normal";  // Compact | Normal | Spacious → row height
+    public static String density = "Compact"; // Compact | Normal | Spacious → row height
     public static float hudScale = 1f;        // reserved for HUD scaling
     public static String clickStyle = "Studio"; // Studio | Cards | Compact rows | Sidebar | Panels | Hub
+
+    static void selectClickStyle(String style) {
+        NoxClient client = NoxClient.INSTANCE;
+        if (client.modules.get("Interface") instanceof Interface ui) ui.clickStyle.set(style);
+        clickStyle = style;
+        client.config.save();
+    }
+
     public static String cardStyle = "Clean";  // Clean | Flat | Glass | Neon
     public static String winStyle  = "Solid";  // Solid | Sky | Glass
     public static boolean reducedMotion;

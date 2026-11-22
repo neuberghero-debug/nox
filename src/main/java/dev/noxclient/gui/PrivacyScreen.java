@@ -1,7 +1,9 @@
 package dev.noxclient.gui;
 
+import dev.noxclient.gui.ds.DS;
 import dev.noxclient.telemetry.Telemetry;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -9,38 +11,71 @@ import net.minecraft.network.chat.Component;
  * First-start telemetry consent (Modul 20.1). Shown once; the choice is
  * persisted to nox/privacy.json. Default is OFF — declining needs no dark
  * pattern to find. Both buttons close the screen.
+ *
+ * Compact, centered, resizable — vanilla Button widgets so mouse AND
+ * keyboard (Tab/Enter) always work, even on tiny windows.
  */
 public class PrivacyScreen extends Screen {
-    public PrivacyScreen() { super(Component.literal("NOX Privacy")); }
+    private static final int PANEL_H = 136;
+    private static final int PAD = 14;
+
+    private final Screen parent;
+    private int panelX, panelY, panelW;
+    private Button decline;
+
+    public PrivacyScreen() { this(null); }
+
+    public PrivacyScreen(Screen parent) {
+        super(Component.literal("Privacy settings"));
+        this.parent = parent;
+    }
 
     @Override
     protected void init() {
-        int cx = width / 2, y = height / 2 + 52;
-        addRenderableWidget(new NoxButton(cx - 116, y, 110, 18, "Enable", () -> {
-            Telemetry.setEnabled(true); onClose();
-        }).primary());
-        addRenderableWidget(new NoxButton(cx + 6, y, 110, 18, "No thanks", () -> {
-            Telemetry.setEnabled(false); onClose();
-        }));
+        panelW = Math.min(280, width - 16);
+        panelX = (width - panelW) / 2;
+        panelY = (height - PANEL_H) / 2;
+        int gap = 8, bw = (panelW - 2 * PAD - gap) / 2;
+        int y = panelY + PANEL_H - PAD - 22;
+        decline = addRenderableWidget(Button.builder(Component.literal("No thanks"),
+                b -> choose(false))
+            .bounds(panelX + PAD, y, bw, 22).build());
+        addRenderableWidget(Button.builder(Component.literal("Enable"),
+                b -> choose(true))
+            .bounds(panelX + PAD + bw + gap, y, bw, 22).build());
+    }
+
+    /** Decline is the default focus — keyboard flow lands on opt-out first. */
+    @Override
+    protected void setInitialFocus() { setInitialFocus(decline); }
+
+    private void choose(boolean enabled) {
+        Telemetry.setEnabled(enabled);
+        onClose();
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float dt) {
-        g.fill(0, 0, width, height, 0xCC08090C);
-        int cx = width / 2, top = height / 2 - 78, w = 340, h = 176;
-        Gui.shadow(g, cx - w / 2, top, w, h, 12);
-        Gui.roundBorder(g, cx - w / 2, top, w, h, 12, 0x267A2BE2, 0xF8141821);
-
-        Gui.textCenter(g, font, "Anonymous usage stats?", cx, top + 16, 0xFFE8E8F0);
-        Gui.textCenter(g, font, "NOX can send anonymous telemetry:", cx, top + 38, 0xFF9B9BA3);
-        Gui.textCenter(g, font, "module toggles · session length · client version", cx, top + 52, 0xFF9B9BA3);
-        Gui.textCenter(g, font, "NEVER: server IPs · names · coords · chat", cx, top + 70, 0xFF66D9A0);
-        Gui.textCenter(g, font, "Default: OFF. Changeable anytime in settings.", cx, top + 88, 0xFF5A5A6E);
+        g.fill(0, 0, width, height, 0xB0080A10);
+        SmoothShapes.roundBorder(g, panelX, panelY, panelW, PANEL_H, 10,
+            DS.border(), DS.winFill());
+        int x = panelX + PAD, y = panelY + PAD;
+        g.text(font, "NOX / PRIVACY", x, y, DS.accent());
+        g.text(font, "Share anonymous usage stats?", x, y + 18, DS.text());
+        g.textWithWordWrap(font,
+            Component.literal("Sends module toggles and session length. "
+                + "No chat, names or coordinates."),
+            x, y + 34, panelW - 2 * PAD, DS.secondary());
+        g.text(font, "Off unless you enable it.", x, y + 70, DS.text());
         super.extractRenderState(g, mx, my, dt);
     }
 
     @Override
-    public void onClose() { Telemetry.markAsked(); super.onClose(); }
+    public void onClose() {
+        Telemetry.markAsked();
+        minecraft.setScreenAndShow(parent);
+    }
+
     @Override
     public boolean isPauseScreen() { return false; }
 }

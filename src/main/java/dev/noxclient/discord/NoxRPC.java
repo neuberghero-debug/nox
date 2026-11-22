@@ -15,7 +15,7 @@ import java.util.UUID;
  */
 public class NoxRPC {
     private static final String CLIENT_ID = "1570175537941454848"; // NOX app
-    private volatile boolean enabled = true, running;
+    private volatile boolean enabled, running;
     private RandomAccessFile pipe; // windows named-pipe path
     private java.nio.channels.SocketChannel chan;
     private java.net.http.WebSocket ws;

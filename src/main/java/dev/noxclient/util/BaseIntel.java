@@ -117,6 +117,8 @@ public final class BaseIntel {
 
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         int totalSec = 0, sIdx = -1;
+        int cobwebs = 0, mossy = 0;
+        boolean portalFrame = false;
         for (var sec : chunk.getSections()) {
             sIdx++;
             totalSec++;
@@ -129,6 +131,10 @@ public final class BaseIntel {
                     var b = chunk.getBlockState(p);
                     if (b.isAir()) { air++; continue; }
                     var bl = b.getBlock();
+                    // natural-structure markers — collected, not scored
+                    if (bl == Blocks.COBWEB) { cobwebs++; continue; }
+                    if (bl == Blocks.MOSSY_COBBLESTONE) { mossy++; continue; }
+                    if (bl == Blocks.END_PORTAL_FRAME) { portalFrame = true; continue; }
                     boolean sig = false;
                     if (bl == Blocks.TORCH || bl == Blocks.WALL_TORCH || bl == Blocks.LADDER
                         || bl == Blocks.RAIL || bl == Blocks.POWERED_RAIL
@@ -152,6 +158,19 @@ public final class BaseIntel {
                 }
             if (sBase < 32 && air > 40) airSec.merge(sIdx, air, Integer::sum);
         }
+
+        // ── natural-structure veto ─────────────────────────────────────
+        // Cobwebs never occur in bases — they ARE the mineshaft/dungeon
+        // signature. Any cobweb in the chunk kills shaft/spawner evidence.
+        // A portal frame = stronghold. Both → reject outright unless the
+        // chunk also carries heavy container evidence (a real stash can sit
+        // next to a mineshaft — containers keep their weight).
+        boolean natural = cobwebs > 0 || portalFrame || (spawner && mossy > 0);
+        if (natural && containers < 6 && shulkers == 0 && crafters == 0) return null;
+        // survived the veto → real stash near a natural structure. The
+        // spawner in natural context must not keep its "dead giveaway"
+        // tag — recompute instant from shulker/crafter only.
+        if (natural) { instant = shulkers > 0 || crafters > 0; spawner = false; }
 
         int sections = sectionY.size();
         double score = containers * 2.0 + hoppers * 2.5 + shulkers * 6 + crafters * 8

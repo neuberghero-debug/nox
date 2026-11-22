@@ -89,7 +89,8 @@ public class ModuleCard {
             on ? accent | 0xFF000000 : UICustom.cardFillTop);
         if (!on) Gui.roundBorder(g, chipX, chipY, 28, 28, 8, UICustom.border, 0);
         ModuleIcons.draw(g, ModuleIcons.forModule(module), chipX + 14, chipY + 14, 14,
-            (on ? UICustom.winFill : accent) & 0xFFFFFF,
+            (on ? UICustom.winFill
+                : dev.noxclient.gui.ds.DS.lerp(0xFF000000 | (accent & 0xFFFFFF), t.text(), .42f)) & 0xFFFFFF,
             System.currentTimeMillis() / 1000f, on, hover);
 
         String ds = module.description == null ? "" : module.description;
@@ -112,8 +113,9 @@ public class ModuleCard {
         // — ⚙ affordance —
         Gui.round(g, gearX(), gearY(), 16, 16, 5,
             gearHover ? UICustom.cardFillTop : 0);
-        Gui.textCenter(g, font, "⚙", gearX() + 8, gearY() + 4,
-            gearHover ? t.text() : UICustom.textDim);
+        ModuleIcons.draw(g, ModuleIcons.Kind.GEAR, gearX() + 8, gearY() + 8, 10,
+            gearHover ? t.text() : UICustom.textDim,
+            System.currentTimeMillis() / 1000f, false, gearHover);
 
         // — ★ favorite — visible when starred or on hover —
         boolean fav = Favorites.is(module);

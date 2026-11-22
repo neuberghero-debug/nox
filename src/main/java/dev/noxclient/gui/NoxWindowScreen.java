@@ -3,6 +3,7 @@ package dev.noxclient.gui;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.noxclient.NoxClient;
 import dev.noxclient.discord.DiscordLink;
+import dev.noxclient.gui.nvg.Nvg;
 import dev.noxclient.gui.nvg.NvgOverlay;
 import dev.noxclient.gui.theme.Theme;
 import dev.noxclient.module.Category;
@@ -45,7 +46,8 @@ public class NoxWindowScreen extends Screen {
     private static final int TITLE_H = 40, TAB_H = 28, SEARCH_H = 28, FOOT_H = 34;
     private static final int MIN_W = 480, MIN_H = 240;
     private static final int GAP = 9;
-    private static final String[] FOOT = {"Discord", "Style", "Alts", "Mplex", "Report", "Suggest", "Share", "Import", "Shop", "GUI", "PANIC"};
+    private static final String[] FOOT = {"Discord", "Style", "Alts", "Mplex", "Report", "Suggest", "Share", "Import", "Shop", "PANIC"};
+    private static final int STUDIO_W = 54;
 
     private long panicArmedAt;
     private final Map<Category, List<ModuleCard>> cards = new EnumMap<>(Category.class);
@@ -137,7 +139,7 @@ public class NoxWindowScreen extends Screen {
 
     // top pill bar (Panels mode): Modules | HUD | Shop | Theme | Discord | search
     private static final String[] PILL_ICON = {"◆", "▤", "★", "◐", "↗", "⌕"};
-    private static final String[] PILL_TXT  = {"Modules", "HUD", "Shop", "Theme", "Discord", ""};
+    private static final String[] PILL_TXT  = {"Studio", "HUD", "Shop", "Theme", "Discord", ""};
     private final List<int[]> pillRects = new ArrayList<>();
     private boolean panelSearch;
 
@@ -167,10 +169,18 @@ public class NoxWindowScreen extends Screen {
         return Math.max(8, PANEL_TOP + row * panelRowH() + (o != null ? o[1] : 0));
     }
     private double scrollOf(Category c) { return panelScroll.getOrDefault(c, 0.0); }
+    /** Search-filtered module list — render AND hit-test must agree or a
+     * click during an active search toggles the wrong module. */
+    private List<Module> panelModules(Category c) {
+        String f = search.toLowerCase(java.util.Locale.ROOT);
+        var all = NoxClient.INSTANCE.modules.by(c);
+        if (f.isEmpty()) return all;
+        return all.stream().filter(m -> m.name.toLowerCase(java.util.Locale.ROOT).contains(f)).toList();
+    }
     private int panelBodyH(Category c) {
         int row = c.ordinal() / panelsPerRow();
         int rowTop = PANEL_TOP + row * panelRowH();
-        return Math.min(NoxClient.INSTANCE.modules.by(c).size() * ROW_H + 6,
+        return Math.min(panelModules(c).size() * ROW_H + 6,
             Math.min(height - panelY(c) - PANEL_HEAD - 12,
                 rowTop + panelRowH() - 6 - panelY(c) - PANEL_HEAD));
     }
@@ -335,13 +345,26 @@ public class NoxWindowScreen extends Screen {
         Gui.textBold(g, font, "N O X", winX + 16, winY + 15, t.text());
         int vw = Gui.width(font, "v" + NoxClient.VERSION) + 12;
         Gui.text(g, font, "v" + NoxClient.VERSION, winX + 64, winY + 15, UICustom.textDim);
-        Gui.text(g, font, NoxClient.INSTANCE.modules.all().size() + " modules · "
-            + Theme.currentName(), winX + 76 + vw, winY + 15, UICustom.textDim);
+        int studioX = studioButtonX();
+        if (studioX - (winX + 76 + vw) >= 125)
+            Gui.text(g, font, NoxClient.INSTANCE.modules.all().size() + " modules · "
+                + Theme.currentName(), winX + 76 + vw, winY + 15, UICustom.textDim);
         Gui.fill(g, winX + 12, winY + TITLE_H - 1, winX + winW - 12, winY + TITLE_H,
             t.accent() & 0x40FFFFFF);
+        boolean studioHover = ModuleCard.inside(mx, my, studioX, winY + 8, STUDIO_W, 22);
+        Gui.roundBorder(g, studioX, winY + 8, STUDIO_W, 22, 6,
+            studioHover ? t.accent() : UICustom.border, UICustom.cardFillBottom);
+        Gui.textCenter(g, font, "Studio", studioX + STUDIO_W / 2, winY + 15, t.text());
         boolean closeHover = ModuleCard.inside(mx, my, winX + winW - 26, winY + 5, 20, 20);
         if (closeHover) Gui.circle(g, winX + winW - 16, winY + 15, 9, 0x40FF5555);
-        Gui.text(g, font, "✕", winX + winW - 20, winY + 10, closeHover ? 0xFFFF5555 : 0xFF888899);
+        {
+            float cxx = winX + winW - 16, cyy = winY + 15;
+            int xcol = closeHover ? 0xFFFF5C7A : 0xFF888899;
+            NvgOverlay.op((nc, st) -> {
+                Nvg.line(nc, st, cxx - 3.4f, cyy - 3.4f, cxx + 3.4f, cyy + 3.4f, 1.4f, xcol);
+                Nvg.line(nc, st, cxx + 3.4f, cyy - 3.4f, cxx - 3.4f, cyy + 3.4f, 1.4f, xcol);
+            });
+        }
 
         if (library()) {
             renderLibrary(g, mx, my, t);
@@ -538,10 +561,8 @@ public class NoxWindowScreen extends Screen {
     /** Meteor-style render: floating columns + centered top pill nav. */
     private void renderPanels(GuiGraphicsExtractor g, int mx, int my, Theme t) {
         renderTopPill(g, mx, my, t);
-        String f = search.toLowerCase();
         for (Category c : Category.values()) {
-            List<Module> mods = NoxClient.INSTANCE.modules.by(c).stream()
-                .filter(m -> f.isEmpty() || m.name.toLowerCase().contains(f)).toList();
+            List<Module> mods = panelModules(c);
             int px = panelX(c), py = panelY(c);
             int row = c.ordinal() / panelsPerRow();
             int rowTop = PANEL_TOP + row * panelRowH();
@@ -562,7 +583,8 @@ public class NoxWindowScreen extends Screen {
             long on = mods.stream().filter(Module::isEnabled).count();
             String cnt = on + "/" + mods.size();
             int cntW = Gui.width(font, cnt + " ⌄");
-            Gui.text(g, font, ModuleCard.catIcon(c), px + 7, py + 6, UICustom.cardAccent);
+            ModuleIcons.draw(g, ModuleIcons.forCategory(c), px + 12, py + 10, 9,
+                UICustom.cardAccent, 0, false, headHover);
             String lb = c.label;
             int maxLb = panelW() - 17 - cntW - 12;
             while (Gui.width(font, lb) > maxLb && lb.length() > 2)
@@ -574,7 +596,10 @@ public class NoxWindowScreen extends Screen {
 
             // module rows — enabled rows render as a filled accent pill
             int bodyY = py + PANEL_HEAD + 2;
-            Gui.clipOn(px, bodyY, px + panelW(), bodyY + bodyH - 4);
+            int clipH = Math.max(0, bodyH - 4);
+            panelScroll.put(c, Math.clamp(scrollOf(c), 0,
+                Math.max(0, mods.size() * ROW_H - clipH)));
+            Gui.clipOn(px, bodyY, px + panelW(), bodyY + clipH);
             int ry = bodyY - (int) scrollOf(c);
             for (Module m : mods) {
                 if (ry + ROW_H > bodyY && ry < bodyY + bodyH) {
@@ -609,7 +634,7 @@ public class NoxWindowScreen extends Screen {
                 width / 2, height - 24, 0xFFFFD870);
     }
 
-    /** Centered top pill: Modules (active) | HUD | Shop | Theme | Discord | ⌕. */
+    /** Centered top pill: Studio | HUD | Shop | Theme | Discord | search. */
     private void renderTopPill(GuiGraphicsExtractor g, int mx, int my, Theme t) {
         pillRects.clear();
         int[] iw = new int[PILL_ICON.length];
@@ -758,7 +783,8 @@ public class NoxWindowScreen extends Screen {
             on ? 0xFFFFFFFF : 0xFF6A6A80);
         if (m.premium) Gui.text(g, font, "★", x + 6, y + 5, 0xFFFFD870);
         if (hov && !m.settings.isEmpty())
-            Gui.text(g, font, "⚙", x + LIB_TILE_W - 14, y + 4, gearHov ? UICustom.cardAccent : 0xFF5A5A6E);
+            ModuleIcons.draw(g, ModuleIcons.Kind.GEAR, x + LIB_TILE_W - 10, y + 10, 9,
+                gearHov ? UICustom.cardAccent : 0xFF5A5A6E, 0, false, gearHov);
         if (panelListening == m)
             Gui.textCenter(g, font, "key…", x + LIB_TILE_W / 2, y + 46, 0xFFFFD870);
     }
@@ -787,6 +813,7 @@ public class NoxWindowScreen extends Screen {
             if (i == PILL_ICON.length) { searchFocused = true; return true; } // inline search field
             if (btn != 0) return true;
             switch (i) {
+                case 0 -> openStudio();
                 case 1 -> { Module hw = NoxClient.INSTANCE.modules.get("HudWidgets");
                             if (hw != null) popup = new SettingsPopup(hw, (int) mx, (int) my, width, height); }
                 case 2 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ShopScreen(this));
@@ -799,7 +826,7 @@ public class NoxWindowScreen extends Screen {
         }
         searchFocused = false;
         for (Category c : Category.values()) {
-            List<Module> mods = NoxClient.INSTANCE.modules.by(c);
+            List<Module> mods = panelModules(c);
             int px = panelX(c), py = panelY(c);
             int bodyH = panelBodyH(c);
             if (ModuleCard.inside(mx, my, px, py, panelW(), PANEL_HEAD)) {
@@ -823,6 +850,13 @@ public class NoxWindowScreen extends Screen {
         return switch (sdl) { case 1 -> 0; case 3 -> 1; case 2 -> 2; default -> sdl; };
     }
 
+    private int studioButtonX() { return winX + winW - STUDIO_W - 34; }
+
+    private void openStudio() {
+        UICustom.selectClickStyle("Studio");
+        minecraft.setScreenAndShow(new NoxClickGui());
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent e, boolean doubleClick) {
         double mx = e.x(), my = e.y();
@@ -842,6 +876,10 @@ public class NoxWindowScreen extends Screen {
 
         if (panels()) return panelsClick(mx, my, btn);
 
+        if (btn == 0 && ModuleCard.inside(mx, my, studioButtonX(), winY + 8, STUDIO_W, 22)) {
+            openStudio();
+            return true;
+        }
         if (ModuleCard.inside(mx, my, winX + winW - 24, winY + 4, 18, 18)) { onClose(); return true; }
         if (ModuleCard.inside(mx, my, winX, winY, winW, TITLE_H)) {
             dragging = true; dragOX = (int) mx - winX; dragOY = (int) my - winY; return true;
@@ -864,11 +902,6 @@ public class NoxWindowScreen extends Screen {
                     case 7 -> minecraft.setScreenAndShow(new dev.noxclient.gui.PresetScreen(this));
                     case 8 -> minecraft.setScreenAndShow(new dev.noxclient.gui.ShopScreen(this));
                     case 9 -> {
-                        dev.noxclient.gui.UICustom.clickStyle = "Studio";
-                        if (NoxClient.INSTANCE.config != null) NoxClient.INSTANCE.config.save();
-                        minecraft.setScreenAndShow(new dev.noxclient.gui.NoxClickGui());
-                    }
-                    case 10 -> {
                         if (System.currentTimeMillis() - panicArmedAt < 2500) {
                             Module p = NoxClient.INSTANCE.modules.get("Panic");
                             if (p != null) p.setEnabled(true);
@@ -957,6 +990,10 @@ public class NoxWindowScreen extends Screen {
         }
         searchFocused = false;
 
+        // clicks outside the card viewport (clipped rows under the search bar
+        // or footer) must not toggle hidden modules
+        if (!ModuleCard.inside(mx, my, contentX(), contentY(), contentW(), contentH()))
+            return super.mouseClicked(e, doubleClick);
         for (ModuleCard c : visible()) {
             int r = c.mouseClicked(mx, my, btn);
             if (r == 2) { popup = new SettingsPopup(c.module, (int) mx, (int) my, width, height); return true; }

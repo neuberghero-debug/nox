@@ -110,7 +110,16 @@ public class Interface extends Module {
         UICustom.winOpacity = (float) (double) winOpacity.get();
         UICustom.glow = (float) (double) glow.get();
         UICustom.animSpeed = (float) (double) animSpeed.get();
-        UICustom.fontScale = (float) (double) fontScale.get();
+        // auto-fit: at default (1.0) the GUI shrinks on small logical screens
+        // (vanilla GUI scale ≥3) instead of overflowing; an explicit setting
+        // still wins as a multiplier on top
+        float autoFit = 1f;
+        var win = net.minecraft.client.Minecraft.getInstance().getWindow();
+        if (win != null) {
+            int lh = Math.max(1, win.getGuiScaledHeight());
+            autoFit = Math.clamp(lh / 420f, 0.72f, 1f);
+        }
+        UICustom.fontScale = (float) (double) fontScale.get() * autoFit;
         UICustom.showStats = showStats.on();
         UICustom.showPinned = showPinned.on();
         UICustom.borderMode = borderMode.get();

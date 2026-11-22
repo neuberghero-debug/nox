@@ -150,3 +150,14 @@
   a texture; `CustomCape.reload()` is async, status via `cape` cmd.
 - ESP: clip box edges at w=0.01 (near plane) — dropping the whole box on one
   clipped corner = the near-range flicker.
+
+## DonutSMP module test notes (session 4)
+- localhost.json preset had `AutoPearl` ENABLED — it pearls the player every few
+  seconds, breaks DigDown tests and cancels UltimateDonutSmp `/tp` warmups.
+  Disable before any movement/dig test.
+- `SusChunkFinder "Min dist from 0,0"` default 256 suppresses ALL flags within
+  256 of spawn — set to 0 for test fixtures near spawn.
+- Fixture commands via `chat` work when op; console `/setblock` fails on
+  unloaded chunks ("That position is not loaded") — tp there first.
+- UltimateDonutSmp `/tp` has ~3s warmup; tp packets during warmup get queued
+  and fire late — don't trust position right after `/tp`.

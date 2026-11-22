@@ -108,8 +108,10 @@ public final class LyricsService {
 
     /** Line active at the current playback position, or "" */
     public static String current() {
-        if (lines.isEmpty()) return "";
-        Map.Entry<Integer, String> e = lines.floorEntry((int) (MediaService.positionSec() * 1000));
+        var snapshot = lines;
+        if (snapshot.isEmpty()) return "";
+        Map.Entry<Integer, String> e =
+            snapshot.floorEntry((int) (MediaService.positionSec() * 1000));
         return e == null ? "" : e.getValue();
     }
 
@@ -117,10 +119,14 @@ public final class LyricsService {
     public static String next() { return neighbor(1); }
 
     private static String neighbor(int dir) {
-        if (lines.isEmpty()) return "";
-        var cur = lines.floorEntry((int) (MediaService.positionSec() * 1000));
+        // snapshot — a mid-read track switch must not pair a cue from the old
+        // track with a neighbor from the freshly fetched one
+        var snapshot = lines;
+        if (snapshot.isEmpty()) return "";
+        var cur = snapshot.floorEntry((int) (MediaService.positionSec() * 1000));
         if (cur == null) return "";
-        var e = dir < 0 ? lines.lowerEntry(cur.getKey()) : lines.higherEntry(cur.getKey());
+        var e = dir < 0 ? snapshot.lowerEntry(cur.getKey())
+                        : snapshot.higherEntry(cur.getKey());
         return e == null ? "" : e.getValue();
     }
 

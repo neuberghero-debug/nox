@@ -54,10 +54,10 @@ public class NoxOverlay implements HudElement {
         drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.DebrisFinder.HITS);
         drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.DebrisFinder.AREAS);
         float hs = dev.noxclient.gui.UICustom.hudScale;
-        // auto-fit: on small logical screens (high vanilla GUI scale) the HUD
-        // shrinks proportionally instead of overflowing; floor keeps it legible
-        float fit = Math.min(1f, Math.min(w / 420f, h / 240f));
-        hs *= Math.max(fit, 0.45f);
+        // auto-fit: HUD tracks the logical screen size — on GUI scale ≥3 it
+        // shrinks proportionally instead of eating half the screen
+        float fit = Math.min(1f, Math.min(w / 560f, h / 320f));
+        hs *= Math.max(fit, 0.5f);
         this.hs = hs;
         if (hs != 1f) {
             g.pose().pushMatrix();
