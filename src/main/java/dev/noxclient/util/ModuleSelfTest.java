@@ -47,18 +47,23 @@ public final class ModuleSelfTest {
         "SecurityAudit", "Replay", "MiddleClickExtra",
         "SkinChanger", "StreamerMode", "NoInteract");
 
+    private static boolean full;
     private static boolean safeLive(Module m, boolean live) {
-        if (!live) return !NEVER.contains(m.name);
-        if (NEVER.contains(m.name) || LIVE_UNSAFE.contains(m.name)) return false;
+        if (NEVER.contains(m.name)) return false;
+        if (full) return true;                     // test-server mode: enable everything
+        if (!live) return true;
+        if (LIVE_UNSAFE.contains(m.name)) return false;
         return m.category != Category.COMBAT && m.category != Category.MOVEMENT
             && m.category != Category.DONUTSMP;
     }
 
-    public static String run(Minecraft mc) {
+    public static String run(Minecraft mc) { return run(mc, false); }
+    public static String run(Minecraft mc, boolean fullMode) {
         if (!RUNNING.compareAndSet(false, true))
             return "modtest running: " + current + " | last: " + summary;
+        full = fullMode;
         new Thread(() -> runAll(mc), "nox-modtest").start();
-        return "modtest started (async, timeout-guarded) — `modtest` again = progress";
+        return "modtest started" + (fullMode ? " FULL (all enables, incl. live actions)" : "") + " — `modtest` again = progress";
     }
 
     private static void runAll(Minecraft mc) {
@@ -114,7 +119,7 @@ public final class ModuleSelfTest {
     /** Runs ON the render thread (mc.execute). Returns notes; FAIL-prefixed = broken. */
     private static List<String> testOne(Module m, Minecraft mc) {
         List<String> notes = new ArrayList<>();
-        boolean live = mc.level != null && mc.getCurrentServer() != null;
+        boolean live = mc.level != null && mc.getCurrentServer() != null && !full;
         try { String st = m.status(); if (st == null) notes.add("status()=null"); }
         catch (Throwable t) { notes.add("FAIL status() " + t); }
 

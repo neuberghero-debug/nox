@@ -177,7 +177,7 @@ public final class DebugConsole {
                     p.length > 1 ? java.nio.file.Path.of(p[1]) : null);
             }
             case "modtest" -> {   // cycle EVERY module + setting once → nox_selftest.log
-                return ModuleSelfTest.run(mc);
+                return ModuleSelfTest.run(mc, p.length > 1 && p[1].equalsIgnoreCase("full"));
             }
             case "audit" -> {   // run the M29 self-check now, return findings
                 dev.noxclient.module.misc.SecurityAudit.run();
