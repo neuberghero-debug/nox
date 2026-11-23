@@ -1,9 +1,11 @@
 # Build NOX yourself
 
 Don't trust the release jar? Good — build it yourself in ~2 minutes and compare
-the checksum. Every GitHub release lists the `sha256` of the attached jar, so a
-self-built jar from the same commit should match (or tell you exactly what
-differs).
+the checksum. Every GitHub release lists the `sha256` of the attached jar. Use it to
+verify the downloaded artifact. A self-built jar is **not expected to have the
+same SHA-256**: release builds embed a per-build watermark timestamp and ZIP
+entry metadata is not normalized. To audit a self-build, diff the class tree or
+compare `assets/noxclient/sig.txt` after excluding `watermark.txt`.
 
 ## Requirements
 
