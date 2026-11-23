@@ -33,7 +33,7 @@ public final class Buttons {
                 Gui.roundBorder(g, x, y, w, h, DS.R_INPUT,
                     DS.lerp(DS.border(), DS.accent(), hover), 0);
             int tc = switch (style) {
-                case PRIMARY -> 0xFFFFFFFF;
+                case PRIMARY -> DS.onAccent();
                 case GHOST -> DS.text();
                 case DANGER -> DS.danger();
             };
@@ -91,7 +91,7 @@ public final class Buttons {
             animate(mx, my, dt);
             int fill = active ? DS.accent() : DS.lerp(DS.surface(), DS.surfaceAlt(), hover);
             Gui.pill(g, x, y, w, h, fill);
-            int tc = active ? 0xFFFFFFFF : DS.lerp(DS.secondary(), DS.text(), hover);
+            int tc = active ? DS.onAccent() : DS.lerp(DS.secondary(), DS.text(), hover);
             int ix = x + 8;
             if (icon != null) { Icons.draw(g, icon, ix, y + (h - 11) / 2f, 11, tc); ix += 15; }
             text(g, f, label, ix, y + (h - 8) / 2, tc);

@@ -113,194 +113,283 @@ public class Cosmetics extends Module {
             && !LicenseManager.assertPremium();
     }
 
+    // ---------- particle helpers ----------
+    private static final java.util.Map<Integer, net.minecraft.core.particles.DustParticleOptions>
+        DUST = new java.util.HashMap<>();
+    /** RGB dust — the whole point: real colors instead of the vanilla set. */
+    private static net.minecraft.core.particles.DustParticleOptions dust(int rgb, float s) {
+        return DUST.computeIfAbsent(((rgb & 0xFFFFFF) << 8) | (int) (s * 10),
+            k -> new net.minecraft.core.particles.DustParticleOptions(rgb & 0xFFFFFF, s));
+    }
+    private void p(net.minecraft.core.particles.ParticleOptions t, double x, double y,
+                   double z, double dx, double dy, double dz) {
+        mc.level.addParticle(t, true, false, x, y, z, dx, dy, dz);
+    }
+    private static int hsv(float h, float s, float v) {
+        h = ((h % 1f) + 1f) % 1f;
+        int i = (int) (h * 6); float f = h * 6 - i, q = v * (1 - s * f), t = v * (1 - s * (1 - f));
+        float r, g, b;
+        switch (i % 6) {
+            case 0 -> { r = v; g = t; b = v * (1 - s); }
+            case 1 -> { r = q; g = v; b = v * (1 - s); }
+            case 2 -> { r = v * (1 - s); g = v; b = t; }
+            case 3 -> { r = v * (1 - s); g = q; b = v; }
+            case 4 -> { r = t; g = v * (1 - s); b = v; }
+            default -> { r = v; g = v * (1 - s); b = q; }
+        }
+        return ((int) (r * 255) << 16) | ((int) (g * 255) << 8) | (int) (b * 255);
+    }
+    private static double rnd(double r) { return (Math.random() - 0.5) * r; }
+    private double lastX, lastY, lastZ;
+
     @Override
     public void onTick() {
         if (mc.player == null || mc.level == null || locked()) return;
         drawAura();
-        if (trail.get().equals("Off")) return;
+        if (trail.get().equals("Off")) { lastX = mc.player.getX(); lastY = mc.player.getY(); lastZ = mc.player.getZ(); return; }
         boolean moving = mc.player.getDeltaMovement().horizontalDistanceSqr() >= 0.001;
         boolean jumped = wasAir && mc.player.onGround();
         wasAir = !mc.player.onGround();
         int n = density.intVal();
         if (jumped && jump.on()) n += 8;
-        else if (!moving) return;
+        else if (!moving) { lastX = mc.player.getX(); lastY = mc.player.getY(); lastZ = mc.player.getZ(); return; }
+        // interpolate along the movement segment so sprints leave a dense line
+        double dx = mc.player.getX() - lastX, dy = mc.player.getY() - lastY,
+               dz = mc.player.getZ() - lastZ;
+        int steps = Math.max(1, Math.min(6, (int) (Math.hypot(dx, dz) / 0.08)));
         for (int i = 0; i < n; i++) {
-            var type = type();
-            double ox = (Math.random() - 0.5) * 0.3, oz = (Math.random() - 0.5) * 0.3;
-            mc.level.addParticle(type, true, false,
-                mc.player.getX() + ox, mc.player.getY() + 0.2 + Math.random() * 0.4,
-                mc.player.getZ() + oz, 0, 0.02, 0);
+            double f = Math.random();
+            double x = mc.player.getX() - dx * f + rnd(0.22);
+            double y = mc.player.getY() - dy * f + 0.12 + Math.random() * 0.35;
+            double z = mc.player.getZ() - dz * f + rnd(0.22);
+            for (int s = 0; s < steps; s++) emitTrail(x - dx * s / steps, y, z - dz * s / steps);
+        }
+        lastX = mc.player.getX(); lastY = mc.player.getY(); lastZ = mc.player.getZ();
+    }
+
+    /** One trail emission — layered: core particle + colored dust + accents. */
+    private void emitTrail(double x, double y, double z) {
+        double t = System.currentTimeMillis() / 1000.0;
+        switch (trail.get()) {
+            case "Hearts" -> {
+                p(ParticleTypes.HEART, x, y + 0.1, z, 0, 0.04, 0);
+                p(dust(0xFF5E8A, 0.5f), x + rnd(0.3), y, z + rnd(0.3), 0, 0.02, 0);
+            }
+            case "Portal" -> {
+                p(ParticleTypes.PORTAL, x, y + 0.15, z, rnd(0.1), 0.1, rnd(0.1));
+                p(dust(0x9B4DFF, 0.6f), x, y, z, 0, 0.06, 0);
+            }
+            case "Cherry" -> {
+                p(ParticleTypes.CHERRY_LEAVES, x + rnd(0.4), y + 0.6, z + rnd(0.4), 0, -0.05, 0);
+                p(dust(0xFFB7C5, 0.5f), x, y, z, 0, 0.01, 0);
+            }
+            case "Notes" -> {
+                p(ParticleTypes.NOTE, x, y + 0.25, z, 0, 0.08, 0);
+                p(dust(0xF5F5F5, 0.45f), x + rnd(0.35), y, z + rnd(0.35), 0, 0.03, 0);
+            }
+            case "Crits" -> {
+                p(ParticleTypes.CRIT, x + rnd(0.3), y + 0.15, z + rnd(0.3), rnd(0.15), 0.05, rnd(0.15));
+                p(dust(0xFFCF5E, 0.5f), x, y, z, 0, 0.03, 0);
+            }
+            case "Soul" -> {
+                p(ParticleTypes.SOUL, x, y + 0.1, z, 0, 0.06, 0);
+                p(dust(0x7BE3E3, 0.55f), x + rnd(0.3), y, z + rnd(0.3), 0, 0.04, 0);
+            }
+            case "Glow" -> {
+                p(ParticleTypes.GLOW, x, y + 0.1, z, 0, 0.02, 0);
+                p(dust(0xFFFFFF, 0.55f), x + rnd(0.25), y, z + rnd(0.25), 0, 0.03, 0);
+            }
+            case "Witch" -> {
+                p(ParticleTypes.WITCH, x, y + 0.15, z, 0, 0.05, 0);
+                p(dust(0xB05CFF, 0.55f), x + rnd(0.3), y, z + rnd(0.3), 0, 0.04, 0);
+            }
+            case "Void" -> {   // rising anti-gravity ash + violet dust
+                p(ParticleTypes.ASH, x + rnd(0.35), y + 0.1, z + rnd(0.35), 0, 0.05, 0);
+                p(dust(0x6A1FCC, 0.6f), x, y, z, 0, 0.08, 0);
+                if (Math.random() < 0.15)
+                    p(ParticleTypes.PORTAL, x, y + 0.2, z, 0, 0.15, 0);
+            }
+            case "Galaxy" -> {
+                p(ParticleTypes.END_ROD, x, y + 0.15, z, 0, 0.04, 0);
+                p(dust(hsv((float) (t * 0.08), 0.55f, 1f), 0.5f), x + rnd(0.4), y, z + rnd(0.4), 0, 0.05, 0);
+                if (Math.random() < 0.1)
+                    p(ParticleTypes.SOUL_FIRE_FLAME, x, y + 0.3, z, 0, 0.05, 0);
+            }
+            case "Rainbow" ->
+                p(dust(hsv((float) (t * 0.22), 0.9f, 1f), 0.7f), x, y + 0.1, z, 0, 0.05, 0);
+            default -> {   // Flame — layered fire + smoke + ember dust
+                p(ParticleTypes.FLAME, x, y + 0.1, z, 0, 0.05, 0);
+                p(dust(0xFF7A2B, 0.55f), x + rnd(0.3), y, z + rnd(0.3), 0, 0.04, 0);
+                if (Math.random() < 0.12)
+                    p(ParticleTypes.LARGE_SMOKE, x, y + 0.3, z, 0, 0.03, 0);
+            }
+        }
+    }
+
+    // ---------- aura primitives ----------
+    private void ringDust(double px, double py, double pz, double r, int n,
+                          int rgb, float scale, double phase, double wobble) {
+        for (int i = 0; i < n; i++) {
+            double a = i / (double) n * Math.PI * 2 + phase;
+            double rr = r + (wobble != 0 ? Math.sin(a * 3 + phase * 2) * wobble : 0);
+            p(dust(rgb, scale), px + Math.cos(a) * rr, py, pz + Math.sin(a) * rr, 0, 0, 0);
         }
     }
 
     private void drawAura() {
-        String a = aura.get();
-        if (a.equals("Off")) return;
+        String au = aura.get();
+        if (au.equals("Off")) return;
         double t = System.currentTimeMillis() / 1000.0;
         double px = mc.player.getX(), py = mc.player.getY(), pz = mc.player.getZ();
-        switch (a) {
+        switch (au) {
             case "Halo" -> {
-                for (int i = 0; i < 12; i++) {
-                    double ang = i / 12.0 * Math.PI * 2 + t * 0.8;
-                    mc.level.addParticle(ParticleTypes.END_ROD, true, false,
-                        px + Math.cos(ang) * 0.45, py + 2.15 + Math.sin(t * 2) * 0.05,
-                        pz + Math.sin(ang) * 0.45, 0, 0, 0);
-                }
+                ringDust(px, py + 2.12 + Math.sin(t * 2) * 0.05, pz, 0.5, 18, 0xF5F5F5, 0.5f, t * 0.7, 0);
+                ringDust(px, py + 2.12 + Math.sin(t * 2) * 0.05, pz,
+                    0.32 + Math.sin(t * 1.6) * 0.06, 12, 0x9A9A9A, 0.35f, -t * 1.1, 0);
             }
             case "Orbit" -> {
-                for (int ring = 0; ring < 2; ring++) {
-                    double ang = t * 2.4 + ring * Math.PI;
-                    double y = py + 0.4 + ring * 0.9 + Math.sin(t * 3) * 0.15;
-                    mc.level.addParticle(ring == 0 ? ParticleTypes.SOUL_FIRE_FLAME
-                            : ParticleTypes.END_ROD, true, false,
-                        px + Math.cos(ang) * 0.8, y, pz + Math.sin(ang) * 0.8, 0, 0.01, 0);
+                for (int i = 0; i < 3; i++) {
+                    double a = t * 1.8 + i * Math.PI * 2 / 3;
+                    double y = py + 1.0 + Math.sin(a) * 0.45;
+                    double r = 0.85;
+                    int col = new int[]{0x9B4DFF, 0xF5F5F5, 0x5AC8FF}[i];
+                    p(dust(col, 0.8f), px + Math.cos(a) * r, y, pz + Math.sin(a) * r, 0, 0, 0);
+                    p(dust(col, 0.35f), px + Math.cos(a) * r * 0.94, y,
+                        pz + Math.sin(a) * r * 0.94, 0, 0, 0);
                 }
             }
             case "Wings" -> {
                 float yaw = (float) Math.toRadians(mc.player.getYRot());
                 double bx = -Math.sin(yaw), bz = Math.cos(yaw);
-                for (int i = 1; i <= 6; i++) {
-                    double spread = i * 0.09, h = 1.9 - i * 0.22;
-                    for (int side : new int[]{-1, 1}) {
-                        double sx = px + bx * 0.25 - bz * side * spread;
-                        double sz = pz + bz * 0.25 + bx * side * spread;
-                        mc.level.addParticle(ParticleTypes.SOUL_FIRE_FLAME, true, false,
-                            sx, py + h + Math.sin(t * 4 + i) * 0.04, sz, 0, 0, 0);
+                double flap = Math.sin(t * 3.2) * 0.06;
+                for (int row = 0; row < 3; row++)
+                    for (int i = 1; i <= 7; i++) {
+                        double spread = i * (0.10 + row * 0.025);
+                        double h = 1.95 - i * 0.20 - row * 0.28 + flap * i / 4;
+                        for (int side : new int[]{-1, 1}) {
+                            double sx = px + bx * (0.25 + row * 0.12) - bz * side * spread;
+                            double sz = pz + bz * (0.25 + row * 0.12) + bx * side * spread;
+                            p(row == 0 ? dust(0xF5F5F5, 0.6f)
+                                    : row == 1 ? dust(0xB8C4E0, 0.5f)
+                                    : dust(0x5AC8FF, 0.4f),
+                                sx, py + h, sz, 0, 0, 0);
+                        }
                     }
-                }
             }
             case "FlameRing" -> {
-                for (int i = 0; i < 16; i++) {
-                    double ang = i / 16.0 * Math.PI * 2 - t * 1.5;
-                    mc.level.addParticle(ParticleTypes.FLAME, true, false,
-                        px + Math.cos(ang) * 0.7, py + 0.1 + i * 0.08,
-                        pz + Math.sin(ang) * 0.7, 0, 0.03, 0);
+                for (int i = 0; i < 18; i++) {
+                    double a = i / 18.0 * Math.PI * 2 - t * 1.6;
+                    p(ParticleTypes.FLAME, px + Math.cos(a) * 0.7, py + 0.12, pz + Math.sin(a) * 0.7,
+                        0, 0.03, 0);
+                }
+                for (int i = 0; i < 10; i++) {
+                    double a = i / 10.0 * Math.PI * 2 + t * 0.9;
+                    double h = (i / 10.0) * 1.6;
+                    p(dust(0xFF7A2B, 0.5f), px + Math.cos(a) * (0.7 - h * 0.25),
+                        py + 0.15 + h, pz + Math.sin(a) * (0.7 - h * 0.25), 0, 0, 0);
                 }
             }
             case "Tornado" -> {
-                for (int i = 0; i < 24; i++) {
-                    double h = i / 24.0 * 2.2;
-                    double ang = i * 0.9 + t * 4;
-                    double r = 0.25 + h * 0.3;
-                    mc.level.addParticle(ParticleTypes.CLOUD, true, false,
-                        px + Math.cos(ang) * r, py + h, pz + Math.sin(ang) * r, 0, 0, 0);
+                for (int i = 0; i < 26; i++) {
+                    double h = i / 26.0 * 2.3;
+                    double a = i * 0.9 + t * 4.5;
+                    double r = 0.18 + h * 0.32;
+                    p(i % 3 == 0 ? ParticleTypes.CLOUD : dust(0x8A8F9A, 0.45f),
+                        px + Math.cos(a) * r, py + h, pz + Math.sin(a) * r, 0, 0, 0);
                 }
             }
             case "Fountain" -> {
-                for (int i = 0; i < 6; i++)
-                    mc.level.addParticle(ParticleTypes.END_ROD, true, false,
-                        px + (Math.random() - 0.5) * 0.2, py + 2.1,
-                        pz + (Math.random() - 0.5) * 0.2,
-                        (Math.random() - 0.5) * 0.15, 0.25,
-                        (Math.random() - 0.5) * 0.15);
+                for (int i = 0; i < 5; i++)
+                    p(ParticleTypes.END_ROD, px + rnd(0.18), py + 2.05, pz + rnd(0.18),
+                        rnd(0.18), 0.28, rnd(0.18));
+                for (int i = 0; i < 4; i++)
+                    p(dust(0xF5F5F5, 0.4f), px + rnd(0.3), py + 2.2 + Math.random() * 0.5,
+                        pz + rnd(0.3), rnd(0.25), 0.1, rnd(0.25));
             }
             case "Galaxy Halo" -> {
-                for (int i = 0; i < 20; i++) {
-                    double ang = i / 20.0 * Math.PI * 2 + t * 1.2;
-                    double wob = Math.sin(t * 3 + i) * 0.12;
-                    mc.level.addParticle(i % 3 == 0 ? ParticleTypes.SOUL_FIRE_FLAME
-                            : ParticleTypes.END_ROD, true, false,
-                        px + Math.cos(ang) * (0.6 + wob), py + 2.2 + wob * 0.5,
-                        pz + Math.sin(ang) * (0.6 + wob), 0, 0, 0);
+                for (int i = 0; i < 22; i++) {
+                    double a = i / 22.0 * Math.PI * 2 + t * 1.1;
+                    double wob = Math.sin(t * 3 + i * 1.3) * 0.12;
+                    p(dust(i % 4 == 0 ? 0xF5F5F5 : 0x9B4DFF, 0.5f),
+                        px + Math.cos(a) * (0.62 + wob), py + 2.18 + wob * 0.5,
+                        pz + Math.sin(a) * (0.62 + wob), 0, 0, 0);
                 }
+                double sa = t * 2.6;
+                p(ParticleTypes.END_ROD, px + Math.cos(sa) * 0.62, py + 2.18,
+                    pz + Math.sin(sa) * 0.62, 0, 0, 0);
             }
             case "Helix" -> {
                 for (int s = 0; s < 2; s++)
-                    for (int i = 0; i < 12; i++) {
-                        double h = i / 12.0 * 2.1;
-                        double ang = h * 3 + t * 2.2 + s * Math.PI;
-                        mc.level.addParticle(s == 0 ? ParticleTypes.END_ROD
-                                : ParticleTypes.SOUL_FIRE_FLAME, true, false,
-                            px + Math.cos(ang) * 0.55, py + h,
-                            pz + Math.sin(ang) * 0.55, 0, 0, 0);
+                    for (int i = 0; i < 14; i++) {
+                        double h = i / 14.0 * 2.15;
+                        double a = h * 3 + t * 2.4 + s * Math.PI;
+                        p(dust(s == 0 ? 0xF5F5F5 : 0x9B4DFF, 0.5f),
+                            px + Math.cos(a) * 0.55, py + h, pz + Math.sin(a) * 0.55, 0, 0, 0);
                     }
             }
             case "BlackHole" -> {
-                for (int i = 0; i < 18; i++) {
-                    double h = i / 18.0 * 1.9;
-                    double ang = i * 0.7 - t * 5;
-                    double r = 0.9 - h * 0.35;
-                    mc.level.addParticle(i % 4 == 0 ? ParticleTypes.END_ROD
-                            : ParticleTypes.ASH, true, false,
-                        px + Math.cos(ang) * r, py + 0.3 + h,
-                        pz + Math.sin(ang) * r, 0, 0, 0);
+                for (int i = 0; i < 16; i++) {
+                    double h = i / 16.0 * 1.7;
+                    double a = i * 0.75 - t * 4.5;
+                    double r = 0.8 - h * 0.34;
+                    p(dust(i % 3 == 0 ? 0x9B4DFF : 0x18181E, 0.45f),
+                        px + Math.cos(a) * r, py + 0.25 + h, pz + Math.sin(a) * r, 0, 0, 0);
                 }
-                for (int i = 0; i < 8; i++) {   // accretion ring at head height
-                    double ang = i / 8.0 * Math.PI * 2 + t * 3;
-                    mc.level.addParticle(ParticleTypes.FLAME, true, false,
-                        px + Math.cos(ang) * 0.5, py + 1.1,
-                        pz + Math.sin(ang) * 0.5, 0, 0, 0);
-                }
+                ringDust(px, py + 1.05 + Math.sin(t * 1.5) * 0.04, pz,
+                    0.55, 16, 0xF5F5F5, 0.5f, t * 3, 0);
+                ringDust(px, py + 1.05, pz, 0.38, 10, 0x9B4DFF, 0.45f, -t * 2.2, 0.03);
             }
             case "EmberCrown" -> {
                 for (int i = 0; i < 10; i++) {
-                    double ang = i / 10.0 * Math.PI * 2;
-                    mc.level.addParticle(ParticleTypes.LAVA, true, false,
-                        px + Math.cos(ang) * 0.4, py + 2.25 + Math.sin(t * 3 + i) * 0.06,
-                        pz + Math.sin(ang) * 0.4, 0, 0, 0);
+                    double a = i / 10.0 * Math.PI * 2;
+                    p(ParticleTypes.LAVA, px + Math.cos(a) * 0.42,
+                        py + 2.28 + Math.sin(t * 3 + i) * 0.07, pz + Math.sin(a) * 0.42, 0, 0, 0);
                 }
+                ringDust(px, py + 2.28, pz, 0.42, 10, 0xFF7A2B, 0.4f, t, 0.02);
             }
             case "Aurora" -> {
-                for (int i = 0; i < 3; i++) {
-                    double ang = Math.random() * Math.PI * 2;
-                    double r = 0.5 + Math.random() * 0.6;
-                    var pt = RAINBOW[(int) (t * 2 + i) % RAINBOW.length];
-                    mc.level.addParticle(pt, true, false,
-                        px + Math.cos(ang) * r,
-                        py + 0.2 + Math.random() * 2.2,
-                        pz + Math.sin(ang) * r, 0, 0.02, 0);
+                for (int c = 0; c < 3; c++) {
+                    double base = c * Math.PI * 2 / 3 + t * 0.3;
+                    for (int i = 0; i < 5; i++) {
+                        double a = base + Math.sin(t * 0.8 + i) * 0.2;
+                        double r = 0.55 + Math.sin(t + c) * 0.15;
+                        p(dust(hsv((float) (0.55 + c * 0.12 + t * 0.03), 0.8f, 1f), 0.55f),
+                            px + Math.cos(a) * r, py + 0.3 + i * 0.45, pz + Math.sin(a) * r,
+                            0, 0.02, 0);
+                    }
                 }
             }
             case "Petals" -> {
                 for (int i = 0; i < 3; i++)
-                    mc.level.addParticle(ParticleTypes.CHERRY_LEAVES, true, false,
-                        px + (Math.random() - 0.5) * 1.6,
-                        py + 2.4 + Math.random() * 0.4,
-                        pz + (Math.random() - 0.5) * 1.6,
-                        0, -0.08, 0);
+                    p(ParticleTypes.CHERRY_LEAVES, px + rnd(1.7), py + 2.5 + Math.random() * 0.4,
+                        pz + rnd(1.7), 0, -0.08, 0);
+                for (int i = 0; i < 3; i++)
+                    p(dust(0xFFB7C5, 0.45f), px + rnd(1.5), py + 2.2 + Math.random() * 0.6,
+                        pz + rnd(1.5), 0, -0.05, 0);
             }
             case "Spark" -> {
                 for (int i = 0; i < 2; i++)
-                    mc.level.addParticle(ParticleTypes.ELECTRIC_SPARK, true, false,
-                        px + (Math.random() - 0.5) * 0.8,
-                        py + Math.random() * 2.1,
-                        pz + (Math.random() - 0.5) * 0.8,
-                        (Math.random() - 0.5) * 0.1, 0.05,
-                        (Math.random() - 0.5) * 0.1);
+                    p(ParticleTypes.ELECTRIC_SPARK, px + rnd(0.9), py + Math.random() * 2.1,
+                        pz + rnd(0.9), rnd(0.15), 0.06, rnd(0.15));
+                if (Math.random() < 0.3)
+                    p(dust(0xEAF6FF, 0.65f), px + rnd(0.7), py + 0.5 + Math.random() * 1.4,
+                        pz + rnd(0.7), 0, 0, 0);
             }
             case "Storm" -> {
                 for (int i = 0; i < 4; i++) {
-                    double ang = Math.random() * Math.PI * 2;
-                    mc.level.addParticle(ParticleTypes.SOUL, true, false,
-                        px + Math.cos(ang) * (0.3 + Math.random() * 0.5),
-                        py + 2.4 + Math.random() * 0.4,
-                        pz + Math.sin(ang) * (0.3 + Math.random() * 0.5), 0, -0.05, 0);
+                    double a = Math.random() * Math.PI * 2;
+                    p(ParticleTypes.SOUL, px + Math.cos(a) * (0.3 + Math.random() * 0.5),
+                        py + 2.4 + Math.random() * 0.4, pz + Math.sin(a) * (0.3 + Math.random() * 0.5),
+                        0, -0.06, 0);
                 }
+                for (int i = 0; i < 3; i++)
+                    p(dust(0x5AC8FF, 0.4f), px + rnd(1.0), py + 2.6, pz + rnd(1.0), 0, -0.15, 0);
+                if (Math.random() < 0.08)
+                    p(ParticleTypes.ELECTRIC_SPARK, px + rnd(0.6), py + 2.3, pz + rnd(0.6), 0, -0.1, 0);
             }
         }
     }
 
-    private SimpleParticleType type() {
-        return switch (trail.get()) {
-            case "Hearts" -> ParticleTypes.HEART;
-            case "Portal" -> ParticleTypes.PORTAL;
-            case "Cherry" -> ParticleTypes.CHERRY_LEAVES;
-            case "Notes" -> ParticleTypes.NOTE;
-            case "Crits" -> ParticleTypes.CRIT;
-            case "Soul" -> ParticleTypes.SOUL;
-            case "Glow" -> ParticleTypes.GLOW;
-            case "Witch" -> ParticleTypes.WITCH;
-            case "Void" -> ParticleTypes.ASH;
-            case "Galaxy" -> ParticleTypes.END_ROD;
-            case "Rainbow" -> RAINBOW[(int) (System.currentTimeMillis() / 300) % RAINBOW.length];
-            default -> ParticleTypes.FLAME;
-        };
-    }
-
-    private static final SimpleParticleType[] RAINBOW = {
-        ParticleTypes.FLAME, ParticleTypes.HEART, ParticleTypes.HAPPY_VILLAGER,
-        ParticleTypes.NOTE, ParticleTypes.END_ROD, ParticleTypes.SOUL_FIRE_FLAME
-    };
     @Override public String status() {
         var sb = new StringBuilder();
         if (!trail.get().equals("Off")) sb.append("trail:").append(trail.get()).append(' ');

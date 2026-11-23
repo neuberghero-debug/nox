@@ -30,7 +30,8 @@ public abstract class ScreenMixin {
     private void nox$chrome(GuiGraphicsExtractor g, int mx, int my, float dt, CallbackInfo ci) {
         Screen self = (Screen) (Object) this;
         if (self instanceof NoxWindowScreen || self instanceof dev.noxclient.gui.NoxInviteScreen
-            || self instanceof dev.noxclient.gui.NoxClickGui) return;
+            || self instanceof dev.noxclient.gui.NoxClickGui
+            || self instanceof dev.noxclient.gui.NoxMenuScreen) return;
         Theme t = Theme.current();
 
         boolean loading = self instanceof ProgressScreen
@@ -43,8 +44,8 @@ public abstract class ScreenMixin {
             // screen center, so it must stay well clear of that band
             int cx = width / 2, top = height / 5;
             g.fill(cx - 70, top, cx + 70, top + 2, t.accent());
-            g.centeredText(font, "N O X", cx, top + 8, t.accent());
-            g.centeredText(font, "DonutSMP client", cx, top + 20, t.text());
+            Gui.textCenterBold(g, font, "N O X", cx, top + 8, t.accent());
+            Gui.textCenter(g, font, "DonutSMP client", cx, top + 20, t.text());
         }
 
         // subtle footer: accent hairline bottom, invite top-right (no overlap)

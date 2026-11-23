@@ -460,7 +460,6 @@ async function rehydrateOrders(guild) {
 }
 
 const PANELS = [
-  ['verify', config.channels.verify, verifyPayload],
   ['ticket', config.channels.openTicket, ticketPayload],
   ['roles', config.channels.roles, rolesPayload],
   ['pings', config.channels.pings, pingsPayload],

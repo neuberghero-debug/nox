@@ -11,8 +11,8 @@ import dev.noxclient.setting.Setting;
  * and click-GUI layout — applied live to all NOX screens.
  */
 public class Interface extends Module {
-    public final Setting.Mode theme = add(new Setting.Mode("Theme", "NOX Dark",
-        "NOX Dark", "Midnight", "Snow", "Custom"));
+    public final Setting.Mode theme = add(new Setting.Mode("Theme", "Blacknox",
+        "Blacknox", "NOX Dark", "Midnight", "Snow", "Custom"));
     public final Setting.Col accent  = add(new Setting.Col("Window accent", 0xFF7A2BE2));
     public final Setting.Col cardAcc = add(new Setting.Col("Card accent", 0xFF7A2BE2));
     public final Setting.Mode cardStyle = add(new Setting.Mode("Card style", "Clean",
@@ -125,10 +125,10 @@ public class Interface extends Module {
         UICustom.borderMode = borderMode.get();
         if (!season.get().equals(lastSeason)) {
             lastSeason = season.get();
-            Theme.set("Auto".equals(lastSeason) ? Theme.seasonIndex() : Theme.indexOf(lastSeason));
-        } else if ("Auto".equals(season.get()) && Theme.index() != Theme.seasonIndex()
-                && !Theme.seasonName().isEmpty()) {
-            Theme.set(Theme.seasonIndex());   // calendar rolled over while Auto is on
+            // A NAMED season applies its theme (explicit seasonal look).
+            // "Auto" only makes the seasonal FX follow the calendar — it must
+            // NOT touch the theme, or the user's theme pick is unreachable.
+            if (!"Auto".equals(lastSeason)) Theme.set(Theme.indexOf(lastSeason));
         }
         if (!theme.get().equals(lastTheme)) {
             lastTheme = theme.get();
@@ -141,17 +141,6 @@ public class Interface extends Module {
     /** Theme presets own the palette — explicit color settings apply under "Custom". */
     private void applyThemePalette() {
         Theme th = Theme.current();
-        if ("Custom".equals(th.name())) return;
-        int tbg = th.background() & 0xFFFFFF;
-        UICustom.bg        = tbg | 0xEE000000;
-        UICustom.guiBg     = tbg | 0xFF000000;
-        UICustom.accent    = th.accent() | 0xFF000000;
-        UICustom.cardAccent= th.moduleEnabled() | 0xFF000000;
-        UICustom.accent2   = dev.noxclient.gui.ds.DS.lighten(th.accent(), .35f);
-        UICustom.text      = th.text() | 0xFF000000;
-        UICustom.header    = th.header() | 0xFF000000;
-        UICustom.winFill   = dev.noxclient.gui.ds.DS.lighten(tbg | 0xFF000000, .08f);
-        UICustom.cardFillTop    = dev.noxclient.gui.ds.DS.lighten(tbg | 0xFF000000, .16f) & 0xFBFFFFFF;
-        UICustom.cardFillBottom = dev.noxclient.gui.ds.DS.lighten(tbg | 0xFF000000, .09f) & 0xFBFFFFFF;
+        if (!"Custom".equals(th.name())) th.applyPalette();
     }
 }

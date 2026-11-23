@@ -32,6 +32,7 @@ public class SusChunkFinder extends Module {
     private final Map<ChunkPos, Long> seenAt = new HashMap<>();
     private final Map<ChunkPos, Long> scannedAt = new HashMap<>();
     private final Set<ChunkPos> notified = new HashSet<>();
+    private final Set<ChunkPos> instNotified = new HashSet<>();
     private final Set<ChunkPos> instant = new HashSet<>();
 
     public SusChunkFinder() { super("SusChunkFinder", "BaseRadar — weighted base signals", Category.DONUTSMP); }
@@ -74,8 +75,12 @@ public class SusChunkFinder extends Module {
             double score = score(mc.level.getChunk(cp.x(), cp.z()), cp);
             if (score >= minScore.get()) {
                 scores.put(cp, score);
-                if (notify.on() && notified.add(cp)) flag(cp, score);
-            } else scores.remove(cp);
+                // instant-upgrade must re-notify: a chunk flagged at score 10
+                // then upgraded to INSTANT later would otherwise stay silent
+                if (notify.on() && (notified.add(cp)
+                    || (instant.contains(cp) && instNotified.add(cp)))) flag(cp, score);
+                if (score < 100) instant.remove(cp);   // rescan: shulkers gone → drop the tag
+            } else { scores.remove(cp); instant.remove(cp); }
         }
     }
 
@@ -84,12 +89,15 @@ public class SusChunkFinder extends Module {
     private double score(net.minecraft.world.level.chunk.LevelChunk chunk, ChunkPos cp) {
         double s = 0;
         boolean trialOnly = true;
+        int shulkers = 0, crafters = 0, otherStorage = 0;
         for (BlockEntity be : chunk.getBlockEntities().values()) {
-            if (be instanceof ShulkerBoxBlockEntity) { if (shulkerHit.on()) { instant.add(cp); return 100; } s += 8; trialOnly = false; }
-            else if (be instanceof CrafterBlockEntity) { if (crafterHit.on()) { instant.add(cp); return 100; } s += 6; trialOnly = false; }
-            else if (be instanceof ChestBlockEntity) { s += 2; trialOnly = false; }
-            else if (be instanceof BarrelBlockEntity) { s += 2; trialOnly = false; }
-            else if (be instanceof HopperBlockEntity) { s += 1.5; trialOnly = false; }
+            // a LONE shulker/crafter can be casually placed junk — instant-hit
+            // only with storage context (2+ shulkers, or box next to real storage)
+            if (be instanceof ShulkerBoxBlockEntity) { shulkers++; s += 6; trialOnly = false; }
+            else if (be instanceof CrafterBlockEntity) { crafters++; s += 6; trialOnly = false; }
+            else if (be instanceof ChestBlockEntity) { otherStorage++; s += 2; trialOnly = false; }
+            else if (be instanceof BarrelBlockEntity) { otherStorage++; s += 2; trialOnly = false; }
+            else if (be instanceof HopperBlockEntity) { otherStorage++; s += 1.5; trialOnly = false; }
             else if (be instanceof net.minecraft.world.level.block.entity.SpawnerBlockEntity) {
                 // natural spawners sit in cobweb/mossy-cobble rooms — a
                 // dungeon + its 2 loot chests used to cross minScore alone.
@@ -111,8 +119,9 @@ public class SusChunkFinder extends Module {
             else if (be instanceof BeaconBlockEntity) { s += 5; trialOnly = false; }
             else { s += 0.5; }   // misc tile-entity density
         }
-        // natural-spawner check: dungeon rooms = mossy cobblestone walls,
-        // mineshaft spawners sit inside cobwebs. ~12 probes, cheap.
+        // instant-hit needs context — one shulker/crafter alone proves nothing
+        if (shulkerHit.on() && shulkers >= 1 && (shulkers >= 2 || otherStorage >= 2)) { instant.add(cp); return 100; }
+        if (crafterHit.on() && crafters >= 1 && (crafters >= 2 || otherStorage >= 1)) { instant.add(cp); return 100; }
         if (trialOnly) return 0;   // pure trial-chamber content is natural
         // cross-signals: ChunkFinder flag + live activity + entity hits
         var cf = dev.noxclient.NoxClient.INSTANCE.modules.get("ChunkFinder");
@@ -143,7 +152,7 @@ public class SusChunkFinder extends Module {
         if (m > 0) {
             double sx = 0, sz = 0; int n = 0;
             for (ChunkPos o : scores.keySet())
-                if (Math.abs(o.x() - cp.x()) <= m && Math.abs(o.z() - cp.z()) <= m) { sx += o.x(); sz += o.z(); n++; }
+                if (!o.equals(cp) && Math.abs(o.x() - cp.x()) <= m && Math.abs(o.z() - cp.z()) <= m) { sx += o.x(); sz += o.z(); n++; }
             if (n > 0) { sx += cp.x(); sz += cp.z(); n++; mid = new ChunkPos((int) Math.round(sx / n), (int) Math.round(sz / n)); }
         }
         if (mc.player != null)
@@ -163,6 +172,7 @@ public class SusChunkFinder extends Module {
     public Set<ChunkPos> instant() { return instant; }
 
     @Override protected void onDisable() {
-        scores.clear(); seenAt.clear(); scannedAt.clear(); notified.clear(); instant.clear();
+        scores.clear(); seenAt.clear(); scannedAt.clear();
+        notified.clear(); instNotified.clear(); instant.clear();
     }
 }

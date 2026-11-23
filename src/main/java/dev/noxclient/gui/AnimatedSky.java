@@ -22,7 +22,7 @@ public final class AnimatedSky {
 
     private static final List<Frame> FRAMES = new ArrayList<>();
     private static boolean scanned;
-    private static long frameMs = 100; // 10 fps — matches shipped frame count
+    private static long frameMs = 66; // ~15fps — smoother, 88 frames ≈ 5.8s loop
 
     public static boolean render(GuiGraphicsExtractor g, int w, int h) {
         return render(g, 0, 0, w, h);

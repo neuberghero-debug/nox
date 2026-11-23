@@ -47,29 +47,47 @@ public class ArtificialLightFinder extends Module {
     }
 
     private void scan(ChunkPos cp) {
-        int sea = mc.level.getSeaLevel();
         var engine = mc.level.getChunkSource().getLightEngine();
         var blocks = engine.getLayerListener(LightLayer.BLOCK);
         var sky = engine.getLayerListener(LightLayer.SKY);
-        for (BlockPos pos : BlockPos.betweenClosed(cp.getMinBlockX(), mc.level.getMinY(),
-                cp.getMinBlockZ(), cp.getMaxBlockX(), sea - 1, cp.getMaxBlockZ())) {
-            if (blocks.getLightValue(pos) >= minLight.get()
-                && sky.getLightValue(pos) == 0
-                // lava emits block-light 15 at sky 0 — without the neighbor
-                // probe every lava cave below sea level read as "player light"
-                && !nearLava(pos)) {
-                hits.add(pos.immutable());
-            }
+        // section prefilter: a section with NO block-light data can't flag —
+        // prunes ~90% of the column before the per-block loop
+        int s0 = mc.level.getMinSectionY(), s1 = mc.level.getMaxSectionY();
+        for (int sy = s0; sy < s1; sy++) {
+            var sec = net.minecraft.core.SectionPos.of(cp, sy);
+            if (blocks.getDataLayerData(sec) == null) continue;
+            int y0 = Math.max(mc.level.getMinY(), sy << 4);
+            int y1 = Math.min(mc.level.getMaxY(), (sy << 4) + 15);
+            for (int x = cp.getMinBlockX(); x <= cp.getMaxBlockX(); x++)
+                for (int z = cp.getMinBlockZ(); z <= cp.getMaxBlockZ(); z++)
+                    for (int y = y0; y <= y1; y++) {
+                        BlockPos pos = new BlockPos(x, y, z);
+                        if (blocks.getLightValue(pos) >= minLight.get()
+                            && sky.getLightValue(pos) == 0
+                            && !lavaSourced(pos, blocks)) hits.add(pos);
+                    }
         }
     }
 
-    /** 3³ probe — light sourced by lava (itself or an adjacent pool) is natural. */
-    private boolean nearLava(BlockPos pos) {
-        var lava = net.minecraft.world.level.block.Blocks.LAVA;
-        for (int dx = -1; dx <= 1; dx++)
-            for (int dy = -1; dy <= 1; dy++)
-                for (int dz = -1; dz <= 1; dz++)
-                    if (mc.level.getBlockState(pos.offset(dx, dy, dz)).is(lava)) return true;
+    /** Uphill walk in light space to the emitting block — if the source is
+     *  lava the light is natural. Lava emits 15, so a ±1 probe could not
+     *  catch light 5 blocks off a pool; following the gradient always can. */
+    private boolean lavaSourced(BlockPos start,
+            net.minecraft.world.level.lighting.LayerLightEventListener blocks) {
+        BlockPos.MutableBlockPos p = start.mutable();
+        for (int step = 0; step < 12; step++) {
+            var st = mc.level.getBlockState(p);
+            if (st.getLightEmission() > 0)
+                return st.is(net.minecraft.world.level.block.Blocks.LAVA);
+            int lv = blocks.getLightValue(p);
+            BlockPos next = null;
+            for (var d : net.minecraft.core.Direction.values()) {
+                var n = p.relative(d);
+                if (blocks.getLightValue(n) > lv) { lv = blocks.getLightValue(n); next = n; }
+            }
+            if (next == null) return false;   // lit but no visible source — flag it
+            p.set(next);
+        }
         return false;
     }
 

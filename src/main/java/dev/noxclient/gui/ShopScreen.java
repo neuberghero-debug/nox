@@ -1,5 +1,6 @@
 package dev.noxclient.gui;
 
+import dev.noxclient.gui.ds.DS;
 import dev.noxclient.gui.theme.Theme;
 import dev.noxclient.module.render.Cosmetics;
 import dev.noxclient.premium.LicenseManager;
@@ -8,14 +9,26 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.client.renderer.entity.player.AvatarRenderer;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.core.ClientAsset;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.player.PlayerSkin;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * NOX cosmetics shop — card grid with filter tabs, one-click equip for
- * owned items and the Discord /buy handoff for premium keys (crypto).
+ * NOX cosmetics shop — 3D try-on: the left panel renders your actual skin on
+ * a turntable with the selected cosmetic previewed live (every item can be
+ * tried before buying — that's the hook). Right column: filter tabs + the
+ * item list. Premium items unlock via the Discord /buy handoff (crypto).
  */
 public class ShopScreen extends Screen {
     private record Item(String name, String desc, String kind, String value,
@@ -68,11 +81,26 @@ public class ShopScreen extends Screen {
     private static final String[] KIND = {null, "trail", "aura", "kill", "cape"};
 
     private final Screen parent;
-    private final List<int[]> rects = new ArrayList<>();   // item buttons {x,y,w,h,itemIdx}
+    private final List<int[]> rects = new ArrayList<>();      // CTA + row hitboxes {x,y,w,h,itemIdx}
     private final List<int[]> tabRects = new ArrayList<>();
     private int tab, scroll;
     private int[] activateRect;
+    private int[] ctaRect;
+    private int[] previewRect;
     private final java.util.Map<String, Float> hoverT = new java.util.HashMap<>();
+
+    // — preview state —
+    private int selIdx = -1;                 // ITEMS index under preview (-1 = first visible)
+    private float selGlow;                   // lerped selection glow
+    private long tabAnimAt;                  // stagger anchor for row entrance
+    private float dragYaw;                   // user drag offset on the turntable
+    private int dragStartX = -1;
+    private float dragBase;
+    private AvatarRenderState avatar;        // cached render state (model wired)
+    private volatile PlayerSkin resolvedSkin;
+    private boolean skinFetchStarted;
+    private static Throwable entityErr;      // first preview failure (debug)
+    private static boolean dbgTheme;
 
     private static int lerp(int a, int b, float t) {
         return (((a >>> 24 & 0xFF) + (int) (((b >>> 24 & 0xFF) - (a >>> 24 & 0xFF)) * t)) << 24)
@@ -89,25 +117,187 @@ public class ShopScreen extends Screen {
         return out;
     }
 
+    private Item selected() {
+        List<Item> vis = visible();
+        for (Item it : vis) if (ITEMS.indexOf(it) == selIdx) return it;
+        return vis.isEmpty() ? ITEMS.get(0) : vis.get(0);
+    }
+
+    // ---------- 3D preview ----------
+
+    /** Own skin in-game; real account skin via SkinManager on the menu;
+     *  DefaultPlayerSkin until the fetch resolves. */
+    private PlayerSkin previewSkin() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) return mc.player.getSkin();
+        PlayerSkin r = resolvedSkin;
+        if (r != null) return r;
+        if (!skinFetchStarted) {
+            skinFetchStarted = true;
+            try {
+                mc.getSkinManager().get(mc.getGameProfile())
+                    .thenAccept(opt -> resolvedSkin = opt.orElse(null));
+            } catch (Throwable ignored) {}
+        }
+        return net.minecraft.client.resources.DefaultPlayerSkin.get(mc.getGameProfile());
+    }
+
+    private AvatarRenderState avatarState(PlayerSkin skin) {
+        if (avatar == null || !skin.equals(avatar.skin)) {
+            Minecraft mc = Minecraft.getInstance();
+            EntityRenderDispatcher d = mc.getEntityRenderDispatcher();
+            AvatarRenderState probe = new AvatarRenderState();
+            probe.skin = skin;
+            AvatarRenderer<?> r = d.getRenderer(probe);
+            if (r == null) {
+                if (entityErr == null) { entityErr = new IllegalStateException("no AvatarRenderer");
+                    entityErr.printStackTrace(); }
+                return null;
+            }
+            AvatarRenderState st = r.createRenderState();
+            st.entityType = EntityTypes.PLAYER;
+            st.skin = skin;
+            st.boundingBoxWidth = 0.6f;
+            st.boundingBoxHeight = 1.8f;
+            st.eyeHeight = 1.62f;
+            st.scale = 1f;
+            st.lightCoords = 0xF000F0;
+            st.pose = Pose.STANDING;
+            st.showHat = st.showJacket = st.showLeftPants = st.showRightPants = true;
+            st.showLeftSleeve = st.showRightSleeve = true;
+            st.id = -1;                        // never matches the real player (CapeMixin guard)
+            avatar = st;
+        }
+        return avatar;
+    }
+
+    /** Cape texture per item so the turntable previews the real asset. */
+    private static ClientAsset.Texture capeFor(String value) {
+        String path = switch (value) {
+            case "Inferno" -> "textures/cape/nox_cape_inferno.png";
+            case "Void"    -> "textures/cape/nox_cape_void.png";
+            default        -> "textures/cape/nox_cape.png";
+        };
+        return new ClientAsset.ResourceTexture(Identifier.fromNamespaceAndPath("noxclient", path));
+    }
+
+    /** Complete render state from the live player — the same object the world
+     *  renderer produces, so every field the AvatarRenderer needs is real. */
+    private AvatarRenderState extractedAvatar(Item it) {
+        Minecraft mc = Minecraft.getInstance();
+        try {
+            var r = mc.getEntityRenderDispatcher().getRenderer(mc.player);
+            if (!(r.createRenderState(mc.player, 1f) instanceof AvatarRenderState st)) return null;
+            st.shadowPieces.clear();
+            st.outlineColor = 0;
+            return st;
+        } catch (Throwable t) {
+            if (entityErr == null) { entityErr = t; t.printStackTrace(); }
+            return null;
+        }
+    }
+
+    private void renderPlayerPreview(GuiGraphicsExtractor g, Item it, int x, int y, int w, int h,
+                                     int mx, int my) {
+        Minecraft mc = Minecraft.getInstance();
+        AvatarRenderState st;
+        if (mc.player != null) {
+            st = extractedAvatar(it);
+        } else {
+            st = avatarState(previewSkin());
+            if (st != null) st.ageInTicks = (System.currentTimeMillis() % 100000L) / 50f;
+        }
+        if (st == null || st.skin == null) return;
+        // cape items preview the real cape asset on the skin
+        if ("cape".equals(it.kind)) {
+            var cap = capeFor(it.value);
+            st.skin = PlayerSkin.insecure(st.skin.body(), cap, cap, st.skin.model());
+            st.showCape = true;
+        }
+        // vanilla PiP recipe: normalize bbox by scale, then render at scale 1
+        if (st.scale <= 0) st.scale = 1f;
+        st.boundingBoxWidth /= st.scale;
+        st.boundingBoxHeight /= st.scale;
+        st.scale = 1f;
+        // turntable: slow auto-spin + drag offset (vanilla front-facing = 180°)
+        float spin = (System.currentTimeMillis() % 9000L) / 9000f * 360f + dragYaw;
+        st.bodyRot = 180f + spin;
+        st.yRot = 0f;
+        st.xRot = 0f;
+        Quaternionf ori = new Quaternionf().rotateZ((float) Math.PI);
+        Quaternionf tilt = new Quaternionf().rotateX(-0.10f);
+        ori.mul(tilt);
+        int scale = Math.min((int) (h * 0.42), w);
+        try {
+            g.entity(st, scale,
+                new Vector3f(0, st.boundingBoxHeight / 2f + 0.06f, 0),
+                ori, tilt, x, y, x + w, y + h);
+        } catch (Throwable t) {
+            if (entityErr == null) { entityErr = t; t.printStackTrace(); }
+        }   // preview must never break the screen
+    }
+
+    /** Kind-specific particle layer over the 3D figure. */
+    private static void previewParticles(GuiGraphicsExtractor g, Item it, int cx, int feetY) {
+        if (UICustom.reducedMotion) return;
+        double t = System.currentTimeMillis() / 1000.0;
+        int col = it.color;
+        switch (it.kind) {
+            case "trail" -> {
+                for (int i = 0; i < 5; i++) {
+                    double p = (t * 0.55 + i * 0.2) % 1.0;
+                    int a = (int) (220 * (1 - p));
+                    Gui.circle(g, cx + (int) (Math.sin(t * 2 + i * 1.7) * 14),
+                        feetY - 4 - (int) (p * 44), 1 + (i % 2), (a << 24) | (col & 0xFFFFFF));
+                }
+            }
+            case "aura" -> {
+                int headY = feetY - 58;
+                for (int i = 0; i < 7; i++) {
+                    double a = t * 1.4 + i * (Math.PI * 2 / 7);
+                    int al = (int) (120 + 100 * (0.5 + 0.5 * Math.sin(a)));
+                    Gui.circle(g, cx + (int) (Math.cos(a) * 20),
+                        headY + (int) (Math.sin(a) * 6), 1, (al << 24) | (col & 0xFFFFFF));
+                }
+            }
+            case "kill" -> {
+                double p = (t * 0.7) % 1.0;
+                int a = (int) (170 * (1 - p));
+                Gui.circle(g, cx, feetY - 30, 8 + (int) (p * 26), (a << 24) | (col & 0xFFFFFF));
+                Gui.circle(g, cx, feetY - 30, 5, (0xAA << 24) | (col & 0xFFFFFF));
+            }
+            case "cape" -> {
+                for (int i = -5; i <= 5; i++) {
+                    int dy = (int) (Math.sin(t * 2.4 + i * 0.7) * 3);
+                    Gui.pill(g, cx + i * 4 - 1, feetY - 56 + dy, 3, 30,
+                        (0x70 << 24) | (col & 0xFFFFFF));
+                }
+            }
+        }
+    }
+
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float dt) {
         Theme t = Theme.current();
+
         var font = Minecraft.getInstance().font;
         Gui.backdrop(g, width, height, 1f);
-        int w = Math.min(700, width - 40), h = Math.min(430, height - 40);
+        int w = Math.min(720, width - 40), h = Math.min(430, height - 40);
         int x0 = (width - w) / 2, y0 = (height - h) / 2;
-        Gui.shadow(g, x0, y0, w, h, UICustom.radius);
-        Gui.round(g, x0, y0, w, h, UICustom.radius, UICustom.winFill);
+        // window surface in the DEFERRED batch — the 3D PiP preview renders in the
+        // same batch, so any NVG op over its rect would paint over the model
+        SmoothShapes.roundBorder(g, x0, y0, w, h, (int) UICustom.radius,
+            UICustom.border, UICustom.winFill);
         Gui.windowFx(x0, y0, w, h, UICustom.radius);
         Gui.windowFrost(x0, y0, w, h, UICustom.radius);
 
         // header
         Gui.textBold(g, font, "N O X   S H O P", x0 + 16, y0 + 12, t.accent());
-        Gui.text(g, font, ITEMS.size() + " cosmetics", x0 + 16, y0 + 24, UICustom.textMute);
+        Gui.text(g, font, ITEMS.size() + " cosmetics — try anything on", x0 + 16, y0 + 24, UICustom.textMute);
         boolean prem = LicenseManager.premium();
         String tier = prem ? "★ PREMIUM · " + LicenseManager.daysLeft() + "d left" : "free tier";
         int tw = Gui.width(font, tier) + 16;
-        Gui.pill(g, x0 + w - 16 - tw, y0 + 10, tw, 16, prem ? 0x33FFD870 : 0xFF1B1B28);
-        Gui.text(g, font, tier, x0 + w - 16 - tw + 8, y0 + 14, prem ? 0xFFFFD870 : UICustom.textDim);
+        Gui.pill(g, x0 + w - 16 - tw, y0 + 10, tw, 16, prem ? 0x33FFB84D : 0xFF101014);
+        Gui.text(g, font, tier, x0 + w - 16 - tw + 8, y0 + 14, prem ? 0xFFFFB84D : UICustom.textDim);
         boolean xHov = ModuleCard.inside(mx, my, x0 + w - 24, y0 + h - 28, 16, 16);
         Gui.textCenter(g, font, "✕", x0 + w - 16, y0 + h - 24, xHov ? 0xFFFF8888 : UICustom.textDim);
 
@@ -118,122 +308,163 @@ public class ShopScreen extends Screen {
             activateRect = new int[]{x0 + 16, y0 + h - 30, 150, 16};
         } else activateRect = null;
 
-        // filter tabs
-        tabRects.clear();
-        int tx = x0 + 16, ty = y0 + 36;
-        for (int i = 0; i < TABS.length; i++) {
-            int pw = Gui.width(font, TABS[i]) + 16;
-            boolean on = tab == i;
-            boolean hov = ModuleCard.inside(mx, my, tx, ty, pw, 17);
-            Gui.pill(g, tx, ty, pw, 17, on ? t.accent() : hov ? UICustom.cardFillTop : UICustom.cardFillBottom);
-            if (!on && hov) Gui.pill(g, tx, ty, pw, 17, 0x14FFFFFF);
-            Gui.text(g, font, TABS[i], tx + 8, ty + 5, on ? 0xFFFFFFFF : UICustom.textDim);
-            tabRects.add(new int[]{tx, ty, pw, 17});
-            tx += pw + 6;
+        // ============ LEFT: 3D try-on panel ============
+        Item sel = selected();
+        selGlow += (1f - selGlow) * 0.12f;
+        int pw = Math.min(224, w * 32 / 100), ph = h - 66;
+        int px = x0 + 14, py = y0 + 40;
+        int glowC = lerp(UICustom.border, sel.color, 0.5f + 0.3f * selGlow);
+        // preview surface must stay in the deferred batch (PiP renders on top of it)
+        SmoothShapes.roundBorder(g, px, py, pw, ph, 10, glowC, UICustom.cardFillBottom);
+        // radial stage glow — deferred concentric rings (NVG ops would cover the model)
+        int scx = px + pw / 2, scy = py + ph / 2 - 12;
+        for (int i = 3; i >= 0; i--) {
+            int a = (int) ((0x10 + i * 0x06) * (0.6f + 0.4f * selGlow));
+            SmoothShapes.circle(g, scx, scy, 30 + i * 16,
+                (a << 24) | (sel.color & 0xFFFFFF));
         }
-        Gui.fill(g, x0 + UICustom.radius, ty + 23, x0 + w - UICustom.radius, ty + 24, UICustom.border);
+        // floor disc
+        SmoothShapes.round(g, scx - 34, py + ph - 92, 68, 10, 5,
+            (sel.color & 0xFFFFFF) | 0x2E000000);
+        previewRect = new int[]{px + 6, py + 8, pw - 12, ph - 108};
+        renderPlayerPreview(g, sel, px + 10, py + 14, pw - 20, ph - 110, mx, my);
+        previewParticles(g, sel, scx, py + ph - 96);
+        // "drag" hint
+        Gui.textCenter(g, font, "⟲ drag to spin", scx, py + 10, UICustom.textMute);
 
-        // 2-col card grid — animated hover lift, kind-colored edge, big preview tile
+        // selected item caption + CTA inside the panel
+        int capY = py + ph - 88;
+        Gui.textBold(g, font, sel.name, px + 12, capY, t.text());
+        Gui.text(g, font, sel.desc, px + 12, capY + 11, UICustom.textDim);
+        boolean owned = !sel.premiumOnly || prem;
+        boolean eq = isEquipped(sel);
+        String price = eq ? "equipped" : owned ? (sel.priceUsd == 0 ? "free" : "owned")
+            : "$" + sel.priceUsd + " · premium";
+        Gui.text(g, font, price, px + 12, capY + 22,
+            eq ? 0xFF4DFFA0 : owned ? UICustom.textDim : 0xFFFFB84D);
+
+        // CTA — big accent button; pulse when it buys/equips something
+        String cta = eq ? "Unequip" : owned ? "Equip" : "Unlock $" + sel.priceUsd;
+        int bw = pw - 24, bh = 24;
+        boolean bhov = ModuleCard.inside(mx, my, px + 12, py + ph - 38, bw, bh);
+        float pulse = owned && !eq ? (0.85f + 0.15f * (float) Math.sin(System.currentTimeMillis() / 240.0)) : 1f;
+        int ctaFill = eq ? UICustom.cardFillTop
+            : (bhov ? DS.lighten(t.accent(), 0.1f) : t.accent());
+        Gui.pill(g, px + 12, py + ph - 38, bw, bh,
+            owned && !eq ? DS.withAlpha(ctaFill, (int) (255 * pulse)) : ctaFill);
+        Gui.textCenter(g, font, cta, px + 12 + bw / 2, py + ph - 30,
+            eq ? t.text() : DS.onAccent());
+        ctaRect = new int[]{px + 12, py + ph - 38, bw, bh};
+
+        // ============ RIGHT: tabs + item list ============
+        int rx = px + pw + 14, rw = x0 + w - 16 - rx;
+        tabRects.clear();
+        int tx = rx, ty = y0 + 40;
+        for (int i = 0; i < TABS.length; i++) {
+            int pw2 = Gui.width(font, TABS[i]) + 16;
+            boolean on = tab == i;
+            boolean hov = ModuleCard.inside(mx, my, tx, ty, pw2, 17);
+            Gui.pill(g, tx, ty, pw2, 17, on ? t.accent() : hov ? UICustom.cardFillTop : UICustom.cardFillBottom);
+            if (!on && hov) Gui.pill(g, tx, ty, pw2, 17, 0x14FFFFFF);
+            Gui.text(g, font, TABS[i], tx + 8, ty + 5, on ? DS.onAccent() : UICustom.textDim);
+            tabRects.add(new int[]{tx, ty, pw2, 17});
+            tx += pw2 + 6;
+        }
+        Gui.fill(g, rx + 4, ty + 23, x0 + w - UICustom.radius, ty + 24, UICustom.border);
+
         rects.clear();
         List<Item> vis = visible();
-        int cw = (w - 32 - 9) / 2, ch = 58;
-        int gridY = ty + 30, gridH = y0 + h - 56 - gridY;
-        Gui.clipOn(x0 + 8, gridY, x0 + w - 8, gridY + gridH);
+        int ch = 44, gridY = ty + 30, gridH = y0 + h - 46 - gridY;
+        long now = System.currentTimeMillis();
+        Gui.clipOn(rx - 2, gridY, x0 + w - 6, gridY + gridH);
         int iy = gridY - scroll;
         for (int vi = 0; vi < vis.size(); vi++) {
             Item it = vis.get(vi);
-            int cx = x0 + 16 + (vi % 2) * (cw + 9), cy = iy + (vi / 2) * (ch + 7);
+            int cy = iy + vi * (ch + 6);
             if (cy + ch < gridY || cy > gridY + gridH) continue;
-            boolean owned = !it.premiumOnly || prem;
-            boolean eq = isEquipped(it);
-            boolean hov = ModuleCard.inside(mx, my, cx, cy, cw, ch);
-            // eased hover lift (120ms)
+            int idx = ITEMS.indexOf(it);
+            boolean on = idx == selIdx || (selIdx < 0 && vi == 0);
+            boolean itOwned = !it.premiumOnly || prem;
+            boolean itEq = isEquipped(it);
+            boolean hov = ModuleCard.inside(mx, my, rx, cy, rw, ch);
             float hvt = hoverT.computeIfAbsent(it.name, k -> 0f);
-            hvt += ((hov ? 1f : 0f) - hvt) * (UICustom.reducedMotion ? 1f : 0.28f);
+            hvt += (((hov || on) ? 1f : 0f) - hvt) * (UICustom.reducedMotion ? 1f : 0.28f);
             hoverT.put(it.name, hvt);
-            int lift = UICustom.reducedMotion ? 0 : (int) (-3 * hvt);
-            int borderC = eq ? t.accent()
-                : hov ? lerp(UICustom.border, it.color, 0.6f) : UICustom.border;
-            Gui.roundBorder(g, cx, cy + lift, cw, ch, 9, borderC,
-                lerp(UICustom.cardFillBottom, UICustom.cardFillTop, hvt));
-            // kind-colored left edge
-            if (eq || hvt > 0.05f)
-                Gui.pill(g, cx + 2, cy + lift + 8, 2, ch - 16,
-                    (eq ? t.accent() : it.color) & 0x00FFFFFF
-                        | ((int) (0x30 + 0xCD * Math.max(hvt, eq ? 1 : 0))) << 24);
-            // preview tile — rounded chip in item color, live animation inside
-            int px = cx + 24, py = cy + lift + ch / 2;
-            Gui.circle(g, px, py, 12, it.color & 0x33FFFFFF);
-            Gui.circle(g, px, py, 9, 0xFF141821);
-            Gui.roundBorder(g, px - 10, py - 10, 20, 20, 10, it.color & 0x66FFFFFF, 0);
-            preview(g, it, px, py);
-            Gui.textBold(g, font, it.name, cx + 42, cy + lift + 8, t.text());
-            Gui.text(g, font, it.desc, cx + 42, cy + lift + 21, UICustom.textDim);
-            // price / state pill — right edge
-            String tag = eq ? "EQUIPPED" : owned ? (it.priceUsd == 0 ? "FREE" : "OWNED")
+            // staggered entrance on tab switch
+            float enter = UICustom.reducedMotion ? 1f
+                : Math.clamp((now - tabAnimAt - vi * 28L) / 160f, 0f, 1f);
+            int slide = (int) ((1f - enter) * 8);
+            int alpha = (int) (255 * Math.min(1f, 0.2f + 0.8f * enter));
+            int borderC = on ? t.accent()
+                : itEq ? lerp(UICustom.border, it.color, 0.5f)
+                : hvt > 0.4f ? lerp(UICustom.border, it.color, 0.5f) : UICustom.border;
+            Gui.roundBorder(g, rx, cy + slide, rw, ch, 8, borderC,
+                DS.withAlpha(lerp(UICustom.cardFillBottom, UICustom.cardFillTop, hvt), alpha));
+            if (on || itEq)
+                Gui.pill(g, rx + 2, cy + slide + 7, 2, ch - 14,
+                    (on ? t.accent() : it.color) & 0x00FFFFFF | (alpha << 24) & 0xF0FFFFFF | 0xC0000000);
+            // icon chip
+            int ix = rx + 22, iy2 = cy + slide + ch / 2;
+            Gui.circle(g, ix, iy2, 10, (it.color & 0x30FFFFFF));
+            Gui.circle(g, ix, iy2, 7, 0xFF101014);
+            miniIcon(g, it, ix, iy2);
+            Gui.textBold(g, font, it.name, rx + 40, cy + slide + 7,
+                DS.withAlpha(t.text(), alpha));
+            Gui.text(g, font, it.desc, rx + 40, cy + slide + 19,
+                DS.withAlpha(UICustom.textDim, alpha));
+            String tag = itEq ? "EQUIPPED" : itOwned ? (it.priceUsd == 0 ? "FREE" : "OWNED")
                         : "$" + it.priceUsd;
-            int pw = Gui.width(font, tag) + 12;
-            Gui.pill(g, cx + cw - 8 - pw, cy + lift + 8, pw, 14,
-                eq ? t.accent() : owned ? 0xFF1B1B28 : 0xFF3A2A52);
-            Gui.text(g, font, tag, cx + cw - 8 - pw + 6, cy + lift + 12,
-                eq ? 0xFFFFFFFF : owned ? UICustom.textDim : 0xFFC9A0FF);
-            // action button
-            String btn = eq ? "Unequip" : owned ? "Equip" : "Buy $" + it.priceUsd;
-            int bw = Gui.width(font, btn) + 14;
-            boolean bHov = ModuleCard.inside(mx, my, cx + cw - 8 - bw, cy + lift + 33, bw, 16);
-            Gui.pill(g, cx + cw - 8 - bw, cy + lift + 33, bw, 16,
-                eq ? UICustom.cardFillTop : owned ? (bHov ? t.accent() : t.accent() & 0xBBFFFFFF)
-                       : (bHov ? 0xFFB44DFF : 0xFF3A2A52));
-            Gui.text(g, font, btn, cx + cw - 8 - bw + 7, cy + lift + 37,
-                eq && !bHov ? UICustom.textDim : 0xFFFFFFFF);
-            rects.add(new int[]{cx + cw - 8 - bw, cy + lift + 33, bw, 16, ITEMS.indexOf(it)});
+            int pw3 = Gui.width(font, tag) + 12;
+            Gui.pill(g, rx + rw - 10 - pw3, cy + slide + 7, pw3, 14,
+                itEq ? t.accent() : itOwned ? 0xFF101014 : 0xFF241A10);
+            Gui.text(g, font, tag, rx + rw - 10 - pw3 + 6, cy + slide + 11,
+                itEq ? DS.onAccent() : itOwned ? UICustom.textDim : 0xFFFFB84D);
+            rects.add(new int[]{rx, cy + slide, rw, ch, idx});
         }
         Gui.clipOff();
         // scrollbar
-        int rows = (vis.size() + 1) / 2, total = rows * (ch + 6);
+        int total = vis.size() * (ch + 6);
         if (total > gridH) {
             int barH = Math.max(24, gridH * gridH / total);
             int barY = gridY + (gridH - barH) * scroll / Math.max(1, total - gridH);
-            Gui.pill(g, x0 + w - 8, gridY, 3, gridH, 0xFF2A2A38);
+            Gui.pill(g, x0 + w - 8, gridY, 3, gridH, 0xFF1A1A20);
             Gui.pill(g, x0 + w - 8, barY, 3, barH, t.accent());
         }
         Gui.textCenter(g, font, "Premium keys via /buy in the NOX Discord — crypto accepted",
-            width / 2, y0 + h - 14, UICustom.textMute);
+            (rx + x0 + w) / 2, y0 + h - 14, UICustom.textMute);
         super.extractRenderState(g, mx, my, dt);
     }
 
-    /** Tiny live preview per kind: rising trail dots, orbiting aura ring,
-     *  pulsing kill burst, waving cape stripe. */
-    private static void preview(GuiGraphicsExtractor g, Item it, int cx, int cy) {
-        if (UICustom.reducedMotion) return;
+    /** Tiny animated glyph inside a row chip. */
+    private static void miniIcon(GuiGraphicsExtractor g, Item it, int cx, int cy) {
         double t = System.currentTimeMillis() / 1000.0 + it.name.length() * 0.7;
-        int col = it.color;
+        int col = UICustom.reducedMotion ? (0xAA << 24) | (it.color & 0xFFFFFF) : it.color;
         switch (it.kind) {
             case "trail" -> {
                 for (int i = 0; i < 3; i++) {
                     double p = (t * 0.9 + i * 0.33) % 1.0;
                     int a = (int) (200 * (1 - p));
-                    Gui.circle(g, cx + (int) (Math.sin(t * 3 + i * 2) * 6),
-                        cy + 8 - (int) (p * 16), 1, (a << 24) | (col & 0xFFFFFF));
+                    Gui.circle(g, cx + (int) (Math.sin(t * 3 + i * 2) * 3),
+                        cy + 4 - (int) (p * 8), 1, (a << 24) | (it.color & 0xFFFFFF));
                 }
             }
             case "aura" -> {
-                for (int i = 0; i < 5; i++) {
-                    double a = t * 1.6 + i * (Math.PI * 2 / 5);
-                    Gui.circle(g, cx + (int) (Math.cos(a) * 13),
-                        cy + (int) (Math.sin(a) * 13), 1, 0xCC000000 | (col & 0xFFFFFF));
+                for (int i = 0; i < 4; i++) {
+                    double a = t * 1.6 + i * (Math.PI / 2);
+                    Gui.circle(g, cx + (int) (Math.cos(a) * 5),
+                        cy + (int) (Math.sin(a) * 5), 1, 0xCC000000 | (col & 0xFFFFFF));
                 }
             }
             case "kill" -> {
                 double p = (t * 0.8) % 1.0;
-                int a = (int) (160 * (1 - p));
-                Gui.circle(g, cx, cy, 6 + (int) (p * 9), (a << 24) | (col & 0xFFFFFF));
-                Gui.circle(g, cx, cy, 4, col);
+                Gui.circle(g, cx, cy, 3 + (int) (p * 4),
+                    ((int) (160 * (1 - p)) << 24) | (col & 0xFFFFFF));
+                Gui.circle(g, cx, cy, 2, col);
             }
             case "cape" -> {
-                for (int i = -4; i <= 4; i++) {
-                    int dy = (int) (Math.sin(t * 3 + i * 0.8) * 2);
-                    Gui.pill(g, cx + i * 3 - 1, cy - 9 + dy, 3, 18,
+                for (int i = -2; i <= 2; i++) {
+                    int dy = (int) (Math.sin(t * 3 + i * 0.8) * 1);
+                    Gui.pill(g, cx + i * 2 - 1, cy - 5 + dy, 2, 10,
                         (0xB0 << 24) | (col & 0xFFFFFF));
                 }
             }
@@ -285,43 +516,68 @@ public class ShopScreen extends Screen {
                 }
             }
         }
-        Toasts.push((isEquipped(it) ? "Equipped " : "Unequipped ") + it.name, 0xFF66FF99);
+        Toasts.push((isEquipped(it) ? "Equipped " : "Unequipped ") + it.name, 0xFF4DFFA0);
     }
 
     @Override public boolean mouseClicked(MouseButtonEvent e, boolean dbl) {
-        int w = Math.min(700, width - 40), h = Math.min(430, height - 40);
+        int w = Math.min(720, width - 40), h = Math.min(430, height - 40);
         int x0 = (width - w) / 2, y0 = (height - h) / 2;
         if (ModuleCard.inside(e.x(), e.y(), x0 + w - 24, y0 + h - 28, 16, 16)) { onClose(); return true; }
         if (activateRect != null && ModuleCard.inside(e.x(), e.y(),
                 activateRect[0], activateRect[1], activateRect[2], activateRect[3])) {
             minecraft.setScreenAndShow(new PremiumScreen(this)); return true;
         }
-        for (int i = 0; i < tabRects.size(); i++) {
-            int[] r = tabRects.get(i);
-            if (ModuleCard.inside(e.x(), e.y(), r[0], r[1], r[2], r[3])) {
-                tab = i; scroll = 0; ModuleCard.click(); return true;
-            }
+        // preview drag start
+        if (previewRect != null && ModuleCard.inside(e.x(), e.y(),
+                previewRect[0], previewRect[1], previewRect[2], previewRect[3])) {
+            dragStartX = (int) e.x(); dragBase = dragYaw; return true;
         }
-        for (int[] r : rects) {
-            if (!ModuleCard.inside(e.x(), e.y(), r[0], r[1], r[2], r[3])) continue;
-            Item it = ITEMS.get(r[4]);
+        if (ctaRect != null && ModuleCard.inside(e.x(), e.y(),
+                ctaRect[0], ctaRect[1], ctaRect[2], ctaRect[3])) {
+            Item it = selected();
             if (!it.premiumOnly || LicenseManager.premium()) {
-                equip(it);
+                equip(it); ModuleCard.click();
             } else {
                 try {
                     java.awt.Desktop.getDesktop().browse(
                         new java.net.URI(dev.noxclient.discord.DiscordLink.get()));
                 } catch (Exception ignored) {}
-                Toasts.push("Premium required — opened Discord", 0xFFFFD870);
+                Toasts.push("Premium required — opened Discord", 0xFFFFB84D);
             }
+            return true;
+        }
+        for (int i = 0; i < tabRects.size(); i++) {
+            int[] r = tabRects.get(i);
+            if (ModuleCard.inside(e.x(), e.y(), r[0], r[1], r[2], r[3])) {
+                tab = i; scroll = 0; tabAnimAt = System.currentTimeMillis();
+                ModuleCard.click(); return true;
+            }
+        }
+        for (int[] r : rects) {
+            if (!ModuleCard.inside(e.x(), e.y(), r[0], r[1], r[2], r[3])) continue;
+            selIdx = r[4]; selGlow = 0f;
+            ModuleCard.click();
             return true;
         }
         return super.mouseClicked(e, dbl);
     }
 
+    @Override public boolean mouseDragged(MouseButtonEvent e, double dx, double dy) {
+        if (dragStartX >= 0) {
+            dragYaw = dragBase + ((int) e.x() - dragStartX) * 0.9f;
+            return true;
+        }
+        return super.mouseDragged(e, dx, dy);
+    }
+
+    @Override public boolean mouseReleased(MouseButtonEvent e) {
+        dragStartX = -1;
+        return super.mouseReleased(e);
+    }
+
     @Override public boolean mouseScrolled(double mx, double my, double h, double v) {
-        int rows = (visible().size() + 1) / 2;
-        int max = Math.max(0, rows * 60 - (Math.min(430, height - 40) - 122));
+        int gridH = Math.min(430, height - 40) - 46 - 70;
+        int max = Math.max(0, visible().size() * 50 - gridH);
         scroll = Math.max(0, Math.min(max, scroll - (int) v * 24));
         return true;
     }

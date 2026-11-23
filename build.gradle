@@ -35,6 +35,7 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.11.0'
     // NanoVG (LWJGL module) — vector overlay pass for GUI glow/gradients
     implementation 'org.lwjgl:lwjgl-nanovg:3.4.3'
+    include('org.lwjgl:lwjgl-nanovg:3.4.3') { transitive = false }
     // Netty proxy handlers — alt-manager SOCKS5/SOCKS4/HTTP connect proxy
     implementation "io.netty:netty-handler-proxy:4.2.16.Final"
     include "io.netty:netty-handler-proxy:4.2.16.Final"

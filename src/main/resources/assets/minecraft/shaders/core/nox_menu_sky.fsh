@@ -16,7 +16,7 @@ layout(location = 1) in vec2 ndc;
 
 layout(location = 0) out vec4 fragColor;
 
-const vec3 WHITE_HOT = vec3(1.0, 0.96, 0.90);
+const vec3 WHITE_HOT = vec3(1.0, 0.94, 0.79);
 const float HOLE_DISTANCE = 27.0;
 const float HOLE_CAPTURE = 2.598;
 const float DISK_INNER = 3.0;
@@ -265,14 +265,14 @@ vec3 blackHole(vec3 dir, float time) {
 
     // thin photon ring hugging the shadow edge — sells the Gargantua look
     float ring = exp(-pow((impact - HOLE_CAPTURE * 1.04) * 7.0, 2.0));
-    vec3 ringGlow = WHITE_HOT * ring * 2.2;
+    vec3 ringGlow = WHITE_HOT * ring * 1.4;
 
     float seen = angle - 2.0 / max(impact, HOLE_CAPTURE) * (1.0 - smoothstep(0.9, 1.6, angle));
     vec3 lensed = vec3(outward * sin(seen), cos(seen));
     vec3 glow = vec3(0.0);
     float cover = 0.0;
     if (angle < 0.62) {
-        vec3 normal = normalize(vec3(0.24, 0.86, -0.45));
+        vec3 normal = normalize(vec3(0.12, 0.96, -0.25));
         vec3 diskX = normalize(cross(normal, vec3(0.0, 0.0, 1.0)));
         vec3 diskY = cross(normal, diskX);
         vec3 pos = vec3(0.0, 0.0, -HOLE_DISTANCE);
@@ -280,7 +280,7 @@ vec3 blackHole(vec3 dir, float time) {
         vec3 momentum = cross(pos, vel);
         float h2 = dot(momentum, momentum);
         float side = dot(pos, normal);
-        for (int i = 0; i < 110; i++) {
+        for (int i = 0; i < 64; i++) {
             float r = length(pos);
             if (r < 1.0 || cover > 0.97 || (r > HOLE_DISTANCE * 1.5 && dot(pos, vel) > 0.0)) break;
             float dt = clamp(0.07 * r, 0.02, 3.0);
@@ -295,15 +295,16 @@ vec3 blackHole(vec3 dir, float time) {
                     float orbit = time * 0.5 * pow(DISK_INNER / rr, 1.5);
                     // logarithmic spiral arms — gas winds inward like Gargantua
                     float spiral = 1.45 * log(rr / DISK_INNER);
-                    float gas = fbm3(vec3(turn(around, -orbit - spiral) * (1.8 + rr * 0.28), rr * 0.6));
-                    float banding = 0.62 + 0.38 * sin(rr * 2.9 + gas * 5.0);
-                    float profile = smoothstep(DISK_INNER * 0.95, DISK_INNER * 1.2, rr)
-                            * (1.0 - smoothstep(DISK_OUTER * 0.55, DISK_OUTER, rr));
-                    float heat = 1.0 - smoothstep(DISK_INNER, DISK_OUTER * 0.8, rr);
-                    float beam = 1.0 - 0.45 * dot(cross(normal, hit) / rr, normalize(vel)) * sqrt(DISK_INNER / rr);
-                    vec3 tint = mix(mix(ColorHigh.rgb, ColorLow.rgb, heat), WHITE_HOT, heat * heat * 0.6);
-                    float alpha = profile * clamp(0.35 + 1.35 * gas * banding, 0.0, 1.0) * 0.95;
-                    glow += (1.0 - cover) * alpha * tint * (0.5 + 1.5 * gas) * beam * beam * pow(DISK_INNER / rr, 1.3) * 2.2;
+                    float gas = fbm3(vec3(turn(around, -orbit - spiral) * (3.4 + rr * 0.52), rr * 0.83));
+                    float filaments = 0.55 + 0.45 * sin(rr * 4.5 + gas * 8.0);
+                    float profile = smoothstep(DISK_INNER * 0.94, DISK_INNER * 1.21, rr)
+                          * (1.0 - smoothstep(DISK_OUTER * 0.48, DISK_OUTER, rr));
+                    float heat = 1.0 - smoothstep(DISK_INNER, DISK_OUTER * 0.68, rr);
+                    float beam = 1.0 - 0.53 * dot(cross(normal, hit) / rr, normalize(vel)) * sqrt(DISK_INNER / rr);
+                    vec3 tint = mix(mix(ColorLow.rgb, ColorHigh.rgb, heat), WHITE_HOT, heat * heat * 0.57);
+                    float alpha = profile * (0.42 + 0.5 * gas);
+                    glow += (1.0 - cover) * alpha * tint * (0.68 + filaments * gas * 2.4)
+                          * beam * beam * pow(DISK_INNER / rr, 1.2) * 2.75;
                     cover += (1.0 - cover) * alpha;
                 }
             }
@@ -313,7 +314,9 @@ vec3 blackHole(vec3 dir, float time) {
         lensed = normalize(mix(normalize(vel), lensed, smoothstep(0.45, 0.62, angle)));
     }
     vec3 source = right * lensed.x + up * lensed.y + ahead * lensed.z;
-    return deepSpace(source, time, Amounts.y * 0.6) * open * (1.0 - cover) + glow + ringGlow * open;
+    float halo = exp(-max(0.0, impact - HOLE_CAPTURE) * 1.5) * 0.15;
+    return deepSpace(source, time, Amounts.y * 0.45) * open * (1.0 - cover)
+        + glow + (ringGlow + ColorLow.rgb * halo) * open;
 }
 
 void main() {
@@ -327,7 +330,8 @@ void main() {
     color = 1.0 - exp(-color * Look.w * 1.5);
     float lum = dot(color, vec3(0.299, 0.587, 0.114));
     color = mix(vec3(lum), color, 1.18);                       // saturation
-    color *= 1.0 - 0.34 * dot(ndc, ndc);                       // vignette
+    float radial = min(1.0, dot(ndc, ndc) * 0.66);
+    color *= 1.0 - 0.30 * radial;                       // vignette
     color = pow(max(color, 0.0), vec3(1.05));                  // gentle toe
     fragColor = vec4(color, Look.y);
 }

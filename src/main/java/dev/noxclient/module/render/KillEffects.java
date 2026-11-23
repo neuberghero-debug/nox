@@ -46,16 +46,76 @@ public class KillEffects extends Module {
         return null;
     }
 
-    private void spawn(double x, double y, double z) {
-        var type = switch (effect.get()) {
-            case "Souls" -> ParticleTypes.SOUL;
-            case "Nova" -> ParticleTypes.END_ROD;
-            case "Blood" -> ParticleTypes.DAMAGE_INDICATOR;
-            default -> ParticleTypes.FIREWORK;
-        };
-        for (int i = 0; i < 30; i++)
-            mc.level.addParticle(type, true, false,
-                x + (Math.random() - 0.5), y + Math.random(),
-                z + (Math.random() - 0.5), 0, 0.08, 0);
+    private void p(net.minecraft.core.particles.ParticleOptions t, double x, double y,
+                   double z, double dx, double dy, double dz) {
+        mc.level.addParticle(t, true, false, x, y, z, dx, dy, dz);
     }
+    private static net.minecraft.core.particles.DustParticleOptions dust(int rgb, float s) {
+        return new net.minecraft.core.particles.DustParticleOptions(rgb, s);
+    }
+
+    private void spawn(double x, double y, double z) {
+        switch (effect.get()) {
+            case "Souls" -> {
+                // soul column spiralling up + cyan dust ring + soul flames
+                for (int i = 0; i < 24; i++) {
+                    double a = i / 24.0 * Math.PI * 2;
+                    p(ParticleTypes.SOUL, x + Math.cos(a) * 0.5, y + 0.2,
+                        z + Math.sin(a) * 0.5, Math.cos(a) * 0.06, 0.18 + Math.random() * 0.15, Math.sin(a) * 0.06);
+                }
+                for (int i = 0; i < 12; i++)
+                    p(ParticleTypes.SOUL_FIRE_FLAME, x + rnd(0.8), y + Math.random() * 0.6,
+                        z + rnd(0.8), 0, 0.12, 0);
+                for (int i = 0; i < 16; i++) {
+                    double a = i / 16.0 * Math.PI * 2;
+                    p(dust(0x7BE3E3, 0.7f), x + Math.cos(a) * 0.7, y + 0.4, z + Math.sin(a) * 0.7,
+                        Math.cos(a) * 0.12, 0.05, Math.sin(a) * 0.12);
+                }
+            }
+            case "Nova" -> {
+                // expanding white ring + vertical end-rod pillar + sparkle fallout
+                for (int i = 0; i < 28; i++) {
+                    double a = i / 28.0 * Math.PI * 2;
+                    p(dust(0xF5F5F5, 0.9f), x + Math.cos(a) * 0.3, y + 0.9, z + Math.sin(a) * 0.3,
+                        Math.cos(a) * 0.32, 0.02, Math.sin(a) * 0.32);
+                }
+                for (int i = 0; i < 12; i++)
+                    p(ParticleTypes.END_ROD, x + rnd(0.2), y + 0.1 + i * 0.22, z + rnd(0.2),
+                        0, 0.1, 0);
+                for (int i = 0; i < 10; i++)
+                    p(ParticleTypes.FIREWORK, x + rnd(1.4), y + 0.4 + Math.random(), z + rnd(1.4),
+                        rnd(0.2), 0.1, rnd(0.2));
+            }
+            case "Blood" -> {
+                // red dust burst + damage ticks + slow drip
+                for (int i = 0; i < 26; i++) {
+                    double a = Math.random() * Math.PI * 2;
+                    double r = Math.random() * 0.6;
+                    p(dust(0xB01212, 0.8f), x + Math.cos(a) * r, y + Math.random() * 0.8,
+                        z + Math.sin(a) * r, Math.cos(a) * 0.15, 0.05, Math.sin(a) * 0.15);
+                }
+                for (int i = 0; i < 10; i++)
+                    p(ParticleTypes.DAMAGE_INDICATOR, x + rnd(0.8), y + 0.3 + Math.random() * 0.7,
+                        z + rnd(0.8), rnd(0.1), 0.08, rnd(0.1));
+                for (int i = 0; i < 6; i++)
+                    p(dust(0x6E0A0A, 0.55f), x + rnd(0.5), y + 0.05, z + rnd(0.5), 0, -0.02, 0);
+            }
+            default -> {   // Firework — white flash + multi-ring burst
+                for (int i = 0; i < 20; i++) {
+                    double a = i / 20.0 * Math.PI * 2;
+                    p(dust(0xFFF2CC, 0.85f), x, y + 1.0, z,
+                        Math.cos(a) * 0.28, 0.12, Math.sin(a) * 0.28);
+                }
+                for (int i = 0; i < 14; i++) {
+                    double a = Math.random() * Math.PI * 2;
+                    p(ParticleTypes.FIREWORK, x + Math.cos(a) * 0.3, y + 0.5 + Math.random(),
+                        z + Math.sin(a) * 0.3, Math.cos(a) * 0.2, 0.15, Math.sin(a) * 0.2);
+                }
+                for (int i = 0; i < 8; i++)
+                    p(ParticleTypes.END_ROD, x + rnd(0.3), y + i * 0.3, z + rnd(0.3), 0, 0.12, 0);
+            }
+        }
+    }
+
+    private static double rnd(double r) { return (Math.random() - 0.5) * r; }
 }

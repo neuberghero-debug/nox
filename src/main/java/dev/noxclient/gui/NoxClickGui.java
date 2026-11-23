@@ -836,14 +836,14 @@ public class NoxClickGui extends Screen {
             } else if (hov) {
                 Nvg.round(c, st, bx, by, bw, bh, 11, DS.lighten(DS.surface(), .09f));
             }
-            int icol = act ? 0xFFFFFFFF : hov ? DS.text() : DS.secondary();
+            int icol = act ? DS.onAccent() : hov ? DS.text() : DS.secondary();
             String gl = railGlyph(cat);
             if (!compact) {
                 if (gl == null) gridIcon(c, st, bx + bw / 2f, by + bh * .36f, 15, icol);
                 else Nvg.glyph(c, st, gl, bx + bw / 2f, by + bh * .36f, 17, icol);
             }
             Nvg.text(c, st, "inter_b", labelSize, bx + bw / 2f, by + bh * (compact ? .5f : .74f), lbl,
-                act ? 0xF2FFFFFF : hov ? DS.text() : DS.secondary(), NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+                act ? DS.onAccent() : hov ? DS.text() : DS.secondary(), NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
             if (!compact && on > 0) {
                 String cnt = String.valueOf(on);
                 float cw = Nvg.textW(c, "mono", 7f, cnt) + 6;
@@ -870,9 +870,9 @@ public class NoxClickGui extends Screen {
             Nvg.well(c, st, bx, dy, bw, bh, 11, DS.lighten(DS.surface(), .09f));
         }
         if (!compact) gear(c, st, bx + bw / 2f, dy + bh * .36f, 6.2f,
-            dact ? 0xFFFFFFFF : dhov ? DS.text() : DS.secondary());
+            dact ? DS.onAccent() : dhov ? DS.text() : DS.secondary());
         Nvg.text(c, st, "inter_b", labelSize, bx + bw / 2f, dy + bh * (compact ? .5f : .74f), "STYLE",
-            dact ? 0xF2FFFFFF : dhov ? DS.text() : DS.secondary(), NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+            dact ? DS.onAccent() : dhov ? DS.text() : DS.secondary(), NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
         if (dhov && tipText == null) tipText = "Design — accent, backdrop, density";
         railRects.add(new float[]{bx, dy, bw, bh, -2});
 
@@ -1488,11 +1488,13 @@ public class NoxClickGui extends Screen {
         Nvg.text(c, st, "mono", 9, ax, py + 13, String.valueOf(active), DS.cardAccent(),
             org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
         float x = ax + Nvg.textW(c, "mono", 9, String.valueOf(active)) + 18;
-        float maxPinW = (winX + winW - 32 - x - 4 * 6) / 5;
+        int slots = Math.min(5, PINNED.size() + 1);   // pinned chips + ONE "+" affordance
+        float maxPinW = (winX + winW - 32 - x - (slots - 1) * 6) / slots;
         if (maxPinW < 20) return;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < slots; i++) {
             Module m = i < PINNED.size() ? NoxClient.INSTANCE.modules.get(PINNED.get(i)) : null;
-            float pw = Math.min(maxPinW, m != null ? Nvg.textW(c, "inter_sb", 11, m.name) + 34 : 26);
+            float pw = Math.min(maxPinW, m != null ? Nvg.textW(c, "inter_sb", 11, m.name) + 34
+                : Nvg.textW(c, "inter_sb", 11, "pin") + 26);
             pinRects.add(new float[]{x, pw, i});
             boolean hov = mx >= x && mx < x + pw && my >= py && my < py + 26;
             boolean on = m != null && m.isEnabled();
@@ -1509,9 +1511,12 @@ public class NoxClickGui extends Screen {
                     org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
                 if (hov) tipText = m.name + " / right click to unpin";
             } else {
-                float cxx = x + pw / 2, cyy = py + 13;
-                Nvg.line(c, st, cxx - 4, cyy, cxx + 4, cyy, 1.6f, DS.muted());
-                Nvg.line(c, st, cxx, cyy - 4, cxx, cyy + 4, 1.6f, DS.muted());
+                float cxx = x + 9, cyy = py + 13;
+                Nvg.line(c, st, cxx - 3.5f, cyy, cxx + 3.5f, cyy, 1.5f, DS.muted());
+                Nvg.line(c, st, cxx, cyy - 3.5f, cxx, cyy + 3.5f, 1.5f, DS.muted());
+                Nvg.text(c, st, "inter_sb", 11, cxx + 7, cyy, "pin",
+                    hov ? DS.secondary() : DS.muted(),
+                    org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT | org.lwjgl.nanovg.NanoVG.NVG_ALIGN_MIDDLE);
                 if (hov && tipModule == null && tipText == null)
                     tipText = "Pin slot — click, then pick a module";
             }

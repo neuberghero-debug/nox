@@ -20,12 +20,14 @@ void main() {
     gl_Position = vec4(Position.xy, 0.0, 1.0);
     ndc = Position.xy;
 
-    // cinematic camera — hole sits slightly right + below center (reference
-    // composition: Gargantua filling ~2/3 of frame, slow drift only)
-    float t = Look.z * 0.018;
-    vec3 fwd = normalize(vec3(0.02 + sin(t) * 0.03, 0.46 + cos(t * 0.63) * 0.02, 0.885));
+    // cinematic camera — hole parked upper-right of the menu column so the
+    // button stack reads on clean space. Barely-visible drift, no normalize
+    // here (fragment normalizes; the interpolated length feeds fwidth AA).
+    float t = Look.z * 0.014;
+    vec3 fwd = normalize(vec3(0.10, 0.30, 0.95));
     vec3 rgt = normalize(cross(fwd, vec3(0.0, 1.0, 0.0)));
     vec3 up = cross(rgt, fwd);
     float aspect = max(Amounts.w, 0.5);
-    skyDirection = normalize(fwd + rgt * Position.x * aspect * 0.55 + up * Position.y * 0.55);
+    vec2 cam = Position.xy - vec2(0.43 + 0.015 * sin(t), 0.18 + 0.012 * cos(t));
+    skyDirection = fwd + rgt * cam.x * aspect * 0.42 + up * cam.y * 0.42;
 }

@@ -273,8 +273,14 @@ public final class NvgOverlay {
         } catch (Throwable ignored) {}
         drainPendingImages();
         nvgBeginFrame(ctx, guiW, guiH, ratio);
+        // snapshot + clear BEFORE draining: an op that queues more ops while
+        // executing (e.g. a glow pass queuing a sheen) mutated `generic` mid-
+        // iteration → ConcurrentModificationException, crash in renderFrame.
+        // Late-queued ops stay in the list and draw next frame.
+        var frame = new ArrayList<>(generic);
+        generic.clear();
         try (MemoryStack st = MemoryStack.stackPush()) {
-            for (var op : generic) op.accept(ctx, st);
+            for (var op : frame) op.accept(ctx, st);
         }
         nvgResetScissor(ctx);   // leaked clipOn without clipOff must not poison next frame
         nvgEndFrame(ctx);
@@ -283,7 +289,7 @@ public final class NvgOverlay {
         if (cullWasOn) org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_CULL_FACE);
         org.lwjgl.opengl.GL11.glDepthMask(true);
         org.lwjgl.opengl.GL11.glStencilMask(0xFF);
-        generic.clear();
+        // no generic.clear() here — ops queued during the drain ride next frame
         if (pendingGrab != null) {
             java.nio.file.Path out = pendingGrab;
             pendingGrab = null;

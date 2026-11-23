@@ -11,7 +11,7 @@ Checks, each mapped to a crash we actually shipped:
 
 Exit 0 = clean. Exit 1 = findings. No Minecraft launch, ~seconds.
 """
-import os, re, subprocess, sys, zipfile, hashlib, glob, json
+import os, re, subprocess, sys, zipfile, hashlib, glob, json, io
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 SRC = os.path.join(ROOT, "src/main/java")
@@ -155,7 +155,23 @@ def check_jar():
         finding("WARN", "no sig.txt in jar (noxSig task didn't run?)")
     except Exception as e:
         finding("WARN", f"sig check failed: {e}")
+    check_nanovg(z)
     print(f"  ok: {os.path.basename(jar)} ({os.path.getsize(jar)//1024} KiB)")
+
+
+def check_nanovg(z):
+    try:
+        metadata = json.loads(z.read("fabric.mod.json"))
+        jars = [entry["file"] for entry in metadata.get("jars", [])
+                if os.path.basename(entry["file"]).startswith("lwjgl-nanovg-")
+                and "-natives-" not in entry["file"]]
+        if len(jars) != 1:
+            finding("ERR", "expected one declared NanoVG Java jar (natives alone cannot render Studio)")
+            return
+        with zipfile.ZipFile(io.BytesIO(z.read(jars[0]))) as bindings:
+            bindings.getinfo("org/lwjgl/nanovg/NanoVGGL3.class")
+    except (KeyError, TypeError, ValueError, zipfile.BadZipFile) as e:
+        finding("ERR", f"broken NanoVG Java jar: {e}")
 
 
 def check_assets():

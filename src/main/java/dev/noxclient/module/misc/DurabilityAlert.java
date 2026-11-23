@@ -1,37 +1,58 @@
 package dev.noxclient.module.misc;
 
+import dev.noxclient.gui.Toasts;
 import dev.noxclient.module.Category;
 import dev.noxclient.module.Module;
 import dev.noxclient.setting.Setting;
-import dev.noxclient.gui.Toasts;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+
+import java.util.EnumMap;
 
 /** Toasts when gear or held tool durability drops under the threshold. */
 public class DurabilityAlert extends Module {
+    private static final EquipmentSlot[] SLOTS = EquipmentSlot.values();
+
     public final Setting.Num pct = add(new Setting.Num("Under %", 10, 1, 50));
-    private final java.util.Set<String> warned = new java.util.HashSet<>();
+    private final EnumMap<EquipmentSlot, Item> warned = new EnumMap<>(EquipmentSlot.class);
+    private LocalPlayer trackedPlayer;
 
     public DurabilityAlert() { super("DurabilityAlert", "Warns before gear breaks", Category.MISC); }
 
     @Override public void onTick() {
-        if (mc.player == null) return;
-        var inv = mc.player.getInventory();
-        check(mc.player.getMainHandItem());
-        check(mc.player.getOffhandItem());
-        for (var slot : net.minecraft.world.entity.EquipmentSlot.values()) {
-            if (slot.getType() != net.minecraft.world.entity.EquipmentSlot.Type.HUMANOID_ARMOR) continue;
-            check(mc.player.getItemBySlot(slot));
+        LocalPlayer player = mc.player;
+        if (player != trackedPlayer) {
+            warned.clear();
+            trackedPlayer = player;
+        }
+        if (player == null) return;
+        double threshold = pct.get();
+        for (EquipmentSlot slot : SLOTS) {
+            if (slot == EquipmentSlot.MAINHAND || slot == EquipmentSlot.OFFHAND
+                || slot.getType() == EquipmentSlot.Type.HUMANOID_ARMOR) {
+                check(slot, player.getItemBySlot(slot), threshold);
+            }
         }
     }
 
-    private void check(net.minecraft.world.item.ItemStack st) {
-        if (st.isEmpty() || !st.isDamageableItem()) return;
-        int left = st.getMaxDamage() - st.getDamageValue();
-        double frac = (double) left / st.getMaxDamage();
-        String k = st.getItem().toString();
-        if (frac * 100 < pct.get()) {
-            if (warned.add(k)) {
-                Toasts.push("⚠ " + st.getHoverName().getString() + " at " + (int) (frac * 100) + "%", 0xFFFFAA00);
-            }
-        } else warned.remove(k);
+    private void check(EquipmentSlot slot, ItemStack stack, double threshold) {
+        if (stack.isEmpty() || !stack.isDamageableItem()) {
+            warned.remove(slot);
+            return;
+        }
+        int max = stack.getMaxDamage();
+        double remaining = 100.0 * (max - stack.getDamageValue()) / max;
+        if (remaining >= threshold) {
+            warned.remove(slot);
+        } else if (warned.put(slot, stack.getItem()) != stack.getItem()) {
+            Toasts.push("⚠ " + stack.getHoverName().getString() + " at " + (int) remaining + "%", 0xFFFFAA00);
+        }
+    }
+
+    @Override protected void onDisable() {
+        warned.clear();
+        trackedPlayer = null;
     }
 }

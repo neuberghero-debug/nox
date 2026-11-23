@@ -237,11 +237,14 @@ public class SoundFind extends Module {
         if (mc.player == null) return;
         double dx = x - mc.player.getX(), dy = y - mc.player.getY(), dz = z - mc.player.getZ();
         double d2 = dx * dx + dy * dy + dz * dz;
-        if (d2 < ignoreNear.get() * ignoreNear.get()) return;   // own noise
+        // ignoreNear = own-noise filter. Player marks can't BE own noise
+        // (self already excluded in onEntitySound) — a sneaking player 10m
+        // away is exactly what this radar exists for.
+        if (!"player".equals(kind) && d2 < ignoreNear.get() * ignoreNear.get()) return;
         boolean deep = y < mc.player.getY() - deepDrop.get();
         if (deepOnly.on() && !deep) return;
 
-        String key = kind + ":" + (int) x / 16 + ":" + (int) z / 16 + ":" + label;
+        String key = kind + ":" + ((int) x >> 4) + ":" + ((int) z >> 4) + ":" + label;
         Mark m = MARKS.get(key);
         int color = "player".equals(kind) ? 0xFFFF5555
             : deep ? 0xFFFFAA00 : 0xFF5AC8FF;

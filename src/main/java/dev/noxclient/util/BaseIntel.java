@@ -103,10 +103,10 @@ public final class BaseIntel {
             ySum += be.getBlockPos().getY(); yN++;
             if (be instanceof ChestBlockEntity || be instanceof BarrelBlockEntity
                 || be instanceof EnderChestBlockEntity) containers++;
-            else if (be instanceof ShulkerBoxBlockEntity) { shulkers++; containers++; instant = true; }
+            else if (be instanceof ShulkerBoxBlockEntity) { shulkers++; containers++; }
             else if (be instanceof HopperBlockEntity || be instanceof DropperBlockEntity
                 || be instanceof DispenserBlockEntity) { hoppers++; rsSec.add(s); }
-            else if (be instanceof CrafterBlockEntity) { crafters++; hoppers++; rsSec.add(s); instant = true; }
+            else if (be instanceof CrafterBlockEntity) { crafters++; hoppers++; rsSec.add(s); }
             else if (be instanceof BeehiveBlockEntity) beehives++;
             else if (be instanceof BeaconBlockEntity) beacons++;
             else if (be instanceof BellBlockEntity) bell = true;
@@ -167,10 +167,14 @@ public final class BaseIntel {
         // next to a mineshaft — containers keep their weight).
         boolean natural = cobwebs > 0 || portalFrame || (spawner && mossy > 0);
         if (natural && containers < 6 && shulkers == 0 && crafters == 0) return null;
-        // survived the veto → real stash near a natural structure. The
-        // spawner in natural context must not keep its "dead giveaway"
-        // tag — recompute instant from shulker/crafter only.
-        if (natural) { instant = shulkers > 0 || crafters > 0; spawner = false; }
+        // survived the veto → real stash near a natural structure; a spawner
+        // in natural context must not keep its "dead giveaway" tag.
+        // instant needs storage context — a lone shulker/crafter can be
+        // casually placed junk and proves nothing (containers counts
+        // shulkers too, so >=3 = shulker + 2 real containers)
+        instant = shulkers >= 2 || (shulkers >= 1 && containers >= 3)
+               || crafters >= 2 || (crafters >= 1 && containers >= 1);
+        if (natural) spawner = false;
 
         int sections = sectionY.size();
         double score = containers * 2.0 + hoppers * 2.5 + shulkers * 6 + crafters * 8

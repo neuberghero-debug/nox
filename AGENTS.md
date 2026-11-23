@@ -135,6 +135,19 @@
   GuiRendererMixin @ render() TAIL → NvgOverlay.render().
 - Screens queue ops (glow/sheen/vignette) per extractRenderState; render()
   drains + clears. NVG coords = GUI units via nvgBeginFrame(guiW, guiH, guiScale).
+- **NEVER call a typed NvgOverlay helper** (vignette/glow/sheen/gradientStroke/
+  comet/glass/innerTop/wash) from INSIDE a queued `NvgOverlay.op()` callback —
+  they append to the same `generic` list being iterated →
+  ConcurrentModificationException → Render Frame crash. Call them from
+  extractRenderState, next to `NvgOverlay.op(...)`. Inside an op only raw
+  `Nvg.*` calls are allowed.
+- `Gui.*` helpers (round/pill/text/roundBorder/shadow) are all NVG-op wrappers
+  — they draw NOTHING when the NVG ctx is dead. A real fallback needs
+  `g.fill`/`g.text`/`g.centeredText` directly.
+- `NoxMenuScreen` replaces TitleScreen via GuiSetScreenMixin (setScreen arg
+  swap); ScreenMixin excludes it from the footer chrome. LoadingOverlayMixin
+  queues NVG ops for brand+bar only when `NvgOverlay.ctx() != 0` (ctx is 0
+  until first frame — keep a `g.fill`-path fallback).
 - sig: noxJarSig runs AFTER jar (loom include remaps fabric.mod.json) and
   REWRITES the zip (ZipOutputStream append corrupts — never append).
 

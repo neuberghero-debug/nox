@@ -43,6 +43,14 @@ public final class DS {
     public static int muted()      { return UICustom.textMute; }
     public static int accent()     { return UICustom.accent; }        // themeable
     public static int cardAccent() { return UICustom.cardAccent; }    // tile accent
+    /** Content drawn ON an accent fill — near-black on bright accents
+     *  (Blacknox white ON-states), white on dark ones. */
+    public static int onAccent() {
+        int a = UICustom.accent;
+        float lum = (0.299f * ((a >>> 16) & 0xFF) + 0.587f * ((a >>> 8) & 0xFF)
+                   + 0.114f * (a & 0xFF)) / 255f;
+        return lum > 0.55f ? 0xFF0A0A0A : 0xFFFFFFFF;
+    }
     public static int hover()      { return lighten(UICustom.accent, 0.12f); }
     // status colors route through UICustom so the color-blind remap (M17.5)
     // applies everywhere — not just to components reading UICustom directly.

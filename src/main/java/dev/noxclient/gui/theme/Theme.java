@@ -2,7 +2,7 @@ package dev.noxclient.gui.theme;
 
 /** A GUI look-and-feel. Add new themes here — the picker reads this list. */
 public abstract class Theme {
-    public static final Theme[] ALL = { new NoxDark(), new Midnight(), new Snow(), new Custom(),
+    public static final Theme[] ALL = { new Blacknox(), new NoxDark(), new Midnight(), new Snow(), new Custom(),
         new Winter(), new Spring(), new Summer(), new Autumn() };
     /** Season lookup by UI name — "" if not a season theme. */
     public static String seasonName() {
@@ -37,6 +37,57 @@ public abstract class Theme {
     public abstract int header();
     public float rounding() { return 4f; }
     public float animationSpeed() { return 8f; }
+
+    /** Writes the full UICustom token set — generic presets use the lighten()
+     *  derivation; override for hand-tuned palettes (Blacknox OLED). */
+    public void applyPalette() {
+        int tbg = background() & 0xFFFFFF;
+        dev.noxclient.gui.UICustom.bg        = tbg | 0xEE000000;
+        dev.noxclient.gui.UICustom.guiBg     = tbg | 0xFF000000;
+        dev.noxclient.gui.UICustom.accent    = accent() | 0xFF000000;
+        dev.noxclient.gui.UICustom.cardAccent= moduleEnabled() | 0xFF000000;
+        dev.noxclient.gui.UICustom.accent2   = dev.noxclient.gui.ds.DS.lighten(accent(), .35f);
+        dev.noxclient.gui.UICustom.text      = text() | 0xFF000000;
+        // secondary tokens must be restored too — a hand-tuned palette
+        // (Blacknox) would otherwise leak into the next preset
+        int txt = text() | 0xFF000000;
+        dev.noxclient.gui.UICustom.textDim   = dev.noxclient.gui.ds.DS.lerp(txt, tbg | 0xFF000000, .45f);
+        dev.noxclient.gui.UICustom.textMute  = dev.noxclient.gui.ds.DS.lerp(txt, tbg | 0xFF000000, .70f);
+        dev.noxclient.gui.UICustom.border       = 0x26FFFFFF;
+        dev.noxclient.gui.UICustom.borderHover  = 0x4DFFFFFF;
+        dev.noxclient.gui.UICustom.header    = header() | 0xFF000000;
+        dev.noxclient.gui.UICustom.winFill   = dev.noxclient.gui.ds.DS.lighten(tbg | 0xFF000000, .08f);
+        dev.noxclient.gui.UICustom.cardFillTop    = dev.noxclient.gui.ds.DS.lighten(tbg | 0xFF000000, .16f) & 0xFBFFFFFF;
+        dev.noxclient.gui.UICustom.cardFillBottom = dev.noxclient.gui.ds.DS.lighten(tbg | 0xFF000000, .09f) & 0xFBFFFFFF;
+    }
+
+    /** OLED Black — the blacknox.html reference: pure #000 surfaces, white
+     *  accent, monochrome hierarchy. Inverted ON states (white fill, black
+     *  content) are handled per-component via DS.onAccent(). */
+    public static class Blacknox extends Theme {
+        public String name() { return "Blacknox"; }
+        public int background() { return 0xFF000000; }
+        public int accent() { return 0xFFFFFFFF; }
+        public int text() { return 0xFFF5F5F5; }
+        public int moduleEnabled() { return 0xFFFFFFFF; }
+        public int header() { return 0xFF000000; }
+        @Override public void applyPalette() {
+            dev.noxclient.gui.UICustom.bg        = 0xEE000000;
+            dev.noxclient.gui.UICustom.guiBg     = 0xFF000000;
+            dev.noxclient.gui.UICustom.accent    = 0xFFFFFFFF;
+            dev.noxclient.gui.UICustom.cardAccent= 0xFFFFFFFF;
+            dev.noxclient.gui.UICustom.accent2   = 0xFF9A9A9A;   // accentDim
+            dev.noxclient.gui.UICustom.text      = 0xFFF5F5F5;
+            dev.noxclient.gui.UICustom.textDim   = 0xFF8A8A8A;
+            dev.noxclient.gui.UICustom.textMute  = 0xFF3A3A3A;
+            dev.noxclient.gui.UICustom.header    = 0xFF000000;
+            dev.noxclient.gui.UICustom.winFill   = 0xFF000000;
+            dev.noxclient.gui.UICustom.cardFillTop    = 0xFF0A0A0A;
+            dev.noxclient.gui.UICustom.cardFillBottom = 0xFF050505;
+            dev.noxclient.gui.UICustom.border       = 0x0FFFFFFF; // rgba(255,255,255,.06)
+            dev.noxclient.gui.UICustom.borderHover  = 0x24FFFFFF; // .14
+        }
+    }
 
     public static class NoxDark extends Theme {
         public String name() { return "NOX Dark"; }

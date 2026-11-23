@@ -53,20 +53,21 @@ public class ChunkFinder extends Module {
     }
 
     private boolean scan(LevelChunk c) {
-        // villages are packed with chests+blocks → permanent false-positives.
-        // a bell block entity is the cheap, reliable village signature.
-        for (var be : c.getBlockEntities().values())
-            if (be instanceof net.minecraft.world.level.block.entity.BellBlockEntity) return false;
+        // every counted block has a block entity — the census is equivalent
+        // to the old column scan but O(#blockEntities) instead of ~98k
+        // getBlockState calls (a full column per tick stalled the client).
+        // NOTE: no OBSIDIAN/END_PORTAL_FRAME/SPAWNER — ruined portals, lava
+        // pools, strongholds and dungeons are all natural; spawner context
+        // is SusChunkFinder's job.
         int hits = 0;
-        for (BlockPos pos : BlockPos.betweenClosed(c.getPos().getMinBlockX(), c.getMinY(),
-                c.getPos().getMinBlockZ(), c.getPos().getMaxBlockX(), c.getMaxY(), c.getPos().getMaxBlockZ())) {
-            var b = c.getBlockState(pos).getBlock();
-            // NOTE: no OBSIDIAN/END_PORTAL_FRAME — ruined portals, lava pools
-            // and strongholds made those near-pure false positives.
-            // No SPAWNER either — dungeon spawners are natural; spawner
-            // context (mossy/cobwebs) is handled by SusChunkFinder.
-            if (b == Blocks.CHEST || b == Blocks.BARREL || b == Blocks.FURNACE
-                || b == Blocks.BLAST_FURNACE || b == Blocks.BEACON) {
+        for (var be : c.getBlockEntities().values()) {
+            if (be instanceof net.minecraft.world.level.block.entity.BellBlockEntity)
+                return false;   // village — packed with chests, permanent FP
+            if (be instanceof net.minecraft.world.level.block.entity.ChestBlockEntity
+                || be instanceof net.minecraft.world.level.block.entity.BarrelBlockEntity
+                || be instanceof net.minecraft.world.level.block.entity.FurnaceBlockEntity
+                || be instanceof net.minecraft.world.level.block.entity.BlastFurnaceBlockEntity
+                || be instanceof net.minecraft.world.level.block.entity.BeaconBlockEntity) {
                 if (++hits >= 4) return true;
             }
         }

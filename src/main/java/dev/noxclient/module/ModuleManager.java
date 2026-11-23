@@ -108,6 +108,7 @@ public class ModuleManager {
         reg(new FastLadder());
         reg(new AutoRTP());
         reg(new AutoLogin());
+        reg(new WebUI());
         reg(new TimeChanger());
         reg(new AutoStonks());
         reg(new DiscordNotifier());
@@ -151,12 +152,6 @@ public class ModuleManager {
         reg(new AntiAim());
         reg(new dev.noxclient.module.donutsmp.AutoTool());
         reg(new dev.noxclient.module.donutsmp.FastPlace());
-        reg(new dev.noxclient.module.render.ChatTriggers());
-        reg(new dev.noxclient.module.misc.ClipMarker());
-        reg(new dev.noxclient.module.misc.CoordFinder());
-        reg(new dev.noxclient.module.misc.ReplayMod());
-        reg(new dev.noxclient.module.misc.SecurityAudit());
-        reg(new dev.noxclient.module.misc.SkinChanger());
         // TamperGuard is core — runs always, not a module
         reg(new Interface());
         reg(new Animations());

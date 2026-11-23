@@ -339,7 +339,7 @@ module.exports = [
   },
   {
     "name": "AmethystBaseFinder",
-    "desc": "Finds bases near amethyst",
+    "desc": "Marks unharvested geodes",
     "cat": "DONUTSMP",
     "premium": false
   },
@@ -808,6 +808,12 @@ module.exports = [
   {
     "name": "WaypointShare",
     "desc": "Share your coords",
+    "cat": "MISC",
+    "premium": false
+  },
+  {
+    "name": "WebUI",
+    "desc": "Web console + REST API on localhost",
     "cat": "MISC",
     "premium": false
   },

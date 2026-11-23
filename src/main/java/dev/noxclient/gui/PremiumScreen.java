@@ -87,8 +87,10 @@ public class PremiumScreen extends Screen {
         Gui.text(g, font, "License key", x0 + 16, top + 106, t.text());
         if (LicenseManager.premium()) {
             long days = LicenseManager.daysLeft();
-            Gui.text(g, font, "Status: §aactive §7(" + LicenseManager.licenseId() + ", "
-                + days + (days == 1 ? " day" : " days") + " left)", x0 + 16, top + 90, 0xFF66FF99);
+            String st = "● active · " + days + "d left";
+            int sw = Gui.width(font, st) + 12;
+            Gui.pill(g, x0 + w - 16 - sw, top + 104, sw, 15, 0x3366D9A0);
+            Gui.text(g, font, st, x0 + w - 16 - sw + 6, top + 108, 0xFF66D9A0);
         }
         if (!status.isEmpty()) Gui.textCenter(g, font, status, cx, top + 190, statusColor);
         super.extractRenderState(g, mx, my, dt);

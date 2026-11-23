@@ -276,7 +276,19 @@ public final class Nvg {
         }
         float d = h - 5, kx = x + 2.5f + f * (w - h);
         shadow(c, st, kx, y + 1.5f, d, d, d / 2, 3.5f, 0x40000000);
-        knob(c, st, kx + d / 2, y + h / 2, d / 2);
+        // bright ON track (Blacknox white accent) → near-black knob, else lit white
+        float lum = (0.299f * ((accA >>> 16) & 0xFF) + 0.587f * ((accA >>> 8) & 0xFF)
+                   + 0.114f * (accA & 0xFF)) / 255f;
+        if (f > 0.5f && lum > 0.55f) {
+            circle(c, st, kx + d / 2, y + h / 2, d / 2, 0xFF0A0A0A);
+            NVGPaint p2 = nvgRadialGradient(c, kx + d * .2f, y + h / 2 - d * .35f,
+                d * .1f, d * 1.1f, col(st, 0x44FFFFFF), col(st, 0x33000000),
+                NVGPaint.malloc(st));
+            nvgBeginPath(c); nvgCircle(c, kx + d / 2, y + h / 2, d / 2);
+            nvgFillPaint(c, p2); nvgFill(c);
+        } else {
+            knob(c, st, kx + d / 2, y + h / 2, d / 2);
+        }
     }
 
     /** Radial-lit knob — top-left light, faint bottom shade ring. */

@@ -31,7 +31,7 @@ public final class Inputs {
             float t = anim + press * 0.08f;
             int knob = (int) (x + 3 + t * (w - 6 - 14));
             Gui.circle(g, knob + 7, y + 10, 7, DS.fade(0xFF000000, 0.25f * anim));
-            Gui.circle(g, knob + 7, y + 10, 7, enabled ? 0xFFFFFFFF : 0xFF9B9BA3);
+            Gui.circle(g, knob + 7, y + 10, 7, enabled ? DS.onAccent() : 0xFF9B9BA3);
             focusRing(g, h / 2);
         }
 

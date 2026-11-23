@@ -39,6 +39,8 @@ public class AutoScout extends Module {
     private int hops;
     private boolean holding;
     private long holdToastAt;
+    private net.minecraft.world.phys.Vec3 hopPos;
+    private int noMoveHops;
 
     private static final String[] STACK = {
         "SusChunkFinder", "SoundFind", "ActivityFind", "EntityFind",
@@ -76,9 +78,23 @@ public class AutoScout extends Module {
         holding = false;
 
         if (!dev.noxclient.util.Legitifier.ready(this, 1.0 / hopSec.get(), 0.5)) return;
+        // dead-command detector (once per hop window): an RTP that never
+        // moved us = cooldown, wrong rtpCmd setting, or silent reject —
+        // say so instead of counting hops while standing still
+        if (hopPos != null) {
+            if (hopPos.distanceToSqr(mc.player.position()) < 64) {
+                if (++noMoveHops >= 3) {
+                    noMoveHops = 0; lastHop = 0; hopPos = null;
+                    Toasts.push("⚠ AutoScout: 3 RTPs never moved — check '"
+                        + rtpCmd.get() + "' (cooldown or wrong command)", 0xFFFF6666);
+                    return;
+                }
+            } else noMoveHops = 0;
+        }
         String cmd = rtpCmd.get();
         if (cmd == null || cmd.isBlank()) return;   // empty setting → no bare "/"
         mc.getConnection().sendCommand(cmd);
+        hopPos = mc.player.position().add(0, 0, 0);
         lastHop = System.currentTimeMillis(); hops++;
         mark("rtp #" + hops);
     }

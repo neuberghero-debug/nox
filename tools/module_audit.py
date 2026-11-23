@@ -15,14 +15,28 @@ num_re = re.compile(r'new\s+Setting\.Num\s*\(\s*"([^"]+)"\s*,\s*(-?[\d._]+)\s*,\
 mode_re = re.compile(r'(?:new\s+Setting\.Mode|Setting\.Mode\.of)\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*((?:,\s*"[^"]*")*)')
 
 # ---- registration cross-check ----
-mgr = (MODS / "ModuleManager.java").read_text()
-registered = {r.rsplit(".", 1)[-1] for r in re.findall(r'reg\(new\s+([\w.]+)\s*\(', mgr)}
+registrations = {}
+for filename, pattern in (
+    ("ModuleManager.java", r"^\s*reg\(new\s+([\w.]+)\s*\("),
+    ("ExtraModules.java", r"^\s*mm\.register\(new\s+([\w.]+)\s*\("),
+):
+    for lineno, line in enumerate((MODS / filename).read_text().splitlines(), 1):
+        match = re.match(pattern, line)
+        if not match:
+            continue
+        cls = match.group(1).rsplit(".", 1)[-1]
+        here = f"{filename}:{lineno}"
+        if cls in registrations:
+            errors.append(f"{cls}: duplicate registration at {registrations[cls]} and {here}")
+        else:
+            registrations[cls] = here
+registered = set(registrations)
 files = {p.stem: p for p in MODS.rglob("*.java") if p.stem != "ModuleManager"}
 for cls in sorted(files):
     if cls not in registered:
         txt = files[cls].read_text()
         if ctor_re.search(txt):
-            errors.append(f"{cls}: ctor present but not reg()'d in ModuleManager")
+            errors.append(f"{cls}: ctor present but not registered at startup")
 
 names, total_settings = {}, 0
 for cls, path in sorted(files.items()):
@@ -33,9 +47,10 @@ for cls, path in sorted(files.items()):
             errors.append(f"{cls}: registered but no super(name,desc,cat) call")
         continue
     name, desc, cat = sup.group(1), sup.group(2), sup.group(3)
-    if name in names:
-        errors.append(f"{cls}: dup module name '{name}' (also {names[name]})")
-    names[name] = cls
+    key = name.casefold()
+    if key in names:
+        errors.append(f"{cls}: dup module name '{name}' (also {names[key]})")
+    names[key] = cls
     if not desc.strip():
         warns.append(f"{cls}: empty description")
     if cat not in {"COMBAT", "MOVEMENT", "RENDER", "MISC", "DONUTSMP"}:

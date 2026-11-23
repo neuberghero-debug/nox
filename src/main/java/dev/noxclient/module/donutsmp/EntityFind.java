@@ -121,7 +121,7 @@ public class EntityFind extends Module {
             if (dx*dx + dy*dy + dz*dz < ignoreNear.get() * ignoreNear.get()) continue;
             long key = chunkKey(e.getBlockX(), e.getBlockZ());
             flagged.add(key);
-            String mk = label + ":" + (int) e.getX() / 16 + ":" + (int) e.getZ() / 16;
+            String mk = label + ":" + ((int) e.getX() >> 4) + ":" + ((int) e.getZ() >> 4);
             Mark m = MARKS.get(mk);
             if (m == null) {
                 int col = color(e, label);

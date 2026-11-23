@@ -60,8 +60,10 @@ public class ActivityFind extends Module {
     private final Setting.Bool chatNotify = add(new Setting.Bool("Chat notify", true));
 
     public static final Map<String, Mark> MARKS = new LinkedHashMap<>();
-    /** Chunks with recent strong activity — read by SusChunkFinder as cross-signal. */
-    private static final Set<Long> flagged = ConcurrentHashMap.newKeySet();
+    /** Chunks with recent strong activity — read by SusChunkFinder as
+     *  cross-signal. Entries EXPIRE with the marker TTL — a one-off dig
+     *  burst must not boost a chunk's score forever. */
+    private static final Map<Long, Long> flagAt = new ConcurrentHashMap<>(); // chunkKey -> lastFlagMs
     private static final Map<Long, long[]> digWindow = new ConcurrentHashMap<>(); // chunkKey -> [windowStart,count]
     private static ActivityFind inst;
     private NoxRender.Emitter emitter;
@@ -90,20 +92,21 @@ public class ActivityFind extends Module {
     }
 
     @Override protected void onEnable() {
-        MARKS.clear(); flagged.clear(); digWindow.clear();
+        MARKS.clear(); flagAt.clear(); digWindow.clear();
         emitter = this::emit;
         NoxRender.add(emitter);
     }
     @Override protected void onDisable() {
-        MARKS.clear(); flagged.clear(); digWindow.clear();
+        MARKS.clear(); flagAt.clear(); digWindow.clear();
         NoxRender.remove(emitter);
     }
     @Override public String status() { return MARKS.size() + " marks"; }
-    public static Set<Long> flagged() { return flagged; }
+    public static Set<Long> flagged() { return flagAt.keySet(); }
 
     @Override public void onTick() {
         long cut = System.currentTimeMillis() - (long) (ttl.get() * 1000);
         MARKS.values().removeIf(m -> m.lastMs < cut);
+        flagAt.entrySet().removeIf(e -> System.currentTimeMillis() - e.getValue() > 300_000);
         digWindow.entrySet().removeIf(e -> System.currentTimeMillis() - e.getValue()[0] > 120_000);
     }
 
@@ -203,13 +206,13 @@ public class ActivityFind extends Module {
         // storage disappearing = looter / base being emptied
         if (storageGone.on() && storageBlock(oldB) && !storageBlock(newB)) {
             mark("storage", "STORAGE GONE", pos, 0xFFFF6666);
-            flagged.add(chunkKey(pos.getX(), pos.getZ()));
+            flagAt.put(chunkKey(pos.getX(), pos.getZ()), System.currentTimeMillis());
             return;
         }
         // player-signature block placed
         if (placement.on() && oldNoise && (signatureBlock(newB) || signFamily(newB))) {
             mark("place", "placed " + newB.getName().getString().toLowerCase(), pos, 0xFF7AE2A8);
-            flagged.add(chunkKey(pos.getX(), pos.getZ()));
+            flagAt.put(chunkKey(pos.getX(), pos.getZ()), System.currentTimeMillis());
             return;
         }
         // dig burst: natural solid → air, clustered per chunk per minute
@@ -221,8 +224,10 @@ public class ActivityFind extends Module {
                 v == null || now - v[0] > 60_000 ? new long[]{now, 1}
                     : new long[]{v[0], v[1] + 1});
             if (w[1] >= 4) {
-                mark("dig", "digging ×" + w[1], pos, 0xFFFFB84D);
-                flagged.add(key);
+                // stable label — count lives in Mark.count via bump(), else
+                // every dig past 4 makes a NEW mark + toast each block
+                mark("dig", "digging", pos, 0xFFFFB84D);
+                flagAt.put(key, System.currentTimeMillis());
             }
         }
     }
@@ -231,7 +236,7 @@ public class ActivityFind extends Module {
         if (inst == null || !inst.isEnabled() || !inst.explosions.on()) return;
         Vec3 c = p.center();
         inst.mark("blast", "explosion", c.x, c.y, c.z, 0xFFFF5555);
-        flagged.add(chunkKey((int) c.x, (int) c.z));
+        flagAt.put(chunkKey((int) c.x, (int) c.z), System.currentTimeMillis());
     }
 
     public static void onBlockEntityData(ClientboundBlockEntityDataPacket p) {
@@ -242,7 +247,7 @@ public class ActivityFind extends Module {
         if (!tag.contains("front_text") && !tag.contains("back_text")
             && !tag.contains("Text1") && !tag.contains("messages")) return;
         inst.mark("sign", "sign written", p.getPos(), 0xFFD08FFF);
-        flagged.add(chunkKey(p.getPos().getX(), p.getPos().getZ()));
+        flagAt.put(chunkKey(p.getPos().getX(), p.getPos().getZ()), System.currentTimeMillis());
     }
 
     public static void onTakeItem(ClientboundTakeItemEntityPacket p) {
@@ -260,7 +265,7 @@ public class ActivityFind extends Module {
         String who = e instanceof Player pl ? "PLAYER HIT " + pl.getName().getString() : "combat";
         inst.mark("combat", who, e.getX(), e.getY(), e.getZ(),
             e instanceof Player ? 0xFFFF5555 : 0xFFDD9955);
-        if (e instanceof Player) flagged.add(chunkKey((int) e.getX(), (int) e.getZ()));
+        if (e instanceof Player) flagAt.put(chunkKey((int) e.getX(), (int) e.getZ()), System.currentTimeMillis());
     }
 
     // ---------- marking ----------
@@ -275,7 +280,7 @@ public class ActivityFind extends Module {
         double d2 = dx * dx + dy * dy + dz * dz;
         if (d2 < ignoreNear.get() * ignoreNear.get()) return;
         boolean deep = y < mc.player.getY() - deepDrop.get();
-        String key = kind + ":" + (int) x / 16 + ":" + (int) z / 16 + ":" + label;
+        String key = kind + ":" + ((int) x >> 4) + ":" + ((int) z >> 4) + ":" + label;
         Mark m = MARKS.get(key);
         int col = deep ? 0xFFFFAA00 : color;
         if (m == null) {
