@@ -17,6 +17,6 @@ public class SpotifyHud extends Module {
 
     public SpotifyHud() { super("SpotifyHud", "Spotify now-playing widget", Category.RENDER); }
 
-    @Override
-    public void onEnable() { MediaService.start(); }
+    @Override public void onEnable() { MediaService.start(MediaService.Consumer.SPOTIFY_HUD); }
+    @Override protected void onDisable() { MediaService.stop(MediaService.Consumer.SPOTIFY_HUD); }
 }

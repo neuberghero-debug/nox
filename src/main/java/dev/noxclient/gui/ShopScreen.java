@@ -316,11 +316,13 @@ public class ShopScreen extends Screen {
         int glowC = lerp(UICustom.border, sel.color, 0.5f + 0.3f * selGlow);
         // preview surface must stay in the deferred batch (PiP renders on top of it)
         SmoothShapes.roundBorder(g, px, py, pw, ph, 10, glowC, UICustom.cardFillBottom);
-        // radial stage glow — deferred concentric rings (NVG ops would cover the model)
+        // radial stage glow — deferred rings, smooth alpha ramp (NVG ops would
+        // cover the 3D model)
         int scx = px + pw / 2, scy = py + ph / 2 - 12;
-        for (int i = 3; i >= 0; i--) {
-            int a = (int) ((0x10 + i * 0x06) * (0.6f + 0.4f * selGlow));
-            SmoothShapes.circle(g, scx, scy, 30 + i * 16,
+        for (int i = 9; i >= 0; i--) {
+            int a = (int) ((0x2E - i * 2.4f) * (0.6f + 0.4f * selGlow));
+            if (a <= 0) continue;
+            SmoothShapes.circle(g, scx, scy, 24 + i * 8,
                 (a << 24) | (sel.color & 0xFFFFFF));
         }
         // floor disc

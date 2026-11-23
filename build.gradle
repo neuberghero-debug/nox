@@ -138,7 +138,12 @@ tasks.register('physicsCheck', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'dev.noxclient.physics.PhysicsTest'
 }
-tasks.named('check') { dependsOn 'physicsCheck' }
+tasks.register('mediaCheck', JavaExec) {
+    dependsOn 'testClasses'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.noxclient.media.MediaTest'
+}
+tasks.named('check') { dependsOn 'physicsCheck', 'mediaCheck' }
 
 // TamperGuard signature: SHA-256 over class + metadata entries (name bytes
 // then file bytes, sorted) — mirrors TamperGuard.selfHash() exactly.

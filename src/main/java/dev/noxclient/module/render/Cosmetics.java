@@ -145,7 +145,9 @@ public class Cosmetics extends Module {
     @Override
     public void onTick() {
         if (mc.player == null || mc.level == null || locked()) return;
-        drawAura();
+        // aura patterns emit ~40 particles — every other tick halves density so
+        // dust doesn't pile up into a screen-filling blob swarm
+        if ((mc.player.tickCount & 1) == 0) drawAura();
         if (trail.get().equals("Off")) { lastX = mc.player.getX(); lastY = mc.player.getY(); lastZ = mc.player.getZ(); return; }
         boolean moving = mc.player.getDeltaMovement().horizontalDistanceSqr() >= 0.001;
         boolean jumped = wasAir && mc.player.onGround();
@@ -203,8 +205,8 @@ public class Cosmetics extends Module {
                 p(ParticleTypes.WITCH, x, y + 0.15, z, 0, 0.05, 0);
                 p(dust(0xB05CFF, 0.55f), x + rnd(0.3), y, z + rnd(0.3), 0, 0.04, 0);
             }
-            case "Void" -> {   // rising anti-gravity ash + violet dust
-                p(ParticleTypes.ASH, x + rnd(0.35), y + 0.1, z + rnd(0.35), 0, 0.05, 0);
+            case "Void" -> {   // violet dust + portal sparks drifting up
+                p(dust(0x8A3FE8, 0.6f), x + rnd(0.35), y + 0.1, z + rnd(0.35), 0, 0.07, 0);
                 p(dust(0x6A1FCC, 0.6f), x, y, z, 0, 0.08, 0);
                 if (Math.random() < 0.15)
                     p(ParticleTypes.PORTAL, x, y + 0.2, z, 0, 0.15, 0);
@@ -263,7 +265,7 @@ public class Cosmetics extends Module {
                 double bx = -Math.sin(yaw), bz = Math.cos(yaw);
                 double flap = Math.sin(t * 3.2) * 0.06;
                 for (int row = 0; row < 3; row++)
-                    for (int i = 1; i <= 7; i++) {
+                    for (int i = 1; i <= 6; i++) {
                         double spread = i * (0.10 + row * 0.025);
                         double h = 1.95 - i * 0.20 - row * 0.28 + flap * i / 4;
                         for (int side : new int[]{-1, 1}) {
@@ -277,8 +279,8 @@ public class Cosmetics extends Module {
                     }
             }
             case "FlameRing" -> {
-                for (int i = 0; i < 18; i++) {
-                    double a = i / 18.0 * Math.PI * 2 - t * 1.6;
+                for (int i = 0; i < 14; i++) {
+                    double a = i / 14.0 * Math.PI * 2 - t * 1.6;
                     p(ParticleTypes.FLAME, px + Math.cos(a) * 0.7, py + 0.12, pz + Math.sin(a) * 0.7,
                         0, 0.03, 0);
                 }
@@ -290,8 +292,8 @@ public class Cosmetics extends Module {
                 }
             }
             case "Tornado" -> {
-                for (int i = 0; i < 26; i++) {
-                    double h = i / 26.0 * 2.3;
+                for (int i = 0; i < 20; i++) {
+                    double h = i / 20.0 * 2.3;
                     double a = i * 0.9 + t * 4.5;
                     double r = 0.18 + h * 0.32;
                     p(i % 3 == 0 ? ParticleTypes.CLOUD : dust(0x8A8F9A, 0.45f),
@@ -307,8 +309,8 @@ public class Cosmetics extends Module {
                         pz + rnd(0.3), rnd(0.25), 0.1, rnd(0.25));
             }
             case "Galaxy Halo" -> {
-                for (int i = 0; i < 22; i++) {
-                    double a = i / 22.0 * Math.PI * 2 + t * 1.1;
+                for (int i = 0; i < 16; i++) {
+                    double a = i / 16.0 * Math.PI * 2 + t * 1.1;
                     double wob = Math.sin(t * 3 + i * 1.3) * 0.12;
                     p(dust(i % 4 == 0 ? 0xF5F5F5 : 0x9B4DFF, 0.5f),
                         px + Math.cos(a) * (0.62 + wob), py + 2.18 + wob * 0.5,
@@ -320,24 +322,24 @@ public class Cosmetics extends Module {
             }
             case "Helix" -> {
                 for (int s = 0; s < 2; s++)
-                    for (int i = 0; i < 14; i++) {
-                        double h = i / 14.0 * 2.15;
+                    for (int i = 0; i < 10; i++) {
+                        double h = i / 10.0 * 2.15;
                         double a = h * 3 + t * 2.4 + s * Math.PI;
                         p(dust(s == 0 ? 0xF5F5F5 : 0x9B4DFF, 0.5f),
                             px + Math.cos(a) * 0.55, py + h, pz + Math.sin(a) * 0.55, 0, 0, 0);
                     }
             }
             case "BlackHole" -> {
-                for (int i = 0; i < 16; i++) {
-                    double h = i / 16.0 * 1.7;
+                for (int i = 0; i < 12; i++) {
+                    double h = i / 12.0 * 1.7;
                     double a = i * 0.75 - t * 4.5;
                     double r = 0.8 - h * 0.34;
-                    p(dust(i % 3 == 0 ? 0x9B4DFF : 0x18181E, 0.45f),
+                    p(dust(i % 3 == 0 ? 0xC77DFF : 0x5A2E9E, 0.45f),
                         px + Math.cos(a) * r, py + 0.25 + h, pz + Math.sin(a) * r, 0, 0, 0);
                 }
                 ringDust(px, py + 1.05 + Math.sin(t * 1.5) * 0.04, pz,
-                    0.55, 16, 0xF5F5F5, 0.5f, t * 3, 0);
-                ringDust(px, py + 1.05, pz, 0.38, 10, 0x9B4DFF, 0.45f, -t * 2.2, 0.03);
+                    0.55, 12, 0xF5F5F5, 0.5f, t * 3, 0);
+                ringDust(px, py + 1.05, pz, 0.38, 8, 0x9B4DFF, 0.45f, -t * 2.2, 0.03);
             }
             case "EmberCrown" -> {
                 for (int i = 0; i < 10; i++) {

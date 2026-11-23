@@ -17,6 +17,13 @@ public class LyricsSky extends Module {
 
     public LyricsSky() { super("LyricsSky", "Synced lyrics over the sky", Category.RENDER); }
 
-    @Override
-    public void onEnable() { MediaService.start(); LyricsService.start(); }
+    @Override public void onEnable() {
+        MediaService.start(MediaService.Consumer.LYRICS_SKY);
+        LyricsService.start();
+    }
+
+    @Override protected void onDisable() {
+        LyricsService.stop();
+        MediaService.stop(MediaService.Consumer.LYRICS_SKY);
+    }
 }
