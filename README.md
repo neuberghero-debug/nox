@@ -8,7 +8,7 @@ per-server configs, Discord integration, cosmetics & shop, premium module gate.
 **Contribute:** [CONTRIBUTING.md](CONTRIBUTING.md) — devs & designers wanted!
 
 ## Build
-    gradle build           # → build/libs/nox-0.1.0-alpha.jar  (drop in mods/)
+    gradle build           # → build/libs/nox-0.9.0-beta.jar  (drop in mods/)
     gradle runClient       # dev instance
 
 Requires Gradle ≥ 9.9 and Java 25.

@@ -14,7 +14,7 @@ import net.minecraft.client.Minecraft;
 
 public class NoxClient implements ClientModInitializer {
     public static final String NAME = "NOX";
-    public static final String VERSION = "0.1.0-alpha";
+    public static final String VERSION = "0.9.0-beta";
     public static final String DISCORD_INVITE = "https://discord.gg/tewtZTsZf5";
 
     public static NoxClient INSTANCE;

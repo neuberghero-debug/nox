@@ -1,4 +1,4 @@
-# NOX 0.1.0-alpha — early alpha
+# NOX 0.9.0-beta — early alpha
 
 First public alpha of the NOX client for **Minecraft 26.3 Fabric** on DonutSMP.
 Expect rough edges — report everything on the Discord:

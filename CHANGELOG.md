@@ -71,7 +71,7 @@
 All notable changes to NOX are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/), versions follow SemVer.
 
-## [0.1.0-alpha] — 2026-11-14
+## [0.9.0-beta] — 2026-11-14
 
 First public early-alpha. NOX is now fully open source (MIT).
 
