@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — HUD editor, smooth corners, input fixes
+## [0.1.0-beta] — 2026-11-23
+
+### HUD editor, smooth corners, input fixes
 
 - **Account manager** (Alts pill): paste a Microsoft session token -> resolved
   via api.minecraftservices.com and swapped into Minecraft.user (Unsafe field
@@ -24,7 +26,7 @@
 - HUD text: Inter everywhere, all drop shadows removed; ArrayList = flat edge-flush chips + inset accent pill, slide/fade kept
 - Fixed: Interface module could be toggled off → killed ALL customization sync; now always-on + ticked unconditionally
 
-## Unreleased — customization entry, card restyle, season FX, bug fixes
+### Customization entry, card restyle, season FX, bug fixes
 - Added CustomizeScreen ("Style" footer pill): visual theme cards, Season/Backdrop/level pickers, ClickGUI layout styles, accent palette, density/radius/HUD-scale steppers, reduced-motion toggle — all live-applied via Interface settings
 - Added seasonal ambient FX (Winter snow / Spring petals / Summer fireflies / Autumn leaves) inside windows — Interface "Seasonal FX" toggle, reduced-motion aware
 - ShopScreen rebuilt: filter tabs, 2-col card grid, animated per-item previews (trail/aura/kill/cape), FREE/OWNED/EQUIPPED pills, equip/unequip toggle
@@ -35,7 +37,7 @@
 - Fixed: outside-click while editing now commits instead of silently dropping the edit; Num-field edit zone widened (slider no longer eats the field's lower edge)
 - New module: Wtap — sprint-reset W-tap on hits (client-input only, no packets)
 
-## Unreleased — look system, commerce, settings quality
+### Look system, commerce, settings quality
 - Added 4 seasonal themes (Winter/Spring/Summer/Autumn) + Interface "Season" (Auto=calendar, applied on change)
 - Added "Screen backdrop" (Dim/Frost/Prism) + "Backdrop level" (Light/Medium/Strong); Prism = animated specular border + hue fringe via NvgOverlay, Frost = tint/sheen/vignette (no 2nd blur call)
 - Added card stagger entrance (20ms×≤12), clickStyle cross-fade veil, sidebar sliding indicator, ArrayList 180ms slide-out, toast slide-out; AnimationSystem.seconds/approach drive all UI easing
@@ -46,7 +48,7 @@
 - Fixed: NvgOverlay.clear() ordering wiped queued backdrop ops; "Backdrop" mode name collided with existing Col setting → renamed "Screen backdrop"; UICustom.reset() now covers all new fields; ModuleButton crash was a corrupt jar (atomic deploy already prevents)
 
 
-## Unreleased — UI overhaul, animation system, cape system, bug hunt
+### UI overhaul, animation system, cape system, bug hunt
 
 ### Added
 - Studio ClickGUI layout (default): sidebar categories, ≤3 readable card columns,
