@@ -52,7 +52,11 @@ public class ChunkFinder extends Module {
             if (b == Blocks.CHEST || b == Blocks.BARREL || b == Blocks.FURNACE
                 || b == Blocks.BLAST_FURNACE || b == Blocks.BEACON || b == Blocks.SPAWNER
                 || b == Blocks.END_PORTAL_FRAME || b == Blocks.OBSIDIAN) {
-                if (++hits >= 4) return true;
+                if (++hits >= 4) {
+                    dev.noxclient.util.BaseIntel.hit("chunk:" + c.getPos(), pos,
+                        dev.noxclient.util.BaseSigs.Cat.STORAGE.color, "storage cluster", 5);
+                    return true;
+                }
             }
         }
         return false;

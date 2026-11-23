@@ -22,9 +22,18 @@ public class NoFall extends Module {
         // inside the post-teleport/join confirm window — grace covers that
         if (mc.player.tickCount < 60 || mc.player.isPassenger() || mc.player.isDeadOrDying()) return;
         fired = true;
+        // Grim strict: a spoofed onGround packet contradicts the server's own
+        // fall tracking — instant Ground flag. AutoMLG water-clutch is the
+        // legal no-fall: it places real water with real packets.
+        if (dev.noxclient.module.donutsmp.DonutGuard.strict()) return;
         if (mode.get().equals("Packet")) {
             mc.getConnection().send(new ServerboundMovePlayerPacket.StatusOnly(true, false));
         }
         mc.player.resetFallDistance();
+    }
+
+    @Override public String status() {
+        return dev.noxclient.module.donutsmp.DonutGuard.strict()
+            ? "blocked (Grim) — use AutoMLG" : "armed";
     }
 }

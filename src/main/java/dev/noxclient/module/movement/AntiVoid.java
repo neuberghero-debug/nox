@@ -23,6 +23,7 @@ public class AntiVoid extends Module {
         if (mc.player.onGround() && mc.player.getY() > minY.get())
             safe = mc.player.position();
         if (mc.player.getY() < minY.get() && safe != null
+            && !dev.noxclient.module.donutsmp.DonutGuard.strict()   // teleports flag instantly on Grim
             && System.currentTimeMillis() - lastRescue > 1000) {
             lastRescue = System.currentTimeMillis();
             if (method.get().equals("Bounce"))

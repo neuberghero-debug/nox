@@ -114,3 +114,21 @@ Legend: ✅ done & compiling · ⚠️ partial/likely needs tuning · ❌ missin
 | Fullbright: gamma-Clamp → NIGHT_VISION-Mixin | ✅ |
 | Modul-Exceptions: silent → Stacktrace + §c-Chat | ✅ |
 | Invite-Popup: Parent hinterm Modal (war Blackscreen-Look) | ✅ |
+
+## DonutSMP intel suite (session: base-finding + Grim-bypass)
+
+| Feature | Status |
+|---|---|
+| Packet bus: GamePacketMixin → Module.onPacket (20 inbound handler) | ✅ |
+| BaseIntel/BaseSigs: shared hit store, chunk scoring, overlay marks | ✅ |
+| SoundBaseFinder 🔒: named/entity sounds, level+block events | ✅ |
+| BlockLeakFinder: updates, sections, destruction, transient, explosion, particles | ✅ |
+| EntityLeakFinder: spawn/gear/take-item/damage/passenger leaks | ✅ |
+| ChunkBELeak 🔒: block-entity list in chunk packets (anti-xray blind spot) | ✅ |
+| RoomFinder: sealed air pockets below Y=0 | ✅ |
+| EventTriangulator: global level events → region wedges | ✅ |
+| XrayRadar 🔒: fake-ore fields + ore→stone reveal flips = hidden zones | ✅ |
+| RevealProbe 🔒: START+ABORT_DESTROY de-obfuscation | ⚠️ active packets, risky — default OFF |
+| DonutGuard: Grim-strict master switch (default ON) | ✅ compile-verified |
+| AC hardening: silent-rot placements (Interact.placeOn), reach clamps, Speed→real bhop, Flight/NoFall/AntiVoid/NoSlow/HighJump blocked on strict, Velocity→JumpReset, FastPlace/FastBreak/Nuker/KillAura caps | ✅ compile-verified, live-Tuning offen |
+| Stealth: ModSpoofer default-on, brand immer "vanilla" | ✅ |

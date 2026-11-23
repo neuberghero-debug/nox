@@ -14,7 +14,11 @@ public class FastBreak extends Module {
         var gm = mc.gameMode;
         if (gm == null) return;
         var acc = (dev.noxclient.mixin.GameModeAccessor) gm;
-        if (acc.nox$getDestroyDelay() > delay.intVal())
-            acc.nox$setDestroyDelay(delay.intVal());
+        // Grim checks break-progress vs packet timing — the vanilla 5-tick
+        // delay is the only safe floor on strict.
+        int eff = dev.noxclient.module.donutsmp.DonutGuard.strict()
+            ? Math.max(delay.intVal(), 5) : delay.intVal();
+        if (acc.nox$getDestroyDelay() > eff)
+            acc.nox$setDestroyDelay(eff);
     }
 }

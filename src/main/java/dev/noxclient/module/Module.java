@@ -62,6 +62,8 @@ public abstract class Module {
     protected void onEnable() {}
     protected void onDisable() {}
     public void onTick() {}
+    /** Inbound game packets — dispatched by GamePacketMixin. Main thread. */
+    public void onPacket(net.minecraft.network.protocol.Packet<?> p) {}
 
     /** Diagnostics — filled by ModuleManager + mark(). */
     public volatile String lastError, lastAction;

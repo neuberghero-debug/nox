@@ -37,8 +37,11 @@ public class AutoCrystal extends Module {
 
         // 1) detonate existing crystals near the target
         for (Entity e : mc.level.entitiesForRendering()) {
+            // attack reach is 3.05 — hitting a crystal 6 blocks away flags.
             if (e instanceof EndCrystal c
+                && dev.noxclient.util.Interact.inAttackReach(c)
                 && c.distanceToSqr(target) < 36 && Legitifier.ready(this, breakCps.get(), 0.3)) {
+                dev.noxclient.util.Interact.aim(c.getEyePosition());
                 mc.gameMode.attack(mc.player, c);
                 mc.player.swing(InteractionHand.MAIN_HAND,
                     net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
@@ -52,10 +55,11 @@ public class AutoCrystal extends Module {
         BlockPos spot = findSpot(target);
         if (spot == null) return;
         if (antiSelf.on() && spot.distSqr(mc.player.blockPosition()) < 9) return;
+        if (!dev.noxclient.util.Interact.inReach(spot)) return; // place reach 4.5
         InteractionHand hand = mc.player.getMainHandItem().is(Items.END_CRYSTAL)
             ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
         mc.gameMode.useItemOn(mc.player, hand,
-            new BlockHitResult(Vec3.atCenterOf(spot), Direction.UP, spot, false));
+            dev.noxclient.util.Interact.placeOn(spot, Direction.UP));
     }
 
     private BlockPos findSpot(LivingEntity t) {

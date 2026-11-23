@@ -69,7 +69,11 @@ public class KillAura extends Module {
 
     private LivingEntity nearest() {
         LivingEntity best = null;
-        double bd = range.get() * range.get();
+        // vanilla attack reach is 3.0 (+0.05 tolerance) — Grim reach-flags
+        // any swing that lands further, so strict clamps to it.
+        double eff = dev.noxclient.module.donutsmp.DonutGuard.strict()
+            ? Math.min(range.get(), 3.0) : range.get();
+        double bd = eff * eff;
         for (Entity e : mc.level.entitiesForRendering()) {
             if (!(e instanceof LivingEntity le) || e == mc.player || !le.isAlive()) continue;
             if (playersOnly.on() && !(e instanceof Player)) continue;

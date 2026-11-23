@@ -31,7 +31,9 @@ public class Surround extends Module {
             if (slot < 0) return;
         }
         BlockPos feet = mc.player.blockPosition();
-        if (center.on()) {
+        // center-snap sends a micro-teleport in the next pos packet — Grim's
+        // setback sim flags it, so strict skips it and just places
+        if (center.on() && !dev.noxclient.module.donutsmp.DonutGuard.strict()) {
             var c = Vec3.atCenterOf(feet);
             mc.player.setPos(c.x, mc.player.getY(), c.z);
             mc.player.setDeltaMovement(0, mc.player.getDeltaMovement().y, 0);
@@ -44,7 +46,7 @@ public class Surround extends Module {
             var ts = mc.level.getBlockState(target);
             if (!ts.isAir() && !ts.canBeReplaced()) continue;
             if (!Legitifier.ready(this, cps.get(), 0.2)) return;
-            var hit = new BlockHitResult(Vec3.atCenterOf(p), Direction.UP, p, false);
+            var hit = dev.noxclient.util.Interact.placeOn(p, Direction.UP);
             mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
             return;
         }

@@ -27,8 +27,9 @@ public class TunnelBaseFinder extends Module {
         for (int i = 0; i < 2; i++) {
             BlockPos p = base.above(i);
             var state = mc.level.getBlockState(p);
-            if (state.isAir()) continue;
+            if (state.isAir() || !dev.noxclient.util.Interact.inReach(p)) continue;
             flagIfInteresting(p, state);
+            dev.noxclient.util.Interact.aim(p);
             mc.gameMode.startDestroyBlock(p, dir.getOpposite());
             mc.gameMode.continueDestroyBlock(p, dir.getOpposite());
             return; // one block at a time — safe pacing

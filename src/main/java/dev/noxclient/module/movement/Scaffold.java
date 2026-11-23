@@ -66,7 +66,7 @@ public class Scaffold extends Module {
             }
             if (!Legitifier.ready(this, cps.get(), 0.2)) return;
             inv.setSelectedSlot(slot);
-            var hit = new BlockHitResult(Vec3.atCenterOf(support), face, support, false);
+            var hit = dev.noxclient.util.Interact.placeOn(support, face);
             mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
             mc.player.swing(InteractionHand.MAIN_HAND,
                 net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);

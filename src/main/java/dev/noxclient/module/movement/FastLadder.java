@@ -13,7 +13,10 @@ public class FastLadder extends Module {
     @Override public void onTick() {
         if (mc.player == null || !mc.player.onClimbable()) return;
         var dm = mc.player.getDeltaMovement();
+        // vanilla climb speed is 0.1176 — Grim sims it, so strict caps there
+        double v = dev.noxclient.module.donutsmp.DonutGuard.strict()
+            ? Math.min(speed.get(), 0.117) : speed.get();
         if (dm.y > 0.02 || mc.player.input.getMoveVector().y > 0)
-            mc.player.setDeltaMovement(dm.x, speed.get(), dm.z);
+            mc.player.setDeltaMovement(dm.x, v, dm.z);
     }
 }

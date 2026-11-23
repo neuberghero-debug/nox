@@ -39,7 +39,7 @@ public class AnchorMacro extends Module {
             if (slot < 0) return;
             mc.player.getInventory().setSelectedSlot(slot);
             mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,
-                new BlockHitResult(Vec3.atCenterOf(spot), Direction.UP, spot, false));
+                dev.noxclient.util.Interact.placeOn(spot, Direction.UP));
             anchor = spot.above();
             return;
         }
@@ -59,7 +59,7 @@ public class AnchorMacro extends Module {
 
     private void clickAnchor() {
         mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,
-            new BlockHitResult(Vec3.atCenterOf(anchor), Direction.UP, anchor, false));
+            dev.noxclient.util.Interact.placeOn(anchor, Direction.UP));
     }
 
     private int find(net.minecraft.world.item.Item item) {

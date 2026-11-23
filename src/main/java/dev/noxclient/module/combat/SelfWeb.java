@@ -34,7 +34,7 @@ public class SelfWeb extends Module {
         if (!mc.level.getBlockState(support).isSolid()) return;
         if (!Legitifier.ready(this, 8, 0.2)) return;
         inv.setSelectedSlot(slot);
-        var hit = new BlockHitResult(Vec3.atCenterOf(support), Direction.UP, support, false);
+        var hit = dev.noxclient.util.Interact.placeOn(support, Direction.UP);
         mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
     }
 }

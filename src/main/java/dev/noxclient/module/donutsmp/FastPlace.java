@@ -23,7 +23,11 @@ public class FastPlace extends Module {
         if (mc.player == null || mc.gameMode == null || !mc.options.keyUse.isDown()) return;
         long now = System.currentTimeMillis();
         if (now < next) return;
-        next = now + (long) (1000.0 / cps.get() + (Math.random() * 12 - 6));
+        // Grim strict: vanilla right-click rate is 5/s — anything faster is a
+        // packet-timing flag.
+        double eff = dev.noxclient.module.donutsmp.DonutGuard.strict()
+            ? Math.min(cps.get(), 5.0) : cps.get();
+        next = now + (long) (1000.0 / eff + (Math.random() * 12 - 6));
 
         if (mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
             for (InteractionHand hand : InteractionHand.values()) {

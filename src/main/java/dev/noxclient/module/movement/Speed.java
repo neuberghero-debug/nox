@@ -20,6 +20,13 @@ public class Speed extends Module {
         if (mc.player == null || !mc.player.onGround()) return;
         Vec3 v = mc.player.getDeltaMovement();
         if (v.horizontalDistanceSqr() < 1.0e-4) return;
+        // Grim strict: any velocity multiplier fails the movement simulation —
+        // the only undetectable "speed" is a real sprint-jump, which is legal.
+        if (dev.noxclient.module.donutsmp.DonutGuard.strict()) {
+            if (mc.player.isSprinting() || mc.player.input.getMoveVector().y > 0)
+                mc.player.jumpFromGround();
+            return;
+        }
         double mult = switch (mode.get()) {
             case "Legit" -> Math.min(multiplier.get(), 1.12); // hard cap: stay near vanilla
             case "Strafe" -> multiplier.get();

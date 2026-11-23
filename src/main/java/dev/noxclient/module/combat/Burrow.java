@@ -38,7 +38,7 @@ public class Burrow extends Module {
         if (jumpOut.on() && mc.player.onGround())
             mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, 0.42,
                 mc.player.getDeltaMovement().z);
-        var hit = new BlockHitResult(Vec3.atCenterOf(support), Direction.UP, support, false);
+        var hit = dev.noxclient.util.Interact.placeOn(support, Direction.UP);
         mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
     }
 }

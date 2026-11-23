@@ -23,7 +23,9 @@ public class Nuker extends Module {
     @Override public void onTick() {
         if (mc.player == null || mc.gameMode == null) return;
         var eye = mc.player.blockPosition();
-        int r = range.intVal();
+        // Grim strict: block actions beyond ~4.3 blocks flag reach checks.
+        int r = dev.noxclient.module.donutsmp.DonutGuard.strict()
+            ? Math.min(range.intVal(), 4) : range.intVal();
         String f = filter.get().toLowerCase();
         BlockPos best = null; double bd = Double.MAX_VALUE;
         for (int x = -r; x <= r; x++) for (int y = -r; y <= r; y++) for (int z = -r; z <= r; z++) {
@@ -37,7 +39,8 @@ public class Nuker extends Module {
         if (best == null) { working = null; return; }
         if (!Legitifier.ready(this, bps.get(), 0.15)) return;
         working = best;
-        var hit = new BlockHitResult(Vec3.atCenterOf(best), Direction.UP, best, false);
+        // rotate the next pos packet at the block so the server's dig ray hits
+        dev.noxclient.util.Interact.aim(Vec3.atCenterOf(best));
         mc.gameMode.startDestroyBlock(best, Direction.UP);
         mc.gameMode.continueDestroyBlock(best, Direction.UP);
         if (legit.on())

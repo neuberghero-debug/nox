@@ -42,16 +42,14 @@ public class AutoWeb extends Module {
         if (spot == null || !solid(support)) return;
 
         int prev = mc.player.getInventory().getSelectedSlot();
-        float oldYaw = mc.player.getYRot(), oldPitch = mc.player.getXRot();
         mc.player.getInventory().setSelectedSlot(slot);
-        if (rotate.on()) face(support);
+        // placeOn aims the next pos packet at the face — silent rot, no
+        // camera yank, no extra packets (the old face()+restore never
+        // actually reached the server → Grim RotPlace flag)
         mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,
-            new BlockHitResult(Vec3.atCenterOf(support), Direction.UP, support, false));
+            dev.noxclient.util.Interact.placeOn(support, Direction.UP));
         mc.player.swing(InteractionHand.MAIN_HAND,
             net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
-        // restore camera — rotate used to yank yaw/pitch up to 6x/s
-        mc.player.setYRot(oldYaw);
-        mc.player.setXRot(oldPitch);
         mc.player.getInventory().setSelectedSlot(prev);
     }
 
@@ -67,14 +65,6 @@ public class AutoWeb extends Module {
 
     private boolean solid(BlockPos p) {
         return !mc.level.getBlockState(p).isAir();
-    }
-
-    private void face(BlockPos p) {
-        Vec3 c = Vec3.atCenterOf(p);
-        double dx = c.x - mc.player.getX(), dz = c.z - mc.player.getZ();
-        double dy = c.y - mc.player.getEyeY();
-        mc.player.setYRot((float) (Math.atan2(dz, dx) * 180 / Math.PI) - 90f);
-        mc.player.setXRot((float) (-Math.atan2(dy, Math.hypot(dx, dz)) * 180 / Math.PI));
     }
 
     private Player nearest() {

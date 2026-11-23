@@ -13,6 +13,8 @@ public class HighJump extends Module {
 
     @Override public void onTick() {
         if (mc.player == null) return;
+        // Grim strict: any impulse above the vanilla 0.42 fails simulation.
+        if (dev.noxclient.module.donutsmp.DonutGuard.strict()) return;
         boolean ground = mc.player.onGround();
         if (wasGround && !ground && mc.player.getDeltaMovement().y > 0) {
             var d = mc.player.getDeltaMovement();

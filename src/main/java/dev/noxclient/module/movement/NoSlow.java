@@ -14,6 +14,8 @@ public class NoSlow extends Module {
     @Override
     public void onTick() {
         if (mc.player == null || !mc.player.isUsingItem()) return;
+        // Grim strict: item slowdown is server-simulated — cancelling it flags.
+        if (dev.noxclient.module.donutsmp.DonutGuard.strict()) return;
         Vec3 v = mc.player.getDeltaMovement();
         if (v.horizontalDistanceSqr() < 1e-4) return;
         double boost = 5.0 * factor.get(); // undo vanilla *0.2

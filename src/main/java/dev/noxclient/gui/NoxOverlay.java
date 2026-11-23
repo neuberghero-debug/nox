@@ -42,6 +42,7 @@ public class NoxOverlay implements HudElement {
         drawMarks(g, cp, mat, w, h, AntiESPBypass.MARKS);
         drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.OreESP.HITS);
         drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.HoleESP.HITS);
+        drawIntelMarks(g, mc, cp, mat, w, h);
         float hs = dev.noxclient.gui.UICustom.hudScale;
         // auto-fit: on small logical screens (high vanilla GUI scale) the HUD
         // shrinks proportionally instead of overflowing; floor keeps it legible
@@ -538,6 +539,29 @@ public class NoxOverlay implements HudElement {
             g.fill((int) p[0] - s, (int) p[1] - s, (int) p[0] + s, (int) p[1] + s, en.getValue() & 0x55FFFFFF);
             g.outline((int) p[0] - s, (int) p[1] - s, s * 2, s * 2, en.getValue());
         }
+    }
+
+    /**
+     * BaseIntel marks: category-colored diamonds + a label for the nearest
+     * few so chest-open sounds / BE leaks read as "chest @ -4y", not just dots.
+     */
+    private void drawIntelMarks(GuiGraphicsExtractor g, Minecraft mc, Vec3 cp,
+                                Matrix4f mat, int w, int h) {
+        if (dev.noxclient.util.BaseIntel.size() == 0) return;
+        int[] labels = {0};
+        dev.noxclient.util.BaseIntel.forEach((pos, hit) -> {
+            double[] p = project(Vec3.atCenterOf(pos), cp, mat, w, h);
+            if (p == null || p[2] > 260) return;
+            int s = (int) Math.max(3, Math.min(14, 160 / p[2]));
+            g.fill((int) p[0] - s, (int) p[1] - s, (int) p[0] + s, (int) p[1] + s,
+                hit.color & 0x55FFFFFF);
+            g.outline((int) p[0] - s, (int) p[1] - s, s * 2, s * 2, hit.color);
+            if (labels[0] < 12 && p[2] < 160 && hit.label != null && !hit.label.isEmpty()) {
+                labels[0]++;
+                String txt = hit.label + (hit.count > 1 ? " ×" + hit.count : "");
+                Gui.textCenter(g, mc.font, txt, (int) p[0], (int) p[1] - s - 9, hit.color);
+            }
+        });
     }
 
     /** world → [screenX, screenY, distance]; null when behind camera */

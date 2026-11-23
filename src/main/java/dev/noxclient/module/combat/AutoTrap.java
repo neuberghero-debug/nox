@@ -57,8 +57,7 @@ public class AutoTrap extends Module {
                 if (mc.level.getBlockState(support).isAir()) continue;
             }
             if (!Legitifier.ready(this, cps.get(), 0.2)) return;
-            var hit = new BlockHitResult(Vec3.atCenterOf(support),
-                face, support, false);
+            var hit = dev.noxclient.util.Interact.placeOn(support, face);
             mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
             return;
         }

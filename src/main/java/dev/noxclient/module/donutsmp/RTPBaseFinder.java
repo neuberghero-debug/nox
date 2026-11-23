@@ -39,18 +39,21 @@ public class RTPBaseFinder extends Module {
     }
 
     private void scanArea() {
-        var sus = dev.noxclient.NoxClient.INSTANCE.modules.get("SusChunkFinder");
-        if (sus instanceof SusChunkFinder f) {
-            ChunkPos pc = mc.player.chunkPosition();
-            var scores = f.scores();
-            scores.forEach((cp, score) -> {
-                if (score >= scoreMin.get() && Math.abs(cp.x() - pc.x()) < 20 && Math.abs(cp.z() - pc.z()) < 20) {
-                    chat("§e[NOX] Sus chunk " + cp.x() + "," + cp.z() + " score=" + score.intValue());
-                    dev.noxclient.util.StashLogger.log("rtp-scan",
-                        new net.minecraft.core.BlockPos(cp.getMiddleBlockX(), 64, cp.getMiddleBlockZ()), "score=" + score);
-                }
-            });
+        ChunkPos pc = mc.player.chunkPosition();
+        int best = 0;
+        for (int dx = -20; dx <= 20; dx++) for (int dz = -20; dz <= 20; dz++) {
+            ChunkPos cp = new ChunkPos(pc.x() + dx, pc.z() + dz);
+            int score = dev.noxclient.util.BaseIntel.score(cp);
+            var sus = dev.noxclient.NoxClient.INSTANCE.modules.get("SusChunkFinder");
+            if (sus instanceof SusChunkFinder f) score += f.scores().getOrDefault(cp, 0.0).intValue();
+            if (score >= scoreMin.get()) {
+                best++;
+                chat("§e[NOX] Sus chunk " + cp.x() + "," + cp.z() + " score=" + score);
+                dev.noxclient.util.StashLogger.log("rtp-scan",
+                    new net.minecraft.core.BlockPos(cp.getMiddleBlockX(), 64, cp.getMiddleBlockZ()), "score=" + score);
+            }
         }
+        if (best > 0) mark(best + " sus chunks");
     }
 
     private void chat(String s) {

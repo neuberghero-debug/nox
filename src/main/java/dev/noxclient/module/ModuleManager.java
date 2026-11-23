@@ -33,10 +33,21 @@ public class ModuleManager {
         reg(new SellWand());
         reg(new ArmorAlert());
         // Finders
+        reg(new DonutGuard());      // AC master switch — keep enabled on DonutSMP
         reg(new ChunkFinder());
         reg(new AmethystBaseFinder());
         reg(new ArtificialLightFinder());
         reg(new SusChunkFinder());
+        reg(new BaseFinder());      // orchestrates all intel into ranked leads
+        reg(new SoundBaseFinder()); // sound/world-event leak → underground bases
+        reg(new BlockLeakFinder()); // block-update/section/destruction leaks
+        reg(new EntityLeakFinder());// frames/stands/minecart spawns leak bases
+        reg(new ChunkBELeak());     // block-entity list in chunk packets (xray bypass)
+        reg(new RoomFinder());      // enclosed air pockets = hidden rooms
+        reg(new EventTriangulator());// global events → wedge triangulation
+        reg(new XrayRadar());       // fake-ore fields + reveal flips = hidden zones
+        reg(new ChunkAger());       // fresh-vs-disk palettes + old-gen chunks
+        reg(new RevealProbe());     // START/ABORT_DESTROY de-obfuscation (risky)
         // Combat
         reg(new KillAura());
         reg(new AutoTotem());
@@ -204,6 +215,24 @@ public class ModuleManager {
                             net.minecraft.network.chat.Component.literal(
                                 "§c[NOX] " + m.name + " error: " + t));
                     }
+                }
+            }
+        }
+    }
+
+    /** Inbound packet fan-out — called from GamePacketMixin on the game thread. */
+    public void dispatchPacket(net.minecraft.network.protocol.Packet<?> p) {
+        for (Module m : all) {
+            if (!m.isEnabled()) continue;
+            try { m.onPacket(p); } catch (Throwable t) {
+                m.lastError = String.valueOf(t);
+                m.lastErrorAt = System.currentTimeMillis();
+                if (failed.add(m)) {
+                    t.printStackTrace();
+                    var mc = Minecraft.getInstance();
+                    if (mc.player != null) mc.player.sendSystemMessage(
+                        net.minecraft.network.chat.Component.literal(
+                            "§c[NOX] " + m.name + " error: " + t));
                 }
             }
         }

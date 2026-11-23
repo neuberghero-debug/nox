@@ -20,10 +20,13 @@ public class AutoHarvest extends Module {
     public void onTick() {
         if (mc.player == null || mc.level == null || !Legitifier.ready(this, 4, 0.4)) return;
         BlockPos me = mc.player.blockPosition();
-        int r = range.intVal();
+        // Grim strict: block reach ~4.5 — clamp so we never dig out of range
+        int r = dev.noxclient.module.donutsmp.DonutGuard.strict()
+            ? Math.min(range.intVal(), 4) : range.intVal();
         for (BlockPos p : BlockPos.betweenClosed(me.offset(-r, -1, -r), me.offset(r, 2, r))) {
             BlockState s = mc.level.getBlockState(p);
-            if (!mature(s)) continue;
+            if (!mature(s) || !dev.noxclient.util.Interact.inReach(p)) continue;
+            dev.noxclient.util.Interact.aim(p);
             mc.gameMode.startDestroyBlock(p, Direction.UP);
             mc.gameMode.continueDestroyBlock(p, Direction.UP);
             if (replant.on()) replant(p);
@@ -44,8 +47,7 @@ public class AutoHarvest extends Module {
         int prev = inv.getSelectedSlot();
         inv.setSelectedSlot(seeds);
         mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
-            new net.minecraft.world.phys.BlockHitResult(
-                net.minecraft.world.phys.Vec3.atBottomCenterOf(p), Direction.UP, p, false));
+            dev.noxclient.util.Interact.placeOn(p, Direction.UP));
         inv.setSelectedSlot(prev);
     }
 

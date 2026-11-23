@@ -31,7 +31,7 @@ public class SellWand extends Module {
             if (used.contains(p) || mc.level.getBlockState(p).getBlock() != Blocks.CHEST) continue;
             used.add(p.immutable());
             mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,
-                new BlockHitResult(Vec3.atCenterOf(p), Direction.UP, p, false));
+                dev.noxclient.util.Interact.placeOn(p, Direction.UP));
             return;
         }
     }

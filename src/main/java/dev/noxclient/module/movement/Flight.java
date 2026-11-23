@@ -23,6 +23,9 @@ public class Flight extends Module {
     @Override
     public void onTick() {
         if (mc.player == null) return;
+        // Grim strict: there is no packet-safe creative flight — every mode
+        // fails simulation. ElytraGlide is the legal flight path.
+        if (dev.noxclient.module.donutsmp.DonutGuard.strict()) return;
         Vec3 v = mc.player.getDeltaMovement();
         switch (mode.get()) {
             case "Vanilla" -> {
@@ -39,5 +42,9 @@ public class Flight extends Module {
         }
         if (autoOff.on() && mc.player.hurtTime > 0) { setEnabled(false); return; }
         mc.player.resetFallDistance();
+    }
+    @Override public String status() {
+        return dev.noxclient.module.donutsmp.DonutGuard.strict()
+            ? "blocked (Grim) — use ElytraGlide" : "flying";
     }
 }
