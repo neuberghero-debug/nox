@@ -22,9 +22,9 @@ public class Hitboxes extends Module {
             if (e == mc.player || e.distanceToSqr(mc.player) > r2) continue;
             var bb = e.getBoundingBox();
             BlockPos p = BlockPos.containing(bb.minX - 0.5, bb.minY, bb.minZ - 0.5);
-            shown.add(p); EspMarks.MARKS.put(p, 0xFFFFFFFF);
+            shown.add(p); EspMarks.put(p, 0xFFFFFFFF);
             BlockPos p2 = BlockPos.containing(bb.maxX - 0.5, bb.maxY - 1, bb.maxZ - 0.5);
-            shown.add(p2); EspMarks.MARKS.put(p2, 0xFFFFFFFF);
+            shown.add(p2); EspMarks.put(p2, 0xFFFFFFFF);
         }
     }
 

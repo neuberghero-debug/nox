@@ -109,7 +109,7 @@ public class RoomFinder extends Module {
     }
 
     private void emit(ChunkPos cp, BlockPos pos, int cells) {
-        EspMarks.MARKS.put(pos, 0xFFCC66FF);
+        EspMarks.put(pos, 0xFFCC66FF, "room ~" + cells);
         if (chatNotify.on() && mc.player != null) {
             mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
                 "§7[NOX] §dsealed room §f(~" + cells + " cells) §8@ " + pos.toShortString()

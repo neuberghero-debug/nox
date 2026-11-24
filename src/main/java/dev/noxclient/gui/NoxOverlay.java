@@ -50,7 +50,7 @@ public class NoxOverlay implements HudElement {
         }
         // finder markers
         drawMarks(g, cp, mat, w, h, StorageESP.HITS);
-        drawMarks(g, cp, mat, w, h, EspMarks.MARKS);
+        drawEspMarks(g, mc, cp, mat, w, h);
         drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.OreESP.HITS);
         drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.DebrisFinder.HITS);
         drawMarks(g, cp, mat, w, h, dev.noxclient.module.donutsmp.DebrisFinder.AREAS);
@@ -1201,6 +1201,30 @@ public class NoxOverlay implements HudElement {
         }
     }
 
+    /** EspMarks — same square render as drawMarks but marks carry a
+     *  reason label (drawn centered under the square) and expire via
+     *  EspMarks.prune() so stale one-shot flags don't pile up. */
+    private void drawEspMarks(GuiGraphicsExtractor g, Minecraft mc, Vec3 cp,
+                              Matrix4f mat, int w, int h) {
+        if (EspMarks.MARKS.isEmpty()) return;
+        EspMarks.prune();
+        int n = 0;
+        for (var en : EspMarks.MARKS.entrySet()) {
+            if (++n > 96) break;   // density cap — label soup is unreadable
+            double[] p = project(Vec3.atCenterOf(en.getKey()), cp, mat, w, h);
+            if (p == null || p[2] > 200) continue;
+            var mk = en.getValue();
+            int s = (int) Math.max(3, Math.min(14, 160 / p[2]));
+            int col = mk.color();
+            Gui.fill(g, (int) p[0] - s, (int) p[1] - s, (int) p[0] + s, (int) p[1] + s,
+                col & 0x55FFFFFF);
+            g.outline((int) p[0] - s, (int) p[1] - s, s * 2, s * 2, col);
+            if (mk.label() != null && p[2] < 120)
+                Gui.textCenter(g, mc.font, mk.label(), (int) p[0], (int) p[1] + s + 2,
+                    (col & 0xFFFFFF) | 0xCC000000);
+        }
+    }
+
     /** world → [screenX, screenY, distance]; null when behind camera */
     private double[] project(Vec3 world, Vec3 camPos, Matrix4f mat, int w, int h) {
         Vector4f v = new Vector4f((float) (world.x - camPos.x), (float) (world.y - camPos.y),
@@ -1427,24 +1451,25 @@ public class NoxOverlay implements HudElement {
             || !se.cards.on()) return;
         int shown = 0;
         for (var cl : se.clusters()) {
+            // only render a card once the cluster actually means something —
+            // "Unclear" verdicts (a village hut with a few chests) are noise
+            if (cl.verdict() == 0) continue;
             if (++shown > 3) break;
             double[] p = project(Vec3.atCenterOf(cl.pos), cp, mat, w, h);
             if (p == null || p[2] < 6 || p[2] > 320) continue;
-            int cw2 = 128, ch2 = 40;
+            int cw2 = 128, ch2 = 34;
             int cx2 = (int) p[0] - cw2 / 2, cy2 = (int) p[1] - ch2 - 10;
             String dist = (int) p[2] + "m";
             Gui.shadow(g, cx2, cy2, cw2, ch2, 7);
             Gui.roundBorder(g, cx2, cy2, cw2, ch2, 7, 0x6655DD66, 0xE6141821);
             Gui.textBold(g, mc.font, "BASE ESP", cx2 + 7, cy2 + 5, 0xFF55DD66);
             Gui.text(g, mc.font, dist, cx2 + cw2 - 7 - Gui.width(mc.font, dist), cy2 + 6, 0xFF8A8A9E);
-            int vcol = cl.verdict() == 2 ? 0xFF55DD66 : cl.verdict() == 1 ? 0xFFFFCC44 : 0xFFFF8844;
+            int vcol = cl.verdict() == 2 ? 0xFF55DD66 : 0xFFFFCC44;
             Gui.textBold(g, mc.font, cl.verdictName(), cx2 + 7, cy2 + 14, vcol);
             String sc = (int) cl.score + " score";
             Gui.text(g, mc.font, sc, cx2 + cw2 - 7 - Gui.width(mc.font, sc), cy2 + 15, 0xFF8A8A9E);
             Gui.text(g, mc.font, cl.containers + " containers, " + cl.hoppers + " hoppers",
                 cx2 + 7, cy2 + 24, 0xFFB8B8CC);
-            if (cl.verdict() == 0)
-                Gui.text(g, mc.font, "Not enough clear condition evidence", cx2 + 7, cy2 + 33, 0xFF6A6A7E);
         }
     }
 

@@ -21,7 +21,7 @@ public class BlockInfo extends Module {
         if (mc.hitResult == null || mc.hitResult.getType() != HitResult.Type.BLOCK) return;
         var pos = ((BlockHitResult) mc.hitResult).getBlockPos();
         if (highlight.on()) {
-            EspMarks.MARKS.put(pos, 0xFFFFFFFF);
+            EspMarks.put(pos, 0xFFFFFFFF);
             last = pos;
         }
         if (chatName.on()) {

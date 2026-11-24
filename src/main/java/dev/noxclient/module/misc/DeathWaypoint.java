@@ -22,12 +22,12 @@ public class DeathWaypoint extends Module {
         boolean dead = !mc.player.isAlive();
         if (dead && !wasDead) {
             lastDeath = mc.player.blockPosition().immutable();
-            EspMarks.MARKS.put(lastDeath, color.get() | 0xFF000000);
+            EspMarks.put(lastDeath, color.get() | 0xFF000000, "death");
             if (stack.on()) {
                 beam.clear();
                 for (int dy = 1; dy < 60; dy += 4) {
                     var bp = lastDeath.above(dy);
-                    beam.add(bp); EspMarks.MARKS.put(bp, (color.get() & 0xFFFFFF) | 0x66000000);
+                    beam.add(bp); EspMarks.put(bp, (color.get() & 0xFFFFFF) | 0x66000000);
                 }
             }
         }

@@ -58,20 +58,15 @@ public final class Toasts {
     public static void error(String text) { push(text, 0xFFFF6666); }
 
     /** Top-right card stack — 250ms slide-in, progress bar, slide-out.
-     *  Adapts to the MC gui scale: at 3x+ the cards render proportionally
-     *  smaller so the stack never eats the screen edge. */
+     *  Coordinates + font scale with the MC gui scale (ts): Gui.* ops
+     *  capture raw px so pose().scale() can't touch them — the layout
+     *  itself must produce scaled coords. */
     public static void render(GuiGraphicsExtractor g, Font font, int w, int startY) {
         double gs = net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale();
         float ts = (float) Math.min(1.0, Math.max(0.55, 2.0 / gs));
-        if (ts != 1f) { g.pose().pushMatrix(); g.pose().scale(ts, ts); }
-        body(g, font, (int) (w / ts), (int) (startY / ts));
-        if (ts != 1f) g.pose().popMatrix();
-    }
-
-    private static void body(GuiGraphicsExtractor g, Font font, int w, int startY) {
         long now = System.currentTimeMillis();
         LIST.removeIf(x -> now - x.born > LIFE + EXIT);
-        int y = startY;
+        float y = startY;
         for (Toast x : LIST) {
             float age = now - x.born;
             float a = age < 250 ? age / 250f
@@ -80,37 +75,43 @@ public final class Toasts {
             if (age > LIFE) slide += (int) (((age - LIFE) / (float) EXIT) * 80);
 
             boolean titled = !x.title.isEmpty();
-            int th = titled ? 28 : 18;
-            int tw = Math.max(Gui.width(font, x.title), Gui.width(font, x.msg)) + 22;
-            tw = Math.max(tw, 92);
+            float th = (titled ? 28 : 18) * ts;
+            float tw = Math.max(Gui.width(font, x.title), Gui.width(font, x.msg)) * ts + 22 * ts;
+            tw = Math.max(tw, 92 * ts);
             tw = Math.min(tw, w - 24);   // long messages used to run off-screen left
-            int x1 = w - 12 + slide;          // right edge, slide in
-            int x0 = x1 - tw;
+            float x1 = w - 12 + slide, x0 = x1 - tw;
             int alpha = (int) (a * 0xF2) << 24;
 
             // card: surface + left accent strip + icon dot
-            Gui.round(g, x0, y, tw, th, 7, (DS.surface() & 0xFFFFFF) | alpha);
-            Gui.roundBorder(g, x0, y, tw, th, 7,
+            Gui.round(g, x0, y, tw, th, 7 * ts, (DS.surface() & 0xFFFFFF) | alpha);
+            Gui.roundBorder(g, x0, y, tw, th, 7 * ts,
                 (x.color & 0x00FFFFFF) | (alpha / 2), 0);
-            Gui.round(g, x0, y + 3, 2, th - 6, 1, (x.color & 0xFFFFFF) | alpha);
-            Gui.circle(g, x0 + 11, y + (titled ? 9 : th / 2), 2.5f,
+            Gui.round(g, x0, y + 3 * ts, 2 * ts, th - 6 * ts, 1,
                 (x.color & 0xFFFFFF) | alpha);
-            String msg = font.plainSubstrByWidth(x.msg, tw - 20);
+            Gui.circle(g, x0 + 11 * ts, y + (titled ? 9 : th / 2 / ts) * ts, 2.5f * ts,
+                (x.color & 0xFFFFFF) | alpha);
+            float fs = 9.5f * ts, tx = x0 + 17 * ts, fy = y;
+            String msg = font.plainSubstrByWidth(x.msg, (int) ((tw - 20 * ts) / ts));
             if (titled) {
-                Gui.textBold(g, font, font.plainSubstrByWidth(x.title, tw - 20),
-                    x0 + 17, y + 4, (alpha) | 0xFFFFFF);
-                Gui.text(g, font, msg, x0 + 17, y + 15,
-                    ((int) (a * 0xFF) << 24) | (DS.secondary() & 0xFFFFFF));
+                String title = font.plainSubstrByWidth(x.title, (int) ((tw - 20 * ts) / ts));
+                dev.noxclient.gui.nvg.NvgOverlay.op((c, st) ->
+                    dev.noxclient.gui.nvg.Nvg.text(c, st, "inter_b", fs, tx, fy + 4 * ts,
+                        title, alpha | 0xFFFFFF));
+                dev.noxclient.gui.nvg.NvgOverlay.op((c, st) ->
+                    dev.noxclient.gui.nvg.Nvg.text(c, st, "inter", fs, tx, fy + 15 * ts,
+                        msg, ((int) (a * 0xFF) << 24) | (DS.secondary() & 0xFFFFFF)));
             } else {
-                Gui.text(g, font, msg, x0 + 17, y + (th - 8) / 2, (alpha) | 0xFFFFFF);
+                dev.noxclient.gui.nvg.NvgOverlay.op((c, st) ->
+                    dev.noxclient.gui.nvg.Nvg.text(c, st, "inter", fs, tx, fy + (th - 8 * ts) / 2,
+                        msg, alpha | 0xFFFFFF));
             }
             // progress bar (fills over LIFE)
             float prog = Math.min(1, age / (float) LIFE);
-            int pw = (int) ((tw - 6) * prog);
+            int pw = (int) ((tw - 6 * ts) * prog);
             if (pw > 0)
-                Gui.round(g, x0 + 3, y + th - 2, pw, 1, 1,
+                Gui.round(g, x0 + 3 * ts, y + th - 2 * ts, pw, 1, 1,
                     (x.color & 0xFFFFFF) | (alpha / 2));
-            y += th + 4;
+            y += th + 4 * ts;
         }
     }
 

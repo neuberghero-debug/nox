@@ -91,7 +91,8 @@ public class ChunkAger extends Module {
         int fakes = fakeOres(chunk);
         if (fakes >= 6) {
             BlockPos mid = cp.getMiddleBlockPosition(0);
-            EspMarks.MARKS.put(new BlockPos(mid.getX(), 64, mid.getZ()), 0xFFFF3355);
+            EspMarks.put(new BlockPos(mid.getX(), 64, mid.getZ()), 0xFFFF3355,
+                "xray-zone " + fakes);
             if (chatNotify.on() && mc.player != null)
                 mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
                     "§7[NOX] §cXRAY-HIDDEN ZONE §8@ chunk " + cp.x() + "," + cp.z()
@@ -104,7 +105,8 @@ public class ChunkAger extends Module {
             long ck = ((long) cp.x() << 32) | (cp.z() & 0xFFFFFFFFL);
             if (ActivityFind.flagged().contains(ck) || EntityFind.flagged().contains(ck)) {
                 BlockPos mid = cp.getMiddleBlockPosition(0);
-                EspMarks.MARKS.put(new BlockPos(mid.getX(), 80, mid.getZ()), 0xFFFF4444);
+                EspMarks.put(new BlockPos(mid.getX(), 80, mid.getZ()), 0xFFFF4444,
+                    "live-build");
                 if (chatNotify.on() && mc.player != null)
                     mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
                         "§7[NOX] §cLIVE activity on virgin terrain §8@ chunk " + cp.x() + "," + cp.z()));

@@ -26,7 +26,7 @@ public class ChunkBorders extends Module {
                 for (int[] c : new int[][]{{0, i}, {15, i}, {i, 0}, {i, 15}}) {
                     var p = new BlockPos((bx << 4) + c[0], y, (bz << 4) + c[1]);
                     shown.add(p);
-                    EspMarks.MARKS.put(p, ox == 0 && oz == 0 ? 0xFF40C8FF : 0x8040C8FF);
+                    EspMarks.put(p, ox == 0 && oz == 0 ? 0xFF40C8FF : 0x8040C8FF);
                 }
             }
         }
