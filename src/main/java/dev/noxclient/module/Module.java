@@ -89,6 +89,12 @@ public abstract class Module {
         return v instanceof Number n ? n.intValue() : -1;
     }
     public void setKeybind(int key) { bind.set(key); }
+    /** Shipped defaults — presets still override them (config restore runs
+     *  after module construction). For existing users see ConfigMigrator. */
+    protected void defaults(int keybindKey, String activationMode) {
+        if (keybindKey > 0) bind.set(keybindKey);
+        if (activationMode != null) activation.set(activationMode);
+    }
     /** Hold mode: module stays enabled only while the bound key is held. */
     public boolean holdMode() { return "Hold".equals(activation.get()); }
     /** Hidden from the HUD arraylist (still fully functional). */

@@ -15,12 +15,14 @@ import java.util.Map;
  *   v1 → v2: module renames — deprecated/replaced modules map onto their
  *            successors so old presets keep working
  *   v2 → v3: setting renames per module (future-proof bucket)
+ *   v3 → v4: Zoom ships a default bind (C, Hold) — migrate still-unbound
+ *            installs so existing users get the standard key too
  *
  * migrate() runs the chain in order; backup + rollback live in
  * ConfigManager.loadMigrated() — a failed migration restores the raw file.
  */
 public final class ConfigMigrator {
-    public static final int CURRENT = 3;
+    public static final int CURRENT = 4;
 
     /** module name renames applied at v2 (old → new). */
     private static final Map<String, String> MOD_RENAMES = new LinkedHashMap<>();
@@ -48,6 +50,7 @@ public final class ConfigMigrator {
         if (v < 1) { v1(cfg); v = 1; }
         if (v < 2) { v2(cfg); v = 2; }
         if (v < 3) { v3(cfg); v = 3; }
+        if (v < 4) { v4(cfg); v = 4; }
         cfg.addProperty("schema_version", CURRENT);
         return cfg;
     }
@@ -89,5 +92,21 @@ public final class ConfigMigrator {
                     s.remove(r.getKey());
             }
         }
+    }
+
+    private static void v4(JsonObject cfg) {
+        // only touch configs that still carry the shipped -1/Toggle defaults —
+        // a user who deliberately unbound Zoom or picked Toggle keeps it
+        if (!cfg.has("Zoom") || !cfg.get("Zoom").isJsonObject()) return;
+        JsonObject zoom = cfg.getAsJsonObject("Zoom");
+        try {
+            if (zoom.has("keybind") && zoom.get("keybind").getAsInt() <= 0)
+                zoom.addProperty("keybind", 6);   // SDL_SCANCODE_C
+            if (zoom.has("settings") && zoom.get("settings").isJsonObject()) {
+                JsonObject s = zoom.getAsJsonObject("settings");
+                if (s.has("Activation") && "Toggle".equals(s.get("Activation").getAsString()))
+                    s.addProperty("Activation", "Hold");
+            }
+        } catch (Exception ignored) {}
     }
 }

@@ -350,8 +350,13 @@ public class ActivityFind extends Module {
 
     // ---------- render ----------
 
+    /** Marks idle longer than this expire — dig cells used to live forever. */
+    private static final long MARK_TTL_MS = 150_000;
+
     private void emit() {
         if (mc.level == null || mc.player == null || MARKS.isEmpty()) return;
+        long now = System.currentTimeMillis();
+        MARKS.values().removeIf(m -> now - m.lastMs > MARK_TTL_MS);
         double py = mc.player.getY();
         // density-adaptive: many marks → smaller text, then boxes-only —
         // a fixed size either flooded the map or hid real hits
@@ -376,7 +381,10 @@ public class ActivityFind extends Module {
                     col | 0xAA000000, 1.0f).setAlwaysOnTop();
             if (!labels) continue;
             int dy = (int) (py - m.y);
-            String txt = m.label + " x" + m.count + (dy > 4 ? "  v" + dy : dy < -4 ? "  ^" + -dy : "");
+            // cap the counter — "digging x1407" reads like a bug while still
+            // signalling an actively excavated area
+            String cnt = m.count > 99 ? " x99+" : " x" + m.count;
+            String txt = m.label + cnt + (dy > 4 ? "  v" + dy : dy < -4 ? "  ^" + -dy : "");
             Gizmos.billboardText(txt, c.add(0, 1.1, 0),
                 TextGizmo.Style.forColorAndCentered(col | 0xFF000000).withScale(sc))
                 .setAlwaysOnTop();

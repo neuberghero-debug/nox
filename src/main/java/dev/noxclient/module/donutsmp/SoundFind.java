@@ -299,7 +299,8 @@ public class SoundFind extends Module {
                     col | 0xAA000000, 1.0f).setAlwaysOnTop();
             if (!labels) continue;
             int dy = (int) (py - m.y);
-            String txt = m.label + " x" + m.count + (dy > 4 ? "  v" + dy : dy < -4 ? "  ^" + -dy : "");
+            String txt = m.label + (m.count > 99 ? " x99+" : " x" + m.count)
+                + (dy > 4 ? "  v" + dy : dy < -4 ? "  ^" + -dy : "");
             Gizmos.billboardText(txt, c.add(0, 1.1, 0),
                 TextGizmo.Style.forColorAndCentered(col | 0xFF000000).withScale(sc))
                 .setAlwaysOnTop();
