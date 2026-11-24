@@ -47,6 +47,8 @@ public class AutoScout extends Module {
     private long holdToastAt;
     private net.minecraft.world.phys.Vec3 hopPos;
     private int noMoveHops;
+    private dev.noxclient.util.BaseIntel.Entry lead;
+    private long leadMarkAt;
 
     private static final String[] STACK = {
         "SusChunkFinder", "SoundFind", "ActivityFind", "EntityFind",
@@ -74,11 +76,15 @@ public class AutoScout extends Module {
         if (mc.player == null || mc.getConnection() == null) return;
         if (mc.player.tickCount < 60) return;
 
+        // the single answer to "is there a base near me" — one lead, one target
+        lead = dev.noxclient.util.BaseIntel.bestLead(mc.player.blockPosition(), 25, 600);
+
         if (pauseOnHit.on() && checkHold()) {
             if (!holding || System.currentTimeMillis() - holdToastAt > 60_000) {
                 holding = true; holdToastAt = System.currentTimeMillis();
                 Toasts.push("◈ AutoScout holding — hit nearby, scout the area", 0xFFFFB84D);
             }
+            guideTo();
             tryDig();
             return;
         }
@@ -109,6 +115,10 @@ public class AutoScout extends Module {
     /** True while a scored hit sits inside the hold radius. */
     private boolean checkHold() {
         var pc = mc.player.chunkPosition();
+        // BaseIntel lead inside the hold radius = strongest reason to stay
+        if (lead != null && lead.pct >= 40
+            && Math.max(Math.abs(lead.cp.x() - pc.x()), Math.abs(lead.cp.z() - pc.z()))
+                <= holdRadius.intVal()) return true;
         var sus = NoxClient.INSTANCE.modules.get("SusChunkFinder");
         if (sus instanceof SusChunkFinder f) {
             double best = 0;
@@ -128,6 +138,18 @@ public class AutoScout extends Module {
         return false;
     }
 
+    /** While holding: pin a refreshed beacon on the lead chunk so the user
+     *  has exactly one target — "GO there" instead of reading a mark map. */
+    private void guideTo() {
+        if (lead == null || System.currentTimeMillis() - leadMarkAt < 4_000) return;
+        leadMarkAt = System.currentTimeMillis();
+        int col = lead.pct >= 60 ? 0xFF55DD66 : lead.pct >= 40 ? 0xFFFFCC44 : 0xFFFF8844;
+        dev.noxclient.util.EspMarks.put(
+            new net.minecraft.core.BlockPos(lead.cp.getMiddleBlockX(),
+                (int) lead.avgY + 4, lead.cp.getMiddleBlockZ()),
+            col, "GO " + lead.type + " " + lead.pct + "%");
+    }
+
     /** Arm DigDown when the hot chunk is the one the player stands in.
      *  Sus score on own chunk, or a high-confidence BaseIntel entry — that's
      *  the "stand on it → dig" handoff the scout was missing. */
@@ -142,7 +164,9 @@ public class AutoScout extends Module {
             if (sc != null && sc >= digScore.get()) hit = true;
         }
         var e = dev.noxclient.util.BaseIntel.entries().get(pc);
-        if (e != null && e.pct >= 60) { hit = true; y = e.avgY; }
+        if (e != null && e.pct >= 40) { hit = true; y = e.avgY; }
+        // standing ON the active lead counts too — its avgY is the dig target
+        if (lead != null && lead.cp.equals(pc)) { hit = true; y = lead.avgY; }
         if (!hit) return;
         var dd = NoxClient.INSTANCE.modules.get("DigDown");
         if (dd instanceof DigDown d && !d.isEnabled()) {
@@ -174,6 +198,12 @@ public class AutoScout extends Module {
 
     @Override public String status() {
         if (!isEnabled()) return "off";
+        if (lead != null && mc.player != null) {
+            double d = Math.hypot(lead.cp.getMiddleBlockX() - mc.player.getX(),
+                lead.cp.getMiddleBlockZ() - mc.player.getZ());
+            return "→ " + lead.type + " " + lead.pct + "% " + (int) d + "m"
+                + (holding ? " (holding)" : "");
+        }
         if (holding) return "HOLDING — hit nearby";
         return "hopping — " + hops + " rtps, "
             + (lastHop == 0 ? "first soon" : "last " + (System.currentTimeMillis() - lastHop) / 1000 + "s ago");

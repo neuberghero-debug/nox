@@ -77,6 +77,7 @@ public class NoxOverlay implements HudElement {
         drawDebrisPanel(g, mc, sw, sh);
         drawStaffLive(g, mc, sw, sh);
         drawBaseEspCards(g, mc, cam, cp, mat, sw, sh);
+        drawLeadArrow(g, mc, w, h);
         drawWheel(g, mc, sw, sh);
         // toasts live INSIDE the hudScale transform — they auto-shrink
         // with the HUD scale + small-window fit instead of staying huge
@@ -1471,6 +1472,46 @@ public class NoxOverlay implements HudElement {
             Gui.text(g, mc.font, cl.containers + " containers, " + cl.hoppers + " hoppers",
                 cx2 + 7, cy2 + 24, 0xFFB8B8CC);
         }
+    }
+
+    /** The one lead that matters — a screen-edge arrow + "TYPE pct% dist"
+     *  label so the answer to "where's the base" needs zero map reading.
+     *  Shown whenever BaseFinder or AutoScout is on and intel has a lead. */
+    private void drawLeadArrow(GuiGraphicsExtractor g, Minecraft mc, int w, int h) {
+        if (mc.player == null) return;
+        var bf = NoxClient.INSTANCE.modules.get("BaseFinder");
+        var as = NoxClient.INSTANCE.modules.get("AutoScout");
+        boolean on = (bf != null && bf.isEnabled()) || (as != null && as.isEnabled());
+        if (!on) return;
+        var lead = dev.noxclient.util.BaseIntel.bestLead(mc.player.blockPosition(), 25, 600);
+        if (lead == null) return;
+
+        double dx = lead.cp.getMiddleBlockX() + 0.5 - mc.player.getX();
+        double dz = lead.cp.getMiddleBlockZ() + 0.5 - mc.player.getZ();
+        double dist = Math.hypot(dx, dz);
+        // MC yaw convention: 0=+Z(south), 90=-X(west); targetYaw → rel to facing
+        double targetYaw = Math.toDegrees(Math.atan2(-dx, dz));
+        double rel = net.minecraft.util.Mth.wrapDegrees(targetYaw - mc.player.getYRot());
+        // rel=0 ahead→top, +90 right, 180 behind→bottom, -90 left
+        double sa = Math.toRadians(rel - 90);
+        double ux = Math.cos(sa), uy = Math.sin(sa);
+        int cx = w / 2, cy = h / 2;
+        double R = Math.min(w, h) * 0.30;
+        int ax = cx + (int) (ux * R), ay = cy + (int) (uy * R);
+        int col = lead.pct >= 60 ? 0xFF55DD66 : lead.pct >= 40 ? 0xFFFFCC44 : 0xFFFF8844;
+
+        // triangle pointing outward: tip + two base points
+        double px = -uy, py = ux;   // perpendicular
+        int tx = ax + (int) (ux * 11), ty = ay + (int) (uy * 11);
+        int b1x = ax - (int) (ux * 6) + (int) (px * 6), b1y = ay - (int) (uy * 6) + (int) (py * 6);
+        int b2x = ax - (int) (ux * 6) - (int) (px * 6), b2y = ay - (int) (uy * 6) - (int) (py * 6);
+        line(g, tx, ty, b1x, b1y, col);
+        line(g, tx, ty, b2x, b2y, col);
+        line(g, b1x, b1y, b2x, b2y, col);
+
+        String txt = lead.type + " " + lead.pct + "%  " + (int) dist + "m";
+        Gui.textCenter(g, mc.font, txt,
+            ax - (int) (ux * 26), ay - (int) (uy * 26) - 5, col);
     }
 
     /** DonutWheel — radial action menu, centered; selection follows cursor angle. */

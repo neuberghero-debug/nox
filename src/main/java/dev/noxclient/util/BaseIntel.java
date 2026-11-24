@@ -229,5 +229,23 @@ public final class BaseIntel {
         return out;
     }
 
+    /** The ONE best lead — highest confidence within maxDist; nearest on tie.
+     *  This is what the UX should funnel into: a single "go there" answer
+     *  instead of a list of chunks to interpret. */
+    public static Entry bestLead(BlockPos from, int minPct, double maxDist) {
+        Entry best = null; double bd = 0;
+        for (Entry e : ENTRIES.values()) {
+            if (e.pct < minPct) continue;
+            double dx = e.cp.getMiddleBlockX() - from.getX();
+            double dz = e.cp.getMiddleBlockZ() - from.getZ();
+            double d2 = dx * dx + dz * dz;
+            if (d2 > maxDist * maxDist) continue;
+            if (best == null || e.pct > best.pct || (e.pct == best.pct && d2 < bd)) {
+                best = e; bd = d2;
+            }
+        }
+        return best;
+    }
+
     public static void clear() { ENTRIES.clear(); scannedAt.clear(); cycle = null; }
 }
