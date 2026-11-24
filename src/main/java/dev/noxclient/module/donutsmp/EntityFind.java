@@ -185,12 +185,15 @@ public class EntityFind extends Module {
     private void emit() {
         if (mc.level == null || mc.player == null || MARKS.isEmpty()) return;
         double py = mc.player.getY();
+        int n = MARKS.size();
+        float sc = n > 32 ? 0.5f : n > 16 ? 0.65f : 0.85f;
+        boolean labels = n <= 48;
         var list = new java.util.ArrayList<>(MARKS.values());
-        if (list.size() > 40) {
+        if (n > 60) {
             var pp = mc.player.position();
             list.sort(java.util.Comparator.comparingDouble(m ->
                 (m.x - pp.x) * (m.x - pp.x) + (m.z - pp.z) * (m.z - pp.z)));
-            list = new java.util.ArrayList<>(list.subList(0, 40));
+            list = new java.util.ArrayList<>(list.subList(0, 60));
         }
         for (Mark m : list) {
             Vec3 c = new Vec3(m.x, m.y, m.z);
@@ -198,10 +201,11 @@ public class EntityFind extends Module {
             int col = m.color & 0xFFFFFF;
             Gizmos.cuboid(box, GizmoStyle.strokeAndFill(col | 0xFF000000, 1.5f, col | 0x28000000))
                 .setAlwaysOnTop();
+            if (!labels) continue;
             int dy = (int) (py - m.y);
             String txt = m.label + " ×" + m.count + (dy > 4 ? "  ↓" + dy : dy < -4 ? "  ↑" + -dy : "");
             Gizmos.billboardText(txt, c.add(0, 1.3, 0),
-                TextGizmo.Style.forColorAndCentered(col | 0xFF000000).withScale(0.8f))
+                TextGizmo.Style.forColorAndCentered(col | 0xFF000000).withScale(sc))
                 .setAlwaysOnTop();
         }
     }

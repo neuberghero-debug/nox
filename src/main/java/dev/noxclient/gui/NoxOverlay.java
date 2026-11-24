@@ -78,11 +78,13 @@ public class NoxOverlay implements HudElement {
         drawStaffLive(g, mc, sw, sh);
         drawBaseEspCards(g, mc, cam, cp, mat, sw, sh);
         drawWheel(g, mc, sw, sh);
-        if (hs != 1f) g.pose().popMatrix();
+        // toasts live INSIDE the hudScale transform — they auto-shrink
+        // with the HUD scale + small-window fit instead of staying huge
         var hm = NoxClient.INSTANCE.modules.get("HudWidgets");
         boolean compassOn = hm instanceof dev.noxclient.module.render.HudWidgets hw
             && hw.isEnabled() && hw.show(hw.compass) && mc.player != null;
-        Toasts.render(g, mc.font, w, compassOn ? (int) (24 * hs) + 2 : 4);
+        Toasts.render(g, mc.font, sw, compassOn ? 26 : 4);
+        if (hs != 1f) g.pose().popMatrix();
     }
 
     private static final long sessionStart = System.currentTimeMillis();
