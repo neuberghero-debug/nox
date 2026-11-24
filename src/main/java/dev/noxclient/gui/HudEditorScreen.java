@@ -39,6 +39,7 @@ public class HudEditorScreen extends Screen {
         new El("scoreboard",   "Scoreboard",    "Scoreboard",  120, 80),
         new El("auction",      "Auction",       "Auction",     190, 44),
         new El("basefinder",   "Base finder",   "BaseFinder",  170, 64),
+        new El("basesurvey", "Base survey", "BaseSurvey", 200, 48),
         new El("regionmap",    "Region map",    "RegionMap",   108, 108),
         new El("debrisfinder", "Debris",        "DebrisFinder",150, 34),
         new El("stafflive",    "Staff live",    "StaffLive",   150, 60),

@@ -3,7 +3,7 @@ plugins {
     id 'java'
 }
 
-version = '0.1.0-beta'
+version = '0.2.0-beta'
 group = 'dev.noxclient'
 
 base { archivesName = 'nox' }
@@ -143,7 +143,17 @@ tasks.register('mediaCheck', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'dev.noxclient.media.MediaTest'
 }
-tasks.named('check') { dependsOn 'physicsCheck', 'mediaCheck' }
+tasks.register('breadcrumbsCheck', JavaExec) {
+    dependsOn 'testClasses'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.noxclient.module.render.BreadcrumbsTest'
+}
+tasks.register('baseSurveyCheck', JavaExec) {
+    dependsOn 'testClasses'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.noxclient.module.donutsmp.BaseSurveyTest'
+}
+tasks.named('check') { dependsOn 'physicsCheck', 'mediaCheck', 'breadcrumbsCheck', 'baseSurveyCheck' }
 
 // TamperGuard signature: SHA-256 over class + metadata entries (name bytes
 // then file bytes, sorted) — mirrors TamperGuard.selfHash() exactly.

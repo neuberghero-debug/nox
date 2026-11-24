@@ -33,6 +33,12 @@ public class AutoScout extends Module {
         "SusChunkFinder score that pauses hopping"));
     private final Setting.Num holdRadius = add(new Setting.Num("Hold radius (ch)", 8, 1, 32,
         "How near a hit must be to hold"));
+    private final Setting.Bool autoDig = add(new Setting.Bool("Auto dig down", true,
+        "Enable DigDown when a hit sits in YOUR chunk"));
+    private final Setting.Num digScore = add(new Setting.Num("Dig min score", 8, 1, 100,
+        "SusChunkFinder score on your own chunk that triggers the dig"));
+    private final Setting.Num digY = add(new Setting.Num("Dig target Y", 8, -59, 200,
+        "Fallback DigDown target when no intel avgY exists"));
 
     private final List<Module> armed = new ArrayList<>();
     private long lastHop;
@@ -73,6 +79,7 @@ public class AutoScout extends Module {
                 holding = true; holdToastAt = System.currentTimeMillis();
                 Toasts.push("◈ AutoScout holding — hit nearby, scout the area", 0xFFFFB84D);
             }
+            tryDig();
             return;
         }
         holding = false;
@@ -119,6 +126,31 @@ public class AutoScout extends Module {
         for (MarkProbe m : probes())
             if (m.deep() && m.chDist(pc) <= r) return true;
         return false;
+    }
+
+    /** Arm DigDown when the hot chunk is the one the player stands in.
+     *  Sus score on own chunk, or a high-confidence BaseIntel entry — that's
+     *  the "stand on it → dig" handoff the scout was missing. */
+    private void tryDig() {
+        if (!autoDig.on() || !mc.player.onGround()) return;
+        var pc = mc.player.chunkPosition();
+        double y = digY.get();
+        boolean hit = false;
+        var sus = NoxClient.INSTANCE.modules.get("SusChunkFinder");
+        if (sus instanceof SusChunkFinder f) {
+            Double sc = f.scores().get(pc);
+            if (sc != null && sc >= digScore.get()) hit = true;
+        }
+        var e = dev.noxclient.util.BaseIntel.entries().get(pc);
+        if (e != null && e.pct >= 60) { hit = true; y = e.avgY; }
+        if (!hit) return;
+        var dd = NoxClient.INSTANCE.modules.get("DigDown");
+        if (dd instanceof DigDown d && !d.isEnabled()) {
+            d.targetY.set(y);
+            d.restore(true);
+            armed.add(d);
+            mark("dig → y" + (int) y);
+        }
     }
 
     private record MarkProbe(double x, double z, boolean deep) {

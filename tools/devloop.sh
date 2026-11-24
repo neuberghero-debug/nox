@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 MODS="$HOME/.var/app/com.modrinth.ModrinthApp/data/ModrinthApp/profiles/NOX/mods"
-JAR=$(ls build/libs/nox-*.jar | grep -v sources | head -1)
+JAR=$(ls -t build/libs/nox-*.jar | grep -v sources | head -1)
 
 echo "== build =="
 gradle build -x test --console=plain -q

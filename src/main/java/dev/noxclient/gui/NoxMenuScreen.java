@@ -179,7 +179,7 @@ public class NoxMenuScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float dt) {
-        if (dev.noxclient.util.DebugConsole.hoverX >= 0) {
+        if (dev.noxclient.util.DebugConsole.hoverActive()) {
             mx = (int) dev.noxclient.util.DebugConsole.hoverX;
             my = (int) dev.noxclient.util.DebugConsole.hoverY;
         }

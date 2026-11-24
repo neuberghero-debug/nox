@@ -8,6 +8,8 @@ Complete module list by category. Premium modules are gated by `LicenseManager.a
 - OreSim, BlockESP, mob/player ESP set.
 
 ## DonutSMP
+- **BaseSurvey** - DonutSMP-only, first-person surface survey. The centre ray and optional small view sweep record only the first block hit. Storage, machinery, workstations and lights share one notebook; by default three distinct blocks from two families including a distinctive block within 12 blocks make a candidate, never a confirmed base. Tune these gates, memory, look distance, HUD rows and chat notifications in one module. Entries are session-local; world/server changes clear them. The module does not activate other finders. Fresh Donut presets use it instead of StorageESP/BaseFinder; existing presets and legacy consumers are unchanged.
+- StorageESP, ChunkFinder, SusChunkFinder and ArtificialLightFinder overlap in the block categories; BaseSurvey records only visible examples. ActivityFind, SoundFind, EntityFind, BaitESP and VanishSense are not inputs. Geode, debris, ore and seed predictions are not evidence of a base. StashLogger, RegionMap, Breadcrumbs, AutoScout, DigDown, ElytraHunt and premium RTP/tunnel finders remain independent utilities; no automated travel, digging or bypass feeds into the survey.
 - **StashLogger** — persistent categorized stash index (`nox/stash-index.json`), `/nox stashes`.
 - AHSniper, Auction, AutoTPAccept, StaffNotifier, CoordBook (`Gizmos` markers), SoundFind.
 

@@ -4,6 +4,7 @@ import dev.noxclient.util.Opsec;
 import net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.common.ServerboundClientInformationPacket;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.BrandPayload;
 import org.spongepowered.asm.mixin.Final;
@@ -24,6 +25,20 @@ public abstract class PayloadSpoofMixin {
 
     @Inject(method = "send", at = @At("HEAD"), cancellable = true)
     private void nox$spoof(Packet<?> packet, CallbackInfo ci) {
+        // locale leak: the server records game language at join — a foreign
+        // locale behind a mismatched VPN exit is a fingerprint. Rewrite to
+        // en_us, keep every other ClientInformation field identical.
+        if (packet instanceof ServerboundClientInformationPacket s
+            && !"en_us".equals(s.information().language())) {
+            var i = s.information();
+            ci.cancel();
+            connection.send(new ServerboundClientInformationPacket(
+                new net.minecraft.server.level.ClientInformation(
+                    "en_us", i.viewDistance(), i.chatVisibility(), i.chatColors(),
+                    i.modelCustomisation(), i.mainHand(), i.textFilteringEnabled(),
+                    i.allowsListing(), i.particleStatus())));
+            return;
+        }
         if (!(packet instanceof ServerboundCustomPayloadPacket p)) return;
         if (Opsec.isBrand(p.payload())) {
             ci.cancel();

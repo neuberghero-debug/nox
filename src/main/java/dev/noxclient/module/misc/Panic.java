@@ -20,6 +20,14 @@ public class Panic extends Module {
     public final Setting.Bool closeGui = add(new Setting.Bool("Close NOX window", true));
     public final Setting.Bool toast = add(new Setting.Bool("Toast", true));
     public final Setting.Bool profileSwap = add(new Setting.Bool("Profile swap", true));
+    // Anubis PanicPay: panic also evacuates your money to a safe account
+    public final Setting.Bool evac = add(new Setting.Bool("Evac money", false,
+        "Fire the commands below right when panic hits"));
+    public final Setting.Str payTo = add(new Setting.Str("Pay to", "",
+        "Trusted alt/friend — {target} placeholder in commands"));
+    public final Setting.Str evacCmds = add(new Setting.Str("Evac commands",
+        "sellall,pay {target} all",
+        "Comma-separated, sent instantly on panic"));
 
     /** Names of the modules the last panic disabled — null when nothing to restore. */
     private static List<String> snapshot;
@@ -54,6 +62,17 @@ public class Panic extends Module {
                 || mc.gui.screen() instanceof dev.noxclient.gui.NoxClickGui
                 || mc.gui.screen() instanceof dev.noxclient.gui.NoxWindowScreen)
                 mc.setScreenAndShow(null);
+        }
+        if (evac.on() && mc.getConnection() != null) {
+            String tgt = payTo.get() == null ? "" : payTo.get().trim();
+            for (String c : evacCmds.get().split(",")) {
+                c = c.trim().replace("{target}", tgt);
+                if (c.isEmpty() || c.contains("  ") && tgt.isEmpty()) continue;
+                if (c.contains("{}") || (c.contains("pay") && tgt.isEmpty())) continue;
+                try {
+                    mc.getConnection().sendCommand(c.startsWith("/") ? c.substring(1) : c);
+                } catch (Exception ignored) {}
+            }
         }
         if (toast.on()) dev.noxclient.gui.Toasts.push("PANIC — " + kill.size() + " modules off", 0xFFFF6666);
         setEnabled(false);

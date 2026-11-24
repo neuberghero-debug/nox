@@ -77,6 +77,29 @@ public final class MoveGuard {
         rotPending = true;
     }
 
+    /** Grim's AimInvalidLookSensitivity: a real mouse only emits deltas that
+     *  are multiples of gcd = (sens*0.6+0.2)³·8·0.15. Snap every applied
+     *  rotation so the packet delta is a clean multiple of that quantum —
+     *  lifted from polardlc's GrimLiteRotation. */
+    private static double gcdQuantum() {
+        double f = net.minecraft.client.Minecraft.getInstance()
+                .options.sensitivity().get() * 0.6 + 0.2;
+        return f * f * f * 8.0 * 0.15;
+    }
+    private static float snapRot(float target, float cur) {
+        double g = gcdQuantum();
+        if (g <= 0) return target;
+        return (float) (cur + Math.round((target - cur) / g) * g);
+    }
+    private static void applyRot() {
+        var mc = net.minecraft.client.Minecraft.getInstance();
+        float cy = mc.player != null ? mc.player.getYRot() : pendYaw;
+        float cp = mc.player != null ? mc.player.getXRot() : pendPitch;
+        appliedYaw = snapRot(pendYaw, cy);
+        appliedPitch = net.minecraft.util.Mth.clamp(snapRot(pendPitch, cp), -89f, 89f);
+        appliedRot = true;
+    }
+
     /** True when a vanilla position packet left within ~2 windows. */
     public static boolean vanillaPosRecently() {
         return System.nanoTime() - lastVanillaPos < QUIET_NS;
@@ -131,8 +154,7 @@ public final class MoveGuard {
             if (rot || ogR) {
                 if (rot) {
                     rotPending = false;
-                    appliedRot = true;
-                    appliedYaw = pendYaw; appliedPitch = pendPitch;
+                    applyRot();
                 }
                 if (ogR) { ogPending = false; appliedOg = true; }
                 replaced++;
@@ -158,7 +180,7 @@ public final class MoveGuard {
         appliedDy = hop ? pendingDy : 0;
         pendingDy = 0;
         if (hop || rot || ogR) {
-            if (rot) { appliedRot = true; appliedYaw = pendYaw; appliedPitch = pendPitch; rotPending = false; }
+            if (rot) { applyRot(); rotPending = false; }
             if (ogR) { ogPending = false; appliedOg = true; }
             replaced++;
             trace("WIRE-REP " + cls + (hop ? " dy=" + appliedDy : "") + (appliedRot ? " rot" : "") + " rep=" + replaced);

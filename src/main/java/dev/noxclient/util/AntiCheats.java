@@ -19,11 +19,48 @@ public final class AntiCheats {
     private static String brand;
     private static volatile String cached;
     private static long cachedAt;
+    /** Recently seen inbound plugin-message channel ids — AC plugins often
+     *  announce themselves here (vulcan:proxy, grimac-*, etc). */
+    private static final java.util.Set<String> channels =
+            java.util.Collections.synchronizedSet(new java.util.LinkedHashSet<>());
 
     /** Called by BrandMixin when the server brand payload arrives. */
     public static void onBrand(String b) {
         brand = b == null ? "" : b.toLowerCase();
         cached = null;
+    }
+
+    /** Feed every inbound custom-payload channel id (BrandMixin). */
+    public static void onChannel(String id) {
+        if (id == null || id.isBlank()) return;
+        channels.add(id.toLowerCase());
+        while (channels.size() > 48) channels.remove(channels.iterator().next());
+        cached = null;
+    }
+
+    /** Clear per-server state — call on disconnect / server switch. */
+    public static void reset() {
+        brand = null; cached = null; cachedAt = 0;
+        channels.clear(); source = "none";
+    }
+
+    /** Pace factor for Legitifier: <1 slows automation on strict ACs. */
+    public static double paceFactor() {
+        return switch (display()) {
+            case "Grim", "Polar" -> 0.55;
+            case "Vulcan", "Verus", "Intave" -> 0.7;
+            case "Matrix", "Spartan", "Themis", "Karhu" -> 0.8;
+            case "Ncp", "Watchdog", "Aac" -> 0.85;
+            case "None", "Vanilla", "Unknown" -> 1.0;
+            default -> 0.9;
+        };
+    }
+    /** True when a known-strict AC is detected. */
+    public static boolean strict() {
+        return switch (display()) {
+            case "Grim", "Polar", "Vulcan", "Verus", "Intave" -> true;
+            default -> false;
+        };
     }
 
     /** Display string for the badge, e.g. "Grim" / "Vulcan" / "Vanilla". */
@@ -79,6 +116,14 @@ public final class AntiCheats {
                 }
             }
         } catch (Throwable ignored) {}
+
+        // plugin-message channels — ACs leak their name here before any brand
+        synchronized (channels) {
+            for (String ch : channels) {
+                ac = matchAc(ch);
+                if (ac != null) { source = "plugin channel"; return ac; }
+            }
+        }
 
         var sd = Minecraft.getInstance().getCurrentServer();
         if (sd != null && sd.ip != null) {

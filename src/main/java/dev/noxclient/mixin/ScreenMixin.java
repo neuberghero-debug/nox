@@ -59,4 +59,5 @@ public abstract class ScreenMixin {
         Gui.text(g, font, tag, tx, 4, 0x99FFFFFF);
         Gui.text(g, font, lic, tx - 10 - Gui.width(font, lic), 4, licCol);
     }
+
 }

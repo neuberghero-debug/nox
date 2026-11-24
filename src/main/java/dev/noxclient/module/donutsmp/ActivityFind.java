@@ -164,6 +164,18 @@ public class ActivityFind extends Module {
             || b == Blocks.ANCIENT_DEBRIS || b == Blocks.OBSIDIAN;
     }
 
+    private static boolean isOre(Block b) {
+        return b == Blocks.IRON_ORE || b == Blocks.DEEPSLATE_IRON_ORE
+            || b == Blocks.GOLD_ORE || b == Blocks.DEEPSLATE_GOLD_ORE
+            || b == Blocks.DIAMOND_ORE || b == Blocks.DEEPSLATE_DIAMOND_ORE
+            || b == Blocks.COAL_ORE || b == Blocks.DEEPSLATE_COAL_ORE
+            || b == Blocks.REDSTONE_ORE || b == Blocks.DEEPSLATE_REDSTONE_ORE
+            || b == Blocks.LAPIS_ORE || b == Blocks.DEEPSLATE_LAPIS_ORE
+            || b == Blocks.EMERALD_ORE || b == Blocks.DEEPSLATE_EMERALD_ORE
+            || b == Blocks.COPPER_ORE || b == Blocks.DEEPSLATE_COPPER_ORE
+            || b == Blocks.ANCIENT_DEBRIS;
+    }
+
     private static boolean caveNoise(Block b) {
         // things that change on their own — fluids, falling blocks, plants, light
         String n = b.toString();
@@ -203,6 +215,16 @@ public class ActivityFind extends Module {
             return;
         }
         boolean oldNoise = caveNoise(oldB), newNoise = caveNoise(newB);
+        // anti-xray reveal: Paper swaps disguised blocks for their REAL
+        // state when we get close — ore→stone = a decoy just got unmasked,
+        // which only happens where the server is actively hiding something.
+        // A natural ore never turns back into plain stone on its own.
+        if (isOre(oldB) && !isOre(newB) && !newNoise && newB != Blocks.FIRE) {
+            mark("xray", "REVEAL: " + oldB.getName().getString().toLowerCase()
+                + " → " + newB.getName().getString().toLowerCase(), pos, 0xFFFF3355);
+            flagAt.put(chunkKey(pos.getX(), pos.getZ()), System.currentTimeMillis());
+            return;
+        }
         // storage disappearing = looter / base being emptied
         if (storageGone.on() && storageBlock(oldB) && !storageBlock(newB)) {
             mark("storage", "STORAGE GONE", pos, 0xFFFF6666);

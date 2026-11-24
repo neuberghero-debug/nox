@@ -31,7 +31,13 @@ public class DigDown extends Module {
         if (mc.player.tickCount < 60) return;   // join grace
         int ty = targetY.intVal();
         if (mc.player.getBlockY() <= ty) { if (autoOff.on()) setEnabled(false); return; }
-        if (lookDown.on()) MoveGuard.requestRot(mc.player.getYRot(), 85f);
+        if (lookDown.on()) {
+            // AimDuplicateLook: identical pitch every packet trips Grim.
+            // Jitter within the GCD step — looks like hand-tremor, still down.
+            float j = (float) (Math.sin(mc.player.tickCount * 0.9) * 0.4
+                    + (Math.random() - 0.5) * 0.2);
+            MoveGuard.requestRot(mc.player.getYRot() + j * 0.3f, 85f + j);
+        }
 
         // lock a target until it breaks — recomputing below() mid-fall kept
         // resetting destroy progress on a different pos

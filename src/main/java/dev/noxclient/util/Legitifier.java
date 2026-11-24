@@ -35,7 +35,7 @@ public final class Legitifier {
             st[1] = now + 30_000 + RNG.nextInt(90_000);
             return false;
         }
-        double delay = 1000.0 / baseCps;
+        double delay = 1000.0 / (baseCps * dev.noxclient.util.AntiCheats.paceFactor());
         delay *= 1.0 + (RNG.nextGaussian() * jitter);
         st[0] = now + (long) Math.max(45, delay);
         return true;

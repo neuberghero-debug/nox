@@ -117,6 +117,11 @@ public class SusChunkFinder extends Module {
             else if (be instanceof BellBlockEntity) { return 0; }   // village — consistent with BaseIntel/ChunkFinder
             else if (be instanceof LecternBlockEntity) { s += 1.5; trialOnly = false; }
             else if (be instanceof BeaconBlockEntity) { s += 5; trialOnly = false; }
+            // TuffChunkV2 signal: comparator/dispenser/dropper = running
+            // redstone automation — someone built a farm here, that's a base
+            else if (be instanceof net.minecraft.world.level.block.entity.ComparatorBlockEntity) { s += 2.5; trialOnly = false; }
+            else if (be instanceof net.minecraft.world.level.block.entity.DispenserBlockEntity) { s += 1.5; trialOnly = false; }
+            else if (be instanceof net.minecraft.world.level.block.entity.DaylightDetectorBlockEntity) { s += 1.5; trialOnly = false; }
             else { s += 0.5; }   // misc tile-entity density
         }
         // instant-hit needs context — one shulker/crafter alone proves nothing
@@ -129,6 +134,10 @@ public class SusChunkFinder extends Module {
         long ck = ((long) cp.x() << 32) | (cp.z() & 0xFFFFFFFFL);
         if (ActivityFind.flagged().contains(ck)) s += 8;
         if (EntityFind.flagged().contains(ck)) s += 12;
+        // ChunkAger: virgin terrain can't hold a base — old-gen terrain is prime habitat
+        int ag = ChunkAger.age(cp);
+        if (ag == 1) s -= 5;        // fresh: nobody's been there yet
+        else if (ag == 4) s += 4;   // old-generation: prime base habitat
         return s;
     }
 

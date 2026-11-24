@@ -133,7 +133,7 @@ public class ConfigManager {
         writePresetIfMissing("donutsmp",
             "Interface", "CustomSky", "StatsHud", "Scoreboard", "Fullbright",
             "Cosmetics", "DiscordRPC", "StaffLive", "StaffNotifier",
-            "StorageESP", "BaseFinder", "RegionMap", "AutoEat", "Zoom");
+            "BaseSurvey", "RegionMap", "AutoEat", "Zoom");
         writePresetIfMissing("pvp",
             "Interface", "StatsHud", "Scoreboard", "Fullbright", "TargetHUD",
             "Hitboxes", "LowTotemAlert", "DurabilityAlert", "PvpCoach", "Zoom");

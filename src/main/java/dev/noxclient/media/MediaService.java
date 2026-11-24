@@ -118,6 +118,32 @@ public final class MediaService {
         return f.length >= 5 ? f : null;
     }
 
+    /**
+     * Fire a playback control command at the system player (playerctl verbs:
+     * "play-pause", "next", "previous"). Async — playerctl can block briefly
+     * and must never stall the render thread.
+     */
+    public static void control(String action) {
+        Thread t = new Thread(() -> {
+            try {
+                if (OS.contains("mac")) {
+                    String script = switch (action) {
+                        case "next" -> "tell application \"Spotify\" to next track";
+                        case "previous" -> "tell application \"Spotify\" to previous track";
+                        default -> "tell application \"Spotify\" to playpause";
+                    };
+                    new ProcessBuilder("osascript", "-e", script)
+                        .redirectError(ProcessBuilder.Redirect.DISCARD).start();
+                } else {
+                    new ProcessBuilder("playerctl", action)
+                        .redirectError(ProcessBuilder.Redirect.DISCARD).start();
+                }
+            } catch (Exception ignored) {}
+        }, "nox-media-ctl");
+        t.setDaemon(true);
+        t.start();
+    }
+
     private static String run(String... cmd) {
         if (Thread.currentThread().isInterrupted()) return null;
         Process p = null;

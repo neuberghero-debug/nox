@@ -18,7 +18,7 @@ compare `assets/noxclient/sig.txt` after excluding `watermark.txt`.
 ```bash
 git clone https://github.com/neuberghero-debug/nox.git
 cd nox
-git checkout <tag>          # e.g. v0.1.0-beta — match the release you want to verify
+git checkout <tag>          # e.g. v0.2.0-beta — match the release you want to verify
 
 ./gradlew build -x test     # or: gradle build -x test if gradle is on PATH
 ```

@@ -52,8 +52,9 @@ public class NoxClickGui extends Screen {
     public static NoxClickGui current;
 
     private int winX = NoxWindowScreen.winX, winY = NoxWindowScreen.winY,
-        winW = NoxWindowScreen.winW > 0 ? Math.max(560, NoxWindowScreen.winW) : 960,
-        winH = NoxWindowScreen.winH > 0 ? Math.max(320, NoxWindowScreen.winH) : 560;
+        winW = NoxWindowScreen.winW > 0 ? NoxWindowScreen.winW : 0,
+        winH = NoxWindowScreen.winH > 0 ? NoxWindowScreen.winH : 0;
+    private double lastScale = -1; private boolean lastAuto; private int lastSw, lastSh;
 
     private static final int TITLE = 44, SEARCH = 36, FOOT = 44,
         STATS_W = 236, GAP = 24, RAIL = 68;
@@ -270,7 +271,7 @@ public class NoxClickGui extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float dt) {
         Charts.tickSample();
-        if (dev.noxclient.util.DebugConsole.hoverX >= 0) {
+        if (dev.noxclient.util.DebugConsole.hoverActive()) {
             mx = (int) dev.noxclient.util.DebugConsole.hoverX;
             my = (int) dev.noxclient.util.DebugConsole.hoverY;
         }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "noxclient",
-  "version": "0.1.0-beta",
+  "version": "0.2.0-beta",
   "name": "NOX",
   "description": "NOX client for DonutSMP \u2014 modules, finders, PvP utilities, anticheat-aware legit layer",
   "environment": "client",

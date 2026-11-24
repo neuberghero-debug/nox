@@ -34,6 +34,16 @@ public final class DebugConsole {
     /** Injected cursor position; -1 = use the real mouse. Screens read this so
      *  `move`/`click` debug commands drive hover state too. */
     public static volatile double hoverX = -1, hoverY = -1;
+    /** Expiry for the synthetic hover — set by click/move/drag commands so the
+     *  override applies for the next few frames only, not forever. */
+    private static volatile long hoverUntil;
+    public static boolean hoverActive() {
+        return hoverX >= 0 && System.currentTimeMillis() < hoverUntil;
+    }
+    private static void armHover(double x, double y, long ms) {
+        hoverX = x; hoverY = y;
+        hoverUntil = System.currentTimeMillis() + ms;
+    }
     private static Path cmd, ack;
     private static long lastPoll;
     /** Off in production builds unless <gameDir>/nox_dbg exists — the file
@@ -114,7 +124,7 @@ public final class DebugConsole {
                 return "screen " + p[1] + " -> "
                     + (screenOf(mc) == null ? "null" : screenOf(mc).getClass().getSimpleName());
             }
-            case "close" -> mc.setScreenAndShow(null);
+            case "close" -> { mc.setScreenAndShow(null); hoverUntil = 0; }
             case "cam" -> {   // cam [0|1|2] -> first/third-back/third-front person
                 var opts = net.minecraft.client.CameraType.values();
                 int i = p.length > 1 ? Integer.parseInt(p[1])
@@ -125,7 +135,7 @@ public final class DebugConsole {
             case "click" -> {
                 double x = d(p[1]), y = d(p[2]);
                 int b = p.length > 3 ? Integer.parseInt(p[3]) : 1;
-                hoverX = x; hoverY = y;
+                armHover(x, y, 400);
                 setCursor(mc, x, y);            // vanilla widgets hover off the real cursor
                 if (s != null) {
                     hoverAt(s, x, y);           // release fires only while the widget is hovered
@@ -142,7 +152,7 @@ public final class DebugConsole {
                     new MouseButtonInfo(b, 0)), true);
             }
             case "drag" -> {
-                hoverX = d(p[3]); hoverY = d(p[4]);
+                armHover(d(p[3]), d(p[4]), 300);
                 if (s != null) {
                     s.mouseClicked(new MouseButtonEvent(d(p[1]), d(p[2]), new MouseButtonInfo(1, 0)), false);
                     s.mouseDragged(new MouseButtonEvent(d(p[3]), d(p[4]), new MouseButtonInfo(1, 0)),
@@ -151,7 +161,7 @@ public final class DebugConsole {
                 }
             }
             case "move" -> {
-                hoverX = d(p[1]); hoverY = d(p[2]);
+                armHover(d(p[1]), d(p[2]), 900);
                 setCursor(mc, hoverX, hoverY);
                 if (s != null) { hoverAt(s, hoverX, hoverY); s.mouseMoved(hoverX, hoverY); }
             }

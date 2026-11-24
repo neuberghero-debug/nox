@@ -31,6 +31,12 @@ public class ModuleManager {
         reg(new BountyTracker());
         reg(new AutoCommander());
         reg(new AutoHarvest());
+        reg(new AutoFish());
+        reg(new SpawnerProtect());
+        reg(new VoidRescue());
+        reg(new BaitESP());
+        reg(new ShulkerPeek());
+        reg(new VanishSense());
         reg(new SellWand());
         // Finders
         reg(new ChunkFinder());
@@ -42,6 +48,10 @@ public class ModuleManager {
         reg(new ActivityFind());
         reg(new EntityFind());
         reg(new BaseFinder());
+        reg(new BaseSurvey());
+        reg(new ChunkAger());
+        reg(new RoomFinder());
+        reg(new RevealProbe());
         reg(new DebrisFinder());
         reg(new RegionMap());
         reg(new DigDown());

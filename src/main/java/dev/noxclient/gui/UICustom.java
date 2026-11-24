@@ -80,6 +80,8 @@ public final class UICustom {
     public static float glow       = 1f;         // shadow/glow intensity 0–2
     public static float animSpeed  = 1f;         // multiplier on anim durations
     public static float fontScale  = 1f;         // NVG text scale 0.8–1.4
+    public static float guiScale   = 1f;         // whole-window scale 0.6–1.5
+    public static boolean autoGuiSize = true;    // fit ClickGUI to screen
     public static boolean showStats  = true;     // live-stats column
     public static boolean showPinned = true;     // pinned-modules footer bar
     public static String borderMode = "Subtle";  // Off | Subtle | Strong
@@ -97,7 +99,7 @@ public final class UICustom {
         season = "Auto"; backdrop = "Dim"; backdropLevel = "Medium"; seasonFx = true;
         snowPile = true; fxDensity = 1f;
         guiBg = 0xFF000000; accent2 = 0xFF9A9A9A; winOpacity = 0.97f;
-        glow = 1f; animSpeed = 1f; fontScale = 1f;
+        glow = 1f; animSpeed = 1f; fontScale = 1f; guiScale = 1f; autoGuiSize = true;
         showStats = true; showPinned = true; borderMode = "Subtle";
     }
 }

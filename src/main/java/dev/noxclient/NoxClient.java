@@ -14,7 +14,7 @@ import net.minecraft.client.Minecraft;
 
 public class NoxClient implements ClientModInitializer {
     public static final String NAME = "NOX";
-    public static final String VERSION = "0.1.0-beta";
+    public static final String VERSION = "0.2.0-beta";
     public static final String DISCORD_INVITE = "https://discord.gg/tewtZTsZf5";
 
     public static NoxClient INSTANCE;
@@ -115,8 +115,10 @@ public class NoxClient implements ClientModInitializer {
         // (RShift then closed a null screen and keybinds stayed dead).
         NoxWindowScreen.open = mc.gui.screen() instanceof NoxWindowScreen
             || mc.gui.screen() instanceof dev.noxclient.gui.NoxClickGui;
-        if (mc.getConnection() == null)
+        if (mc.getConnection() == null) {
             dev.noxclient.util.MoveGuard.reset();   // no stale queued pos into a new server
+            dev.noxclient.util.AntiCheats.reset();  // no stale AC verdict across servers
+        }
         boolean down = InputConstants.isKeyDown(InputConstants.KEY_RSHIFT)
             || dev.noxclient.module.ModuleManager.FAKE_KEYS.contains(InputConstants.KEY_RSHIFT);
         if (down && !guiKeyWasDown && System.currentTimeMillis() - guiClosedAt > 300) {

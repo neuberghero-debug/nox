@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class BrandMixin {
     @Inject(method = "handleCustomPayload", at = @At("HEAD"))
     private void nox$brand(CustomPacketPayload payload, CallbackInfo ci) {
+        AntiCheats.onChannel(payload.type().id().toString());
         if (payload instanceof BrandPayload b) AntiCheats.onBrand(b.brand());
     }
 }

@@ -11,6 +11,8 @@ import dev.noxclient.setting.Setting;
  */
 public class SpotifyHud extends Module {
     public final Setting.Bool progressBar = add(new Setting.Bool("Progress bar", true));
+    public final Setting.Bool controls = add(new Setting.Bool("Controls", true,
+        "Prev / play-pause / next buttons — clickable while a screen is open"));
     public final Setting.Bool pausedToo = add(new Setting.Bool("Show when paused", true));
     public final Setting.Num posX = add(new Setting.Num("X", 4, 0, 2000));
     public final Setting.Num posY = add(new Setting.Num("Y", 60, 0, 1200));

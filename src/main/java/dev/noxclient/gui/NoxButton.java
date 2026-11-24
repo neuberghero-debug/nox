@@ -1,5 +1,6 @@
 package dev.noxclient.gui;
 
+import dev.noxclient.gui.ds.DS;
 import dev.noxclient.gui.theme.Theme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -34,7 +35,7 @@ public class NoxButton extends AbstractWidget {
         if (primary) {
             fill = hov ? t.accent() : (t.accent() & 0x00FFFFFF) | 0xCC000000;
             border = t.accent();
-            text = 0xFFFFFFFF;
+            text = DS.onAccent();
         } else {
             fill = hov ? 0xFF23233A : 0xFF181826;
             border = hov ? t.accent() : 0xFF2E2E44;

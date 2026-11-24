@@ -201,7 +201,7 @@ module.exports = [
   },
   {
     "name": "Breadcrumbs",
-    "desc": "Trail of your path",
+    "desc": "Shows your recent route on foot or in flight",
     "cat": "RENDER",
     "premium": false
   },
@@ -380,6 +380,12 @@ module.exports = [
     "premium": false
   },
   {
+    "name": "AutoFish",
+    "desc": "AFK fishing — cast, detect bite, reel, repeat",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
     "name": "AutoHarvest",
     "desc": "Harvests + replants crops",
     "cat": "DONUTSMP",
@@ -452,8 +458,20 @@ module.exports = [
     "premium": false
   },
   {
+    "name": "BaitESP",
+    "desc": "Glowing outlines on bait/trap entities",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
     "name": "BaseFinder",
     "desc": "Marks chunks with signs of player activity",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
+    "name": "BaseSurvey",
+    "desc": "DonutSMP: groups visible blocks into base candidates",
     "cat": "DONUTSMP",
     "premium": false
   },
@@ -466,6 +484,12 @@ module.exports = [
   {
     "name": "ChestStealer",
     "desc": "Loots open chests fast",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
+    "name": "ChunkAger",
+    "desc": "Fresh vs old terrain — where bases can exist",
     "cat": "DONUTSMP",
     "premium": false
   },
@@ -572,6 +596,18 @@ module.exports = [
     "premium": false
   },
   {
+    "name": "RevealProbe",
+    "desc": "Forces the server to reveal hidden blocks",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
+    "name": "RoomFinder",
+    "desc": "Finds sealed underground rooms",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
     "name": "SellWand",
     "desc": "Auto sell-wand chests",
     "cat": "DONUTSMP",
@@ -584,8 +620,20 @@ module.exports = [
     "premium": false
   },
   {
+    "name": "ShulkerPeek",
+    "desc": "Hover a shulker → see its contents",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
     "name": "SoundFind",
     "desc": "Marks storage/redstone events in tracked chunks — even 60+ blocks below",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
+    "name": "SpawnerProtect",
+    "desc": "Enemy nearby → mines all spawners, stashes them, optional logout",
     "cat": "DONUTSMP",
     "premium": false
   },
@@ -615,13 +663,25 @@ module.exports = [
   },
   {
     "name": "TradeChecker",
-    "desc": "Values trades against your price book",
+    "desc": "Reports visible menu contents and changes before you trade",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
+    "name": "VanishSense",
+    "desc": "Detects vanished players via door/chest/mechanism events",
     "cat": "DONUTSMP",
     "premium": false
   },
   {
     "name": "VisualRange",
     "desc": "Alerts on players in range",
+    "cat": "DONUTSMP",
+    "premium": false
+  },
+  {
+    "name": "VoidRescue",
+    "desc": "Void/bedrock-trap escape — fires a home/rtp command ladder below Y",
     "cat": "DONUTSMP",
     "premium": false
   },

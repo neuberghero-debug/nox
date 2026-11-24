@@ -5,6 +5,7 @@ import dev.noxclient.gui.ds.DS;
 import dev.noxclient.gui.nvg.NvgOverlay;
 import dev.noxclient.util.EspMarks;
 import dev.noxclient.module.donutsmp.Auction;
+import dev.noxclient.module.donutsmp.BaseSurvey;
 import dev.noxclient.module.donutsmp.StorageESP;
 import dev.noxclient.module.render.ESP;
 import dev.noxclient.module.render.PlayerESP;
@@ -71,6 +72,7 @@ public class NoxOverlay implements HudElement {
         drawScoreboard(g, mc, sw, sh);
         drawAuction(g, mc, sw, sh);
         drawBaseFinder(g, mc, sw, sh);
+        drawBaseSurvey(g, mc, sw, sh);
         drawRegionMap(g, mc, sw, sh);
         drawDebrisPanel(g, mc, sw, sh);
         drawStaffLive(g, mc, sw, sh);
@@ -973,14 +975,15 @@ public class NoxOverlay implements HudElement {
             + " — " + dev.noxclient.media.MediaService.title();
         int w = Math.min(Gui.width(mc.font, line), Math.min(220, sw - 16));
         int ph2 = sp.progressBar.on() ? 22 : 14;
+        int ch = sp.controls.on() ? 12 : 0;
         float[] pp = HudLayout.get("spotify");
         int x = pp != null ? Math.clamp((int) (pp[0] * sw), 2, Math.max(2, sw - w - 16))
             : Math.clamp((int) (double) sp.posX.get(), 2, Math.max(2, sw - w - 16));
-        int y = pp != null ? Math.clamp((int) (pp[1] * sh), 2, Math.max(2, sh - ph2 - 2))
-            : Math.clamp((int) (double) sp.posY.get(), 2, Math.max(2, sh - ph2 - 2));
+        int y = pp != null ? Math.clamp((int) (pp[1] * sh), 2, Math.max(2, sh - ph2 - ch - 2))
+            : Math.clamp((int) (double) sp.posY.get(), 2, Math.max(2, sh - ph2 - ch - 2));
         drawTwitch(g, mc, t, sw, sh);
-        rep("spotify", x, y, w + 14, ph2);
-        dev.noxclient.gui.Gui.roundBorder(g, x, y, w + 14, sp.progressBar.on() ? 22 : 14, 6,
+        rep("spotify", x, y, w + 14, ph2 + ch);
+        dev.noxclient.gui.Gui.roundBorder(g, x, y, w + 14, ph2 + ch, 6,
             t.accent() & 0x66FFFFFF, 0xB8141420);
         String clipped = line;
         while (Gui.width(mc.font, clipped + "…") > w && !clipped.isEmpty())
@@ -993,6 +996,40 @@ public class NoxOverlay implements HudElement {
             dev.noxclient.gui.Gui.pill(g, x + 6, y + 15,
                 Math.max(2, (int) (bw * dev.noxclient.media.MediaService.progress())), 3, 0xFF1DB954);
         }
+        if (ch > 0) {
+            String[] glyphs = { "<<", dev.noxclient.media.MediaService.playing() ? "||" : ">", ">>" };
+            // hover only exists while a screen frees the cursor
+            double mx = -1, my = -1;
+            if (mc.gui.screen() != null) {
+                double gs = mc.getWindow().getGuiScale();
+                mx = mc.mouseHandler.xpos() / gs; my = mc.mouseHandler.ypos() / gs;
+            }
+            int bw3 = (w + 2) / 3;
+            SPOT_BTNS = new int[3][5];
+            for (int i = 0; i < 3; i++) {
+                int bx = x + 6 + i * (bw3 + 2), by = y + ph2 + 1;
+                boolean hov = mx >= bx && mx < bx + bw3 && my >= by && my < by + 9;
+                Gui.pill(g, bx, by, bw3, 9, hov ? t.accent() | 0xFF000000 : 0xFF2A2A38);
+                Gui.textCenter(g, mc.font, glyphs[i], bx + bw3 / 2, by + 2, 0xFF1DB954);
+                SPOT_BTNS[i][0] = bx; SPOT_BTNS[i][1] = by;
+                SPOT_BTNS[i][2] = bw3; SPOT_BTNS[i][3] = 9; SPOT_BTNS[i][4] = i;
+            }
+        } else SPOT_BTNS = null;
+    }
+
+    /** {x, y, w, h, actionIndex} for the spotify prev/play-pause/next buttons. */
+    private static int[][] SPOT_BTNS;
+    private static final String[] SPOT_ACTIONS = { "previous", "play-pause", "next" };
+
+    /** Screen-click hook — returns true when a HUD control consumed the click. */
+    public static boolean onHudClick(double mx, double my) {
+        if (SPOT_BTNS == null) return false;
+        for (int[] r : SPOT_BTNS)
+            if (mx >= r[0] && mx < r[0] + r[2] && my >= r[1] && my < r[1] + r[3]) {
+                dev.noxclient.media.MediaService.control(SPOT_ACTIONS[r[4]]);
+                return true;
+            }
+        return false;
     }
 
     /** Twitch chat HUD — purple-accent card, live dot, last N IRC lines. */
@@ -1189,6 +1226,28 @@ public class NoxOverlay implements HudElement {
         double ang = Math.atan2(dx, -dz);            // 0 = north(-z), cw
         int i = (int) Math.round(ang / (Math.PI / 4)) & 7;
         return DIR8[i];
+    }
+
+    private void drawBaseSurvey(GuiGraphicsExtractor g, Minecraft mc, int w, int h) {
+        if (!(NoxClient.INSTANCE.modules.get("BaseSurvey") instanceof BaseSurvey s) || !s.isEnabled()
+            || !s.showHud.on() || !s.inScope() || mc.gui.hud.isHidden()) return;
+        var rows = s.rows();
+        int pw = Math.min(214, w - 4), ph = 21 + 12 * Math.max(rows.size(), 1);
+        if (pw < 60 || ph > h - 4) return;
+        var pos = HudLayout.get("basesurvey");
+        int x = Math.clamp(pos == null ? 4 : (int)(pos[0] * w), 2, w - pw - 2);
+        int y = Math.clamp(pos == null ? h - ph - 48 : (int)(pos[1] * h), 2, h - ph - 2);
+        rep("basesurvey", x, y, pw, ph);
+        Gui.roundBorder(g, x, y, pw, ph, DS.R_INPUT, DS.border(), DS.winFill());
+        Gui.clip(x, y, pw, ph);
+        Gui.textBold(g, mc.font, "Base survey / candidates", x + 7, y + 5, DS.accent());
+        int yy = y + 18;
+        if (rows.isEmpty()) Gui.text(g, mc.font, s.status(), x + 7, yy, DS.secondary());
+        for (String row : rows) {
+            Gui.text(g, mc.font, row, x + 7, yy, DS.text());
+            yy += 12;
+        }
+        Gui.clipEnd();
     }
 
     /** BaseFinder — Prestige-style detection list, top-left. */

@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.0-beta] — 2026-11-23
+## [0.2.0-beta] — 2026-11-23
 
 ### HUD editor, smooth corners, input fixes
 

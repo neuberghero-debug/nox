@@ -62,6 +62,10 @@ public class Interface extends Module {
         "Multiplier on every GUI animation duration"));
     public final Setting.Num fontScale = add(new Setting.Num("Font scale", 1.0, 0.8, 1.4,
         "ClickGUI text size — layout adapts automatically"));
+    public final Setting.Num guiScale = add(new Setting.Num("GUI scale", 1.0, 0.6, 1.5,
+        "ClickGUI window size — combined with auto-fit"));
+    public final Setting.Bool autoGuiSize = add(new Setting.Bool("Auto window size", true,
+        "Automatically fit the ClickGUI to your screen; off = fixed 960×560 base"));
     public final Setting.Bool showStats = add(new Setting.Bool("Live stats", true,
         "Right-side stats column in the ClickGUI"));
     public final Setting.Bool showPinned = add(new Setting.Bool("Pinned bar", true,
@@ -120,6 +124,8 @@ public class Interface extends Module {
             autoFit = Math.clamp(lh / 420f, 0.72f, 1f);
         }
         UICustom.fontScale = (float) (double) fontScale.get() * autoFit;
+        UICustom.guiScale = (float) (double) guiScale.get();
+        UICustom.autoGuiSize = autoGuiSize.get();
         UICustom.showStats = showStats.on();
         UICustom.showPinned = showPinned.on();
         UICustom.borderMode = borderMode.get();

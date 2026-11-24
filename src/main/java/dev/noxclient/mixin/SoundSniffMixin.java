@@ -2,6 +2,7 @@ package dev.noxclient.mixin;
 
 import dev.noxclient.module.donutsmp.ActivityFind;
 import dev.noxclient.module.donutsmp.SoundFind;
+import dev.noxclient.module.donutsmp.VanishSense;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -31,6 +32,7 @@ public abstract class SoundSniffMixin {
     @Inject(method = "handleBlockEvent", at = @At("TAIL"))
     private void nox$blockEvent(ClientboundBlockEventPacket p, CallbackInfo ci) {
         try { SoundFind.onBlockEvent(p); } catch (Throwable ignored) {}
+        try { VanishSense.onBlockEvent(p); } catch (Throwable ignored) {}
     }
 
     @Inject(method = "handleLevelEvent", at = @At("TAIL"))
@@ -63,6 +65,7 @@ public abstract class SoundSniffMixin {
             if (level != null)
                 ActivityFind.onBlockUpdate(p, level.getBlockState(p.getPos()));
         } catch (Throwable ignored) {}
+        try { VanishSense.onBlockUpdate(p); } catch (Throwable ignored) {}
     }
 
     @Inject(method = "handleChunkBlocksUpdate", at = @At("HEAD"))

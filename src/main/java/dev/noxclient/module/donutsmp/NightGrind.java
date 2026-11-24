@@ -24,6 +24,12 @@ public class NightGrind extends Module {
         "Arm AutoDaily + AutoKit for login rewards"));
     private final Setting.Num sellInterval = add(new Setting.Num("Sell pacing (s)", 45, 20, 300,
         "Bump AutoSell's interval — slower sells read more human overnight"));
+    private final Setting.Mode method = add(new Setting.Mode("Money method", "Fishing",
+        "Fishing", "Farm", "Commands", "Sell only"));
+    private final Setting.Str sellCmd = add(new Setting.Str("Sell command", "sellall",
+        "Periodic sell cmd — works even when AutoSell is off"));
+    private final Setting.Num sellSec = add(new Setting.Num("Sell every (s)", 120, 15, 900));
+    private long nextSell;
 
     /** Modules NightGrind turned on — unwound on disable. */
     private final List<Module> armed = new ArrayList<>();
@@ -53,6 +59,12 @@ public class NightGrind extends Module {
             }
         }
         if (claims.on()) { arm(mm.get("AutoDaily")); arm(mm.get("AutoKit")); }
+        switch (method.get()) {
+            case "Fishing" -> arm(mm.get("AutoFish"));
+            case "Farm" -> arm(mm.get("AutoHarvest"));
+            case "Commands" -> arm(mm.get("AutoCommander"));
+            default -> { }
+        }
         // kill anything ban-bait that was left on
         int killed = 0;
         for (Module m : mm.all())
@@ -70,7 +82,18 @@ public class NightGrind extends Module {
         armed.clear();
     }
 
+    @Override public void onTick() {
+        if (mc.getConnection() == null) return;
+        String cmd = sellCmd.get();
+        if (cmd == null || cmd.isBlank()) return;
+        if (System.currentTimeMillis() < nextSell) return;
+        if (!dev.noxclient.util.Legitifier.ready(this, 1.0 / Math.max(1, sellSec.get()), 0.1)) return;
+        mc.getConnection().sendCommand(cmd.startsWith("/") ? cmd.substring(1) : cmd);
+        nextSell = System.currentTimeMillis() + (long) (sellSec.get() * 1000);
+        mark("sell: /" + cmd);
+    }
+
     @Override public String status() {
-        return isEnabled() ? "afk stack armed (" + armed.size() + " modules)" : "off";
+        return isEnabled() ? method.get() + " — " + armed.size() + " modules armed" : "off";
     }
 }
