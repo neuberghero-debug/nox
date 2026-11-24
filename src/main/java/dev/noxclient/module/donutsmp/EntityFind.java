@@ -203,7 +203,7 @@ public class EntityFind extends Module {
                 .setAlwaysOnTop();
             if (!labels) continue;
             int dy = (int) (py - m.y);
-            String txt = m.label + " ×" + m.count + (dy > 4 ? "  ↓" + dy : dy < -4 ? "  ↑" + -dy : "");
+            String txt = m.label + " x" + m.count + (dy > 4 ? "  v" + dy : dy < -4 ? "  ^" + -dy : "");
             Gizmos.billboardText(txt, c.add(0, 1.3, 0),
                 TextGizmo.Style.forColorAndCentered(col | 0xFF000000).withScale(sc))
                 .setAlwaysOnTop();

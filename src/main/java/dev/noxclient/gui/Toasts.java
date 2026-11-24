@@ -30,15 +30,26 @@ public final class Toasts {
         push(text, color);
     }
 
+    /** Glyphs the "inter" font doesn't ship — they render as "NO GLYPH"
+     *  boxes on the card. Strip the icon prefix (the accent dot already
+     *  marks the toast) and downgrade arrows/multiply to ASCII. */
+    private static String clean(String s) {
+        return s.replace("◉ ", "").replace("◈ ", "").replace("◆ ", "")
+            .replace("⚠ ", "! ").replace("×", "x")
+            .replace("↓", "v").replace("↑", "^");
+    }
+
     public static void push(String text, int color) {
-        LIST.removeIf(x -> x.msg.equals(text));
-        LIST.add(new Toast("", text, color, System.currentTimeMillis()));
+        final String t = clean(text);
+        LIST.removeIf(x -> x.msg.equals(t));
+        LIST.add(new Toast("", t, color, System.currentTimeMillis()));
         while (LIST.size() > 5) LIST.remove(0);
     }
     /** Card toast: bold title line + secondary message line. */
     public static void push(String title, String msg, int color) {
-        LIST.removeIf(x -> x.title.equals(title) && x.msg.equals(msg));
-        LIST.add(new Toast(title, msg, color, System.currentTimeMillis()));
+        final String t = clean(title), m = clean(msg);
+        LIST.removeIf(x -> x.title.equals(t) && x.msg.equals(m));
+        LIST.add(new Toast(t, m, color, System.currentTimeMillis()));
         while (LIST.size() > 5) LIST.remove(0);
     }
     public static void info(String text)  { push(text, 0xFF5AC8FF); }
@@ -46,8 +57,18 @@ public final class Toasts {
     public static void warn(String text)  { push(text, 0xFFFFCC55); }
     public static void error(String text) { push(text, 0xFFFF6666); }
 
-    /** Top-right card stack — 250ms slide-in, progress bar, slide-out. */
+    /** Top-right card stack — 250ms slide-in, progress bar, slide-out.
+     *  Adapts to the MC gui scale: at 3x+ the cards render proportionally
+     *  smaller so the stack never eats the screen edge. */
     public static void render(GuiGraphicsExtractor g, Font font, int w, int startY) {
+        double gs = net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale();
+        float ts = (float) Math.min(1.0, Math.max(0.55, 2.0 / gs));
+        if (ts != 1f) { g.pose().pushMatrix(); g.pose().scale(ts, ts); }
+        body(g, font, (int) (w / ts), (int) (startY / ts));
+        if (ts != 1f) g.pose().popMatrix();
+    }
+
+    private static void body(GuiGraphicsExtractor g, Font font, int w, int startY) {
         long now = System.currentTimeMillis();
         LIST.removeIf(x -> now - x.born > LIFE + EXIT);
         int y = startY;
