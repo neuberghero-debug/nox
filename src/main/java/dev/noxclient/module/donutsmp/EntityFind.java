@@ -185,16 +185,23 @@ public class EntityFind extends Module {
     private void emit() {
         if (mc.level == null || mc.player == null || MARKS.isEmpty()) return;
         double py = mc.player.getY();
-        for (Mark m : MARKS.values()) {
+        var list = new java.util.ArrayList<>(MARKS.values());
+        if (list.size() > 40) {
+            var pp = mc.player.position();
+            list.sort(java.util.Comparator.comparingDouble(m ->
+                (m.x - pp.x) * (m.x - pp.x) + (m.z - pp.z) * (m.z - pp.z)));
+            list = new java.util.ArrayList<>(list.subList(0, 40));
+        }
+        for (Mark m : list) {
             Vec3 c = new Vec3(m.x, m.y, m.z);
-            AABB box = new AABB(c, c).inflate(0.6, 0.7, 0.6);
+            AABB box = new AABB(c, c).inflate(0.45, 0.5, 0.45);
             int col = m.color & 0xFFFFFF;
-            Gizmos.cuboid(box, GizmoStyle.strokeAndFill(col | 0xFF000000, 2f, col | 0x33000000))
+            Gizmos.cuboid(box, GizmoStyle.strokeAndFill(col | 0xFF000000, 1.5f, col | 0x28000000))
                 .setAlwaysOnTop();
             int dy = (int) (py - m.y);
             String txt = m.label + " ×" + m.count + (dy > 4 ? "  ↓" + dy : dy < -4 ? "  ↑" + -dy : "");
-            Gizmos.billboardText(txt, c.add(0, 1.6, 0),
-                TextGizmo.Style.forColorAndCentered(col | 0xFF000000).withScale(1.3f))
+            Gizmos.billboardText(txt, c.add(0, 1.3, 0),
+                TextGizmo.Style.forColorAndCentered(col | 0xFF000000).withScale(0.8f))
                 .setAlwaysOnTop();
         }
     }

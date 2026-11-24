@@ -59,37 +59,37 @@ public final class Toasts {
             if (age > LIFE) slide += (int) (((age - LIFE) / (float) EXIT) * 80);
 
             boolean titled = !x.title.isEmpty();
-            int th = titled ? 38 : 26;
-            int tw = Math.max(Gui.width(font, x.title), Gui.width(font, x.msg)) + 34;
-            tw = Math.max(tw, 140);
+            int th = titled ? 28 : 18;
+            int tw = Math.max(Gui.width(font, x.title), Gui.width(font, x.msg)) + 22;
+            tw = Math.max(tw, 92);
             tw = Math.min(tw, w - 24);   // long messages used to run off-screen left
             int x1 = w - 12 + slide;          // right edge, slide in
             int x0 = x1 - tw;
             int alpha = (int) (a * 0xF2) << 24;
 
             // card: surface + left accent strip + icon dot
-            Gui.round(g, x0, y, tw, th, 10, (DS.surface() & 0xFFFFFF) | alpha);
-            Gui.roundBorder(g, x0, y, tw, th, 10,
+            Gui.round(g, x0, y, tw, th, 7, (DS.surface() & 0xFFFFFF) | alpha);
+            Gui.roundBorder(g, x0, y, tw, th, 7,
                 (x.color & 0x00FFFFFF) | (alpha / 2), 0);
-            Gui.round(g, x0, y + 4, 3, th - 8, 2, (x.color & 0xFFFFFF) | alpha);
-            Gui.circle(g, x0 + 16, y + (titled ? 12 : th / 2), 3.5f,
+            Gui.round(g, x0, y + 3, 2, th - 6, 1, (x.color & 0xFFFFFF) | alpha);
+            Gui.circle(g, x0 + 11, y + (titled ? 9 : th / 2), 2.5f,
                 (x.color & 0xFFFFFF) | alpha);
-            String msg = font.plainSubstrByWidth(x.msg, tw - 30);
+            String msg = font.plainSubstrByWidth(x.msg, tw - 20);
             if (titled) {
-                Gui.textBold(g, font, font.plainSubstrByWidth(x.title, tw - 30),
-                    x0 + 26, y + 7, (alpha) | 0xFFFFFF);
-                Gui.text(g, font, msg, x0 + 26, y + 21,
+                Gui.textBold(g, font, font.plainSubstrByWidth(x.title, tw - 20),
+                    x0 + 17, y + 4, (alpha) | 0xFFFFFF);
+                Gui.text(g, font, msg, x0 + 17, y + 15,
                     ((int) (a * 0xFF) << 24) | (DS.secondary() & 0xFFFFFF));
             } else {
-                Gui.text(g, font, msg, x0 + 26, y + (th - 8) / 2, (alpha) | 0xFFFFFF);
+                Gui.text(g, font, msg, x0 + 17, y + (th - 8) / 2, (alpha) | 0xFFFFFF);
             }
             // progress bar (fills over LIFE)
             float prog = Math.min(1, age / (float) LIFE);
-            int pw = (int) ((tw - 8) * prog);
+            int pw = (int) ((tw - 6) * prog);
             if (pw > 0)
-                Gui.round(g, x0 + 4, y + th - 3, pw, 2, 1,
+                Gui.round(g, x0 + 3, y + th - 2, pw, 1, 1,
                     (x.color & 0xFFFFFF) | (alpha / 2));
-            y += th + 6;
+            y += th + 4;
         }
     }
 
