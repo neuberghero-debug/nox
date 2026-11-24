@@ -1264,7 +1264,9 @@ public class NoxOverlay implements HudElement {
             if (e.pct < min) continue;
             if (list.size() < rows) list.add(e); else more++;
         }
-        int total = dev.noxclient.util.BaseIntel.entries().size();
+        int total = 0;
+        for (var e : dev.noxclient.util.BaseIntel.entries().values())
+            if (e.pct >= min) total++;
         int pw = 172, ph = 18 + list.size() * 26 + (more > 0 || list.isEmpty() ? 12 : 0);
         float[] fp = HudLayout.get("basefinder");
         int x = fp != null ? Math.clamp((int) (fp[0] * w), 2, Math.max(2, w - pw - 2)) : 4;

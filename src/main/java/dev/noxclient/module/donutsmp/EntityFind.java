@@ -128,7 +128,9 @@ public class EntityFind extends Module {
                 MARKS.put(mk, new Mark(label, col, e.getX(), e.getY(), e.getZ()));
                 if (MARKS.size() > 256) MARKS.remove(MARKS.keySet().iterator().next());
                 if (seen.add(e.getId()) && chatNotify.on())
-                    Toasts.push("◆ " + label + " " + (int) Math.sqrt(dx*dx+dy*dy+dz*dz) + "m", col);
+                    Toasts.pushKeyed("ef:" + label, "◆ " + label + " "
+                        + (int) Math.sqrt(dx*dx+dy*dy+dz*dz) + "m", col,
+                        label.startsWith("NAMED") ? 2_000 : 10_000);
                 dev.noxclient.util.StashIndex.add("entity", label,
                     new BlockPos((int) e.getX(), (int) e.getY(), (int) e.getZ()));
             } else {

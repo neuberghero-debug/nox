@@ -139,8 +139,10 @@ public final class BaseIntel {
                     if (bl == Blocks.TORCH || bl == Blocks.WALL_TORCH || bl == Blocks.LADDER
                         || bl == Blocks.RAIL || bl == Blocks.POWERED_RAIL
                         || bl == Blocks.DETECTOR_RAIL || bl == Blocks.ACTIVATOR_RAIL
-                        || bl == Blocks.LANTERN || bl == Blocks.SOUL_LANTERN
-                        || bl == Blocks.VINE) { shaftSec.add(sIdx); sig = true; }
+                        || bl == Blocks.LANTERN || bl == Blocks.SOUL_LANTERN) {
+                        // VINE intentionally excluded — natural in
+                        // swamps/jungles/lush caves, pure noise here
+                        shaftSec.add(sIdx); sig = true; }
                     else if (bl == Blocks.REDSTONE_WIRE || bl == Blocks.REPEATER
                         || bl == Blocks.COMPARATOR || bl == Blocks.OBSERVER
                         || bl == Blocks.PISTON || bl == Blocks.STICKY_PISTON
@@ -181,6 +183,11 @@ public final class BaseIntel {
             + beacons * 5 + beehives * 3 + miscBe * 0.5 + digSec.size() * 2
             + rsSec.size() * 1.5 + shaftSec.size();
 
+        // physical evidence gate — cross-signals AMPLIFY a real chunk,
+        // they must not create one. A dig flag +8 alone used to mint
+        // "Unknown 24%" leads everywhere (the 85-nearby noise flood).
+        if (score < 3) return null;
+
         // cross-signals from the other finders — reuse their verdicts as evidence
         var cf = NoxClient.INSTANCE.modules.get("ChunkFinder");
         if (cf instanceof ChunkFinder f && f.flagged().contains(cp)) score += 10;
@@ -192,9 +199,8 @@ public final class BaseIntel {
         long ck = ((long) cp.x() << 32) | (cp.z() & 0xFFFFFFFFL);
         boolean activity = ActivityFind.flagged().contains(ck);
         boolean entity = EntityFind.flagged().contains(ck);
-        if (activity) score += 8;
-        if (entity) score += 12;
-        if (score < 3) return null;
+        if (activity) score += 5;
+        if (entity) score += 8;
 
         Entry e = new Entry();
         e.cp = cp; e.score = score; e.at = now;

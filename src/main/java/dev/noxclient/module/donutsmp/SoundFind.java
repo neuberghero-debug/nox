@@ -253,10 +253,18 @@ public class SoundFind extends Module {
             m.deep = deep;
             MARKS.put(key, m);
             if (MARKS.size() > 256) MARKS.remove(MARKS.keySet().iterator().next());
-            if (chatNotify.on())
-                Toasts.push("◈ " + (deep ? "DEEP " : "") + label
+            if (chatNotify.on()) {
+                long gap = switch (kind) {
+                    case "player" -> 2_000;
+                    case "storage", "level" -> 4_000;
+                    case "sound" -> 8_000;
+                    case "entity" -> 12_000;
+                    default -> 15_000;
+                };
+                Toasts.pushKeyed("sf:" + kind, "◈ " + (deep ? "DEEP " : "") + label
                     + " " + String.format("%.0fm", Math.sqrt(d2)) + (deep ? " ↓" + (int) -dy : ""),
-                    deep ? 0xFFFFAA00 : 0xFF9AD5FF);
+                    deep ? 0xFFFFAA00 : 0xFF9AD5FF, gap);
+            }
             mark("found " + label);
         } else {
             m.bump(x, y, z, deep);

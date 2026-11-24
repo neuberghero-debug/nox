@@ -296,13 +296,37 @@ public class ActivityFind extends Module {
         mark(kind, label, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, color);
     }
 
+    /** Kinds worth a persistent stash-index entry — real base evidence
+     *  only. dig/activity/pickup marks are transient noise. */
+    private static final Set<String> STASHABLE = Set.of(
+        "xray", "storage", "place", "sign", "blast");
+
+    /** Per-kind toast gap (ms). -1 = world mark only, never a toast —
+     *  dig/activity/pickup used to push a card per new chunk because the
+     *  distance in the text defeated toast dedup. Now: only real hits
+     *  toast, and each kind has a cooldown. */
+    private static long toastGap(String kind) {
+        return switch (kind) {
+            case "xray" -> 2_000;
+            case "storage", "blast", "combat" -> 4_000;
+            case "place", "sign" -> 8_000;
+            case "dig" -> 15_000;
+            default -> -1;
+        };
+    }
+
     private void mark(String kind, String label, double x, double y, double z, int color) {
         if (mc.player == null) return;
         double dx = x - mc.player.getX(), dy = y - mc.player.getY(), dz = z - mc.player.getZ();
         double d2 = dx * dx + dy * dy + dz * dz;
         if (d2 < ignoreNear.get() * ignoreNear.get()) return;
         boolean deep = y < mc.player.getY() - deepDrop.get();
-        String key = kind + ":" + ((int) x >> 4) + ":" + ((int) z >> 4) + ":" + label;
+        // dig marks aggregate into 64-block cells — a miner crossing
+        // chunk borders used to spawn a fresh mark every 16 blocks;
+        // bump() keeps the centroid tracking them instead
+        int gx = "dig".equals(kind) ? (int) x >> 6 : (int) x >> 4;
+        int gz = "dig".equals(kind) ? (int) z >> 6 : (int) z >> 4;
+        String key = kind + ":" + gx + ":" + gz + ":" + label;
         Mark m = MARKS.get(key);
         int col = deep ? 0xFFFFAA00 : color;
         if (m == null) {
@@ -310,12 +334,14 @@ public class ActivityFind extends Module {
             m.deep = deep;
             MARKS.put(key, m);
             if (MARKS.size() > 256) MARKS.remove(MARKS.keySet().iterator().next());
-            if (chatNotify.on())
-                Toasts.push("◉ " + (deep ? "DEEP " : "") + label
-                    + " " + String.format("%.0fm", Math.sqrt(d2)), col);
+            long gap = toastGap(kind);
+            if (chatNotify.on() && gap >= 0)
+                Toasts.pushKeyed("af:" + kind, "◉ " + (deep ? "DEEP " : "") + label
+                    + " " + String.format("%.0fm", Math.sqrt(d2)), col, gap);
             mark("found " + label);
-            dev.noxclient.util.StashIndex.add("activity", label,
-                new BlockPos((int) x, (int) y, (int) z));
+            if (STASHABLE.contains(kind))
+                dev.noxclient.util.StashIndex.add("activity", label,
+                    new BlockPos((int) x, (int) y, (int) z));
         } else {
             m.bump(x, y, z, deep);
             if (m.deep) m.color = 0xFFFFAA00;

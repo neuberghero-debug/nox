@@ -18,7 +18,7 @@ import java.util.Set;
 public class BaseFinder extends Module {
     public final Setting.Num radius = add(new Setting.Num("Radius (chunks)", 12, 4, 48));
     public final Setting.Num perTick = add(new Setting.Num("Scan per tick", 2, 1, 8));
-    public final Setting.Num minConf = add(new Setting.Num("Min confidence %", 15, 1, 95));
+    public final Setting.Num minConf = add(new Setting.Num("Min confidence %", 25, 1, 95));
     public final Setting.Num maxRows = add(new Setting.Num("Panel rows", 5, 1, 10));
     public final Setting.Bool notify = add(new Setting.Bool("Chat notify", true,
         "Message when a new ≥70% chunk appears"));

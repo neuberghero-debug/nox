@@ -15,8 +15,20 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public final class Toasts {
     private record Toast(String title, String msg, int color, long born) {}
     private static final List<Toast> LIST = new CopyOnWriteArrayList<>();
+    private static final java.util.Map<String, Long> KEY_GAP = new java.util.concurrent.ConcurrentHashMap<>();
     private static final long LIFE = 3200;
     private static final long EXIT = 320;
+
+    /** Rate-limited push — finders call this with a STABLE key (e.g.
+     *  "dig", "chest") so noisy kinds can't flood the stack by varying
+     *  the text (distance suffixes used to make every toast unique). */
+    public static void pushKeyed(String key, String text, int color, long minGapMs) {
+        long now = System.currentTimeMillis();
+        Long last = KEY_GAP.get(key);
+        if (last != null && now - last < minGapMs) return;
+        KEY_GAP.put(key, now);
+        push(text, color);
+    }
 
     public static void push(String text, int color) {
         LIST.removeIf(x -> x.msg.equals(text));
